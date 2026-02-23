@@ -1,4 +1,4 @@
-import { CloudDownloadOutlined, LoadingOutlined } from '@ant-design/icons';
+import { CloudDownloadOutlined } from '@ant-design/icons';
 import { Button, Form, Input, InputNumber, Modal, Space, Tooltip } from 'antd';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -101,8 +101,7 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
             </Form.Item>
             <Tooltip title={t('cycle.fetchExchangeRate')}>
               <Button
-                icon={fetchExchangeRateLoading ? <LoadingOutlined /> : <CloudDownloadOutlined />}
-                loading={fetchExchangeRateLoading}
+                icon={<CloudDownloadOutlined />}
                 onClick={onFetchExchangeRate}
               />
             </Tooltip>

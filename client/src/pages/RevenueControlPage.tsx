@@ -1,32 +1,32 @@
 import {
-    CalendarOutlined,
-    DollarOutlined,
-    PlusOutlined,
-    ReloadOutlined,
+  CalendarOutlined,
+  DollarOutlined,
+  PlusOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Form, Space, Spin, Tabs, Typography } from 'antd';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ytScraperApi } from '../api';
+import { cycleApi, ytScraperApi } from '../api';
 import { RevenueRecordModal } from '../components/features';
 import { CycleFormModal, CyclesTab, RevenueTab, ScrapeResultModal } from '../components/revenue';
 import {
-    useActiveKOCs,
-    useApproveRecord,
-    useCompleteCycle,
-    useCreateCycle,
-    useCreateRevenueRecord,
-    useCycles,
-    useDeleteRevenueRecord,
-    useFetchExchangeRate,
-    useLockCycle,
-    usePaymentStatus,
-    useRevenueRecords,
-    useScrapeRevenue,
-    useUpdateCycle,
-    useUpdateExchangeRate,
-    useUpdateRevenueRecord,
+  useActiveKOCs,
+  useApproveRecord,
+  useCompleteCycle,
+  useCreateCycle,
+  useCreateRevenueRecord,
+  useCycles,
+  useDeleteRevenueRecord,
+  useFetchExchangeRate,
+  useLockCycle,
+  usePaymentStatus,
+  useRevenueRecords,
+  useScrapeRevenue,
+  useUpdateCycle,
+  useUpdateExchangeRate,
+  useUpdateRevenueRecord,
 } from '../hooks';
 import { useAuthStore } from '../stores';
 import type { RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../types';
@@ -100,18 +100,32 @@ const RevenueControlPage: React.FC = () => {
   const activeKOCs = activeKOCsData?.data || [];
 
   const [cycleForm] = Form.useForm();
+  const cycleModalOpenRef = useRef(false);
+
+  // Silent background exchange rate update every 5 minutes (no spinner)
+  const silentFetchExchangeRate = useCallback(async () => {
+    try {
+      const res = await cycleApi.getExchangeRate();
+      const rate = res.data?.data?.averageRate;
+      if (rate && cycleModalOpenRef.current) {
+        cycleForm.setFieldsValue({ exchange_rate: rate });
+      }
+    } catch {
+      // silent - ignore errors
+    }
+  }, [cycleForm]);
+
+  useEffect(() => {
+    const interval = setInterval(silentFetchExchangeRate, 5 * 60 * 1000); // every 5 minutes
+    return () => clearInterval(interval);
+  }, [silentFetchExchangeRate]);
 
   // --- Cycle handlers ---
   const openCreateCycle = () => {
     setEditingCycle(null);
     cycleForm.resetFields();
     setCycleModalOpen(true);
-    fetchExchangeRateMutation.mutate(undefined, {
-      onSuccess: (res) => {
-        const rate = res.data?.data?.averageRate;
-        if (rate) cycleForm.setFieldsValue({ exchange_rate: rate });
-      },
-    });
+    cycleModalOpenRef.current = true;
   };
 
   const openEditCycle = (cycle: RevenueCycle) => {
@@ -121,6 +135,7 @@ const RevenueControlPage: React.FC = () => {
       exchange_rate: Number(cycle.exchange_rate),
     });
     setCycleModalOpen(true);
+    cycleModalOpenRef.current = true;
   };
 
   const handleCycleSubmit = (values: { month: string; exchange_rate: number }) => {
@@ -185,12 +200,10 @@ const RevenueControlPage: React.FC = () => {
     }
   };
 
-  const isLoadingOverlay = scrapeRevenueMutation.isPending || fetchExchangeRateMutation.isPending || updateExchangeRateMutation.isPending;
+  const isLoadingOverlay = scrapeRevenueMutation.isPending || updateExchangeRateMutation.isPending;
   const loadingText = scrapeRevenueMutation.isPending 
     ? t('ytScraper.scrapingRevenue')
-    : (fetchExchangeRateMutation.isPending || updateExchangeRateMutation.isPending)
-    ? t('revenue.updatingExchangeRate')
-    : t('common.loading');
+    : t('revenue.updatingExchangeRate');
 
   return (
     <Spin spinning={isLoadingOverlay} tip={loadingText} size="large" className="stats-page-spin">
@@ -255,7 +268,7 @@ const RevenueControlPage: React.FC = () => {
                   onScrapeRevenue={handleScrapeRevenue}
                   scrapeLoading={scrapeRevenueMutation.isPending}
                   onRefreshExchangeRate={handleRefreshExchangeRate}
-                  refreshExchangeRateLoading={fetchExchangeRateMutation.isPending || updateExchangeRateMutation.isPending}
+                  refreshExchangeRateLoading={updateExchangeRateMutation.isPending}
                   onLockCycle={(id) => lockCycleMutation.mutate(id)}
                   lockLoading={lockCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
@@ -288,8 +301,8 @@ const RevenueControlPage: React.FC = () => {
           editingCycle={editingCycle}
           form={cycleForm}
           cycles={cycles || []}
-          onCancel={() => setCycleModalOpen(false)}
-          onSubmit={handleCycleSubmit}
+          onCancel={() => { setCycleModalOpen(false); cycleModalOpenRef.current = false; }}
+          onSubmit={(values) => { handleCycleSubmit(values); cycleModalOpenRef.current = false; }}
           confirmLoading={createCycleMutation.isPending || updateCycleMutation.isPending}
           onFetchExchangeRate={() => {
             fetchExchangeRateMutation.mutate(undefined, {
