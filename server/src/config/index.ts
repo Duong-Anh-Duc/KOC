@@ -24,7 +24,7 @@ export const config = {
       /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:5173$/,
       /^http:\/\/172\.(1[6-9]|2[0-9]|3[01])\.\d{1,3}\.\d{1,3}:5173$/,
       ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
-    ],
+    ] as (string | RegExp)[],
   },
 
   defaultAdmin: {
