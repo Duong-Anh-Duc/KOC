@@ -1,0 +1,457 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ===== Custom Spin Loading (reduce background dimming) ===== */
+.stats-page-spin .ant-spin-container::after {
+  background: rgba(255, 255, 255, 0.75) !important;
+}
+
+html[data-theme='dark'] .stats-page-spin .ant-spin-container::after {
+  background: rgba(0, 0, 0, 0.75) !important;
+}
+
+.stats-page-spin .ant-spin-blur {
+  filter: blur(2px);
+}
+
+/* ===== Stats Total Row Styling ===== */
+.stats-total-row {
+  background-color: #fafafa !important;
+  font-weight: 600 !important;
+}
+
+.stats-total-row:hover {
+  background-color: #f5f5f5 !important;
+}
+
+html[data-theme='dark'] .stats-total-row {
+  background-color: #1f1f1f !important;
+}
+
+html[data-theme='dark'] .stats-total-row:hover {
+  background-color: #262626 !important;
+}
+
+.stats-total-row td {
+  font-weight: 600 !important;
+}
+
+.stats-page-spin .ant-spin-text {
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 12px;
+  color: #ED8F3A;
+}
+
+html[data-theme='dark'] .stats-page-spin .ant-spin-text {
+  color: #ED8F3A;
+}
+
+/* ===== Enhanced Table Styling ===== */
+.ant-table {
+  transition: all 0.3s ease;
+}
+
+.ant-table-thead>tr>th {
+  white-space: nowrap;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.ant-table-tbody>tr {
+  transition: all 0.2s ease;
+}
+
+.ant-table-tbody>tr:hover>td {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+html[data-theme='dark'] .ant-table-tbody>tr:hover>td {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Revenue table summary row */
+.ant-table-summary .ant-table-cell {
+  font-weight: 600;
+}
+
+/* ===== Enhanced Button & Icon Effects ===== */
+.ant-btn {
+  transition: all 0.2s ease;
+}
+
+.ant-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ant-btn-text:not(:disabled):hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  transform: translateY(0);
+}
+
+html[data-theme='dark'] .ant-btn-text:not(:disabled):hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.anticon {
+  transition: all 0.2s ease;
+}
+
+.ant-btn:hover .anticon {
+  transform: scale(1.15);
+}
+
+.ant-btn-text:hover .anticon {
+  transform: scale(1.1);
+}
+
+/* ===== Tag Styling ===== */
+.ant-tag {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* ===== Card Hover Effects ===== */
+.ant-card {
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+html[data-theme='dark'] .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Statistic Cards ===== */
+.ant-statistic {
+  transition: all 0.3s ease;
+}
+
+.ant-statistic-title {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.ant-statistic-content {
+  font-weight: 600;
+}
+
+/* ===== Input & Select Focus Effects ===== */
+.ant-input:focus,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  box-shadow: 0 0 0 2px rgba(237, 143, 58, 0.1);
+}
+
+.ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 2px rgba(237, 143, 58, 0.1);
+}
+
+/* ===== Table Pagination ===== */
+.ant-pagination {
+  margin-top: 16px;
+}
+
+.ant-pagination-item {
+  transition: all 0.2s ease;
+}
+
+.ant-pagination-item:not(.ant-pagination-item-active):hover {
+  transform: translateY(-1px);
+}
+
+.ant-pagination-item-active {
+  font-weight: 600;
+  background-color: #ED8F3A;
+  border-color: #ED8F3A;
+}
+
+.ant-pagination-item-active a {
+  color: #fff;
+}
+
+/* ===== Tooltip ===== */
+.ant-tooltip {
+  max-width: 300px;
+}
+
+.ant-tooltip-inner {
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* ===== Modal ===== */
+.ant-modal {
+  top: 40px;
+}
+
+/* ===== Custom Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+html[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+html[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== Popconfirm Styling ===== */
+.ant-popconfirm-message {
+  margin-bottom: 8px;
+}
+
+.ant-popconfirm-buttons {
+  margin-top: 8px;
+}
+
+/* ===== Space & Layout ===== */
+.ant-space-item {
+  transition: all 0.2s ease;
+}
+
+/* ===== Login Page Animations ===== */
+.login-page-container {
+  animation: loginBgFade 1s ease-in-out;
+}
+
+@keyframes loginBgFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Animated background circles */
+.login-bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  animation: float 20s infinite ease-in-out;
+}
+
+.login-bg-circle-1 {
+  width: 400px;
+  height: 400px;
+  top: -200px;
+  left: -200px;
+  animation-delay: 0s;
+}
+
+.login-bg-circle-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -150px;
+  right: -150px;
+  animation-delay: 2s;
+}
+
+.login-bg-circle-3 {
+  width: 500px;
+  height: 500px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation-delay: 4s;
+  opacity: 0.05;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  25% {
+    transform: translateY(-20px) rotate(5deg);
+  }
+
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  75% {
+    transform: translateY(20px) rotate(-5deg);
+  }
+}
+
+/* Login card animation */
+.login-card {
+  opacity: 0;
+  transform: translateY(50px) scale(0.9);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.login-card-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Login settings buttons animation */
+.login-settings-fade-in {
+  animation: fadeInDown 0.6s ease-out 0.3s both;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Login header animation */
+.login-header-fade-in {
+  animation: fadeIn 0.8s ease-out 0.3s both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Login logo bounce */
+.login-logo-bounce {
+  animation: logoBounce 1s ease-out 0.4s both;
+}
+
+@keyframes logoBounce {
+  0% {
+    transform: scale(0) rotate(-180deg);
+  }
+
+  50% {
+    transform: scale(1.1) rotate(10deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Login form slide up */
+.login-form-slide-up {
+  animation: slideUp 0.8s ease-out 0.5s both;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Login button hover effect */
+.login-button:not(:disabled):hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(102, 126, 234, 0.5);
+  filter: brightness(1.05);
+}
+
+.login-button:not(:disabled):active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+/* Input focus glow */
+.login-form-slide-up .ant-input:focus,
+.login-form-slide-up .ant-input-affix-wrapper:focus,
+.login-form-slide-up .ant-input-affix-wrapper-focused {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+  transform: translateY(-1px);
+  transition: all 0.3s ease;
+}
+
+/* Input hover state */
+.login-form-slide-up .ant-input:hover,
+.login-form-slide-up .ant-input-affix-wrapper:hover {
+  border-color: #667eea;
+  transition: all 0.3s ease;
+}
+
+/* Form label styling */
+.login-form-slide-up .ant-form-item-label>label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Error message styling */
+.login-form-slide-up .ant-form-item-explain-error {
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+/* Settings button hover */
+.login-settings-fade-in .ant-btn-circle:hover {
+  transform: translateY(-2px) rotate(5deg);
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ===== Logo Animations ===== */
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.login-logo-bounce {
+  animation: logoFloat 3s ease-in-out infinite;
+}

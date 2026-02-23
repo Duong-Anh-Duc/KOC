@@ -1,0 +1,45 @@
+/** Revenue calculation constants */
+export const REVENUE_CONSTANTS = {
+  /** Bank fee percentage: 0.25% */
+  BANK_FEE_RATE: 0.0025,
+  /** Fixed bank fee in USD */
+  BANK_FEE_FIXED: 12,
+  /** Default KOC base rate: 80% */
+  DEFAULT_KOC_BASE_RATE: 0.8,
+  /** Company share rate: 20% */
+  COMPANY_SHARE_RATE: 0.2,
+  /** KOC personal income tax rate: 10% */
+  KOC_TAX_RATE: 0.10,
+  /** YouTube AdSense minimum payment threshold (USD) */
+  MIN_PAYMENT_THRESHOLD: 100,
+} as const;
+
+/** Pagination defaults */
+export const PAGINATION = {
+  DEFAULT_PAGE: 1,
+  DEFAULT_LIMIT: 20,
+  MAX_LIMIT: 100,
+} as const;
+
+/** Audit log actions */
+export const AUDIT_ACTIONS = {
+  CREATE_KOC: 'CREATE_KOC',
+  UPDATE_KOC: 'UPDATE_KOC',
+  DELETE_KOC: 'DELETE_KOC',
+  CREATE_REVENUE_RECORD: 'CREATE_REVENUE_RECORD',
+  UPDATE_REVENUE_RECORD: 'UPDATE_REVENUE_RECORD',
+  DELETE_REVENUE_RECORD: 'DELETE_REVENUE_RECORD',
+  APPROVE_REVENUE_RECORD: 'APPROVE_REVENUE_RECORD',
+  CREATE_CYCLE: 'CREATE_CYCLE',
+  UPDATE_CYCLE: 'UPDATE_CYCLE',
+  LOCK_CYCLE: 'LOCK_CYCLE',
+  COMPLETE_CYCLE: 'COMPLETE_CYCLE',
+} as const;
+
+/** Entity names for audit log */
+export const ENTITIES = {
+  KOC: 'KOC',
+  REVENUE_RECORD: 'REVENUE_RECORD',
+  REVENUE_CYCLE: 'REVENUE_CYCLE',
+  USER: 'USER',
+} as const;

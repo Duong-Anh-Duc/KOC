@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { StatsController } from '../controllers';
+import { authMiddleware } from '../middlewares';
+
+const router = Router();
+
+router.use(authMiddleware);
+
+router.get('/latest', StatsController.getLatest);
+router.get('/growth/all', StatsController.getAllGrowth);
+router.get('/:kocId/correlation', StatsController.getCorrelation);
+router.get('/:kocId/growth', StatsController.getGrowth);
+router.get('/:kocId', StatsController.getHistory);
+router.post('/:kocId/fetch', StatsController.fetchStats);
+router.post('/fetch-all', StatsController.fetchAllStats);
+
+export default router;

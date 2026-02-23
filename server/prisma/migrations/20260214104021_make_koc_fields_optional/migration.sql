@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "kocs" ALTER COLUMN "phone" DROP NOT NULL,
+ALTER COLUMN "bank_account_number" DROP NOT NULL,
+ALTER COLUMN "bank_name" DROP NOT NULL,
+ALTER COLUMN "tax_code" DROP NOT NULL;

@@ -1,0 +1,239 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { cycleApi, revenueApi } from '../api';
+import type {
+    BulkCreateRevenueRecordInput,
+    CreateCycleInput,
+    CreateRevenueRecordInput,
+    UpdateCycleInput,
+    UpdateRevenueRecordInput,
+} from '../types';
+import { toastError, toastSuccess } from '../utils';
+
+// ============================================================
+// REVENUE CYCLES
+// ============================================================
+
+const CYCLES_KEY = 'cycles';
+const RECORDS_KEY = 'revenue-records';
+
+export const useCycles = () => {
+  return useQuery({
+    queryKey: [CYCLES_KEY],
+    queryFn: () => cycleApi.getAll().then((res) => res.data.data),
+  });
+};
+
+export const useCycleDetail = (id: number) => {
+  return useQuery({
+    queryKey: [CYCLES_KEY, id],
+    queryFn: () => cycleApi.getById(id).then((res) => res.data.data),
+    enabled: !!id,
+  });
+};
+
+export const useCreateCycle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateCycleInput) => cycleApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('cycleCreateSuccess');
+    },
+    onError: () => {
+      toastError('cycleCreateError');
+    },
+  });
+};
+
+export const useUpdateCycle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpdateCycleInput }) =>
+      cycleApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('cycleUpdateSuccess');
+    },
+    onError: () => {
+      toastError('cycleUpdateError');
+    },
+  });
+};
+
+export const useLockCycle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => cycleApi.lock(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('cycleLockSuccess');
+    },
+    onError: () => {
+      toastError('cycleLockError');
+    },
+  });
+};
+
+export const useCompleteCycle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => cycleApi.complete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('cycleCompleteSuccess');
+    },
+    onError: () => {
+      toastError('cycleCompleteError');
+    },
+  });
+};
+
+export const useFetchExchangeRate = () => {
+  return useMutation({
+    mutationFn: () => cycleApi.getExchangeRate(),
+  });
+};
+
+export const useUpdateExchangeRate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpdateCycleInput }) =>
+      cycleApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('exchangeRateUpdateSuccess');
+    },
+    onError: () => {
+      toastError('exchangeRateUpdateError');
+    },
+  });
+};
+
+export const useScrapeRevenue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (cycleId: number) => cycleApi.scrapeRevenue(cycleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueScrapeSuccess');
+    },
+    onError: () => {
+      toastError('revenueScrapeError');
+    },
+  });
+};
+
+// ============================================================
+// REVENUE RECORDS
+// ============================================================
+
+export const useRevenueRecords = (cycleId: number) => {
+  return useQuery({
+    queryKey: [RECORDS_KEY, cycleId],
+    queryFn: () => revenueApi.getRecordsByCycle(cycleId).then((res) => res.data),
+    enabled: !!cycleId,
+  });
+};
+
+export const useCreateRevenueRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateRevenueRecordInput) => revenueApi.createRecord(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueCreateSuccess');
+    },
+    onError: () => {
+      toastError('revenueCreateError');
+    },
+  });
+};
+
+export const useBulkCreateRecords = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: BulkCreateRevenueRecordInput) => revenueApi.bulkCreateRecords(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueCreateSuccess');
+    },
+    onError: () => {
+      toastError('revenueCreateError');
+    },
+  });
+};
+
+export const useUpdateRevenueRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateRevenueRecordInput }) =>
+      revenueApi.updateRecord(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueUpdateSuccess');
+    },
+    onError: () => {
+      toastError('revenueUpdateError');
+    },
+  });
+};
+
+export const useDeleteRevenueRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => revenueApi.deleteRecord(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueDeleteSuccess');
+    },
+    onError: () => {
+      toastError('revenueDeleteError');
+    },
+  });
+};
+
+export const useApproveRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => revenueApi.approveRecord(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueApproveSuccess');
+    },
+    onError: () => {
+      toastError('revenueApproveError');
+    },
+  });
+};
+
+export const usePreviewCalculation = () => {
+  return useMutation({
+    mutationFn: (data: {
+      original_revenue_usd: number;
+      us_tax_deduction: number;
+      base_rate?: number;
+      exchange_rate?: number;
+    }) => revenueApi.previewCalculation(data).then((res) => res.data.data),
+  });
+};
+
+export const usePaymentStatus = (cycleId: number) => {
+  return useQuery({
+    queryKey: ['payment-status', cycleId],
+    queryFn: () => revenueApi.getPaymentStatus(cycleId).then((res) => res.data.data),
+    enabled: !!cycleId,
+  });
+};

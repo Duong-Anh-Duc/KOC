@@ -1,0 +1,127 @@
+import { Button, Table, Tag } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import type { AuditLog } from '../../types';
+import { getTableLocale } from '../../utils';
+
+const entityColorMap: Record<string, string> = {
+  KOC: 'blue',
+  REVENUE_RECORD: 'green',
+  REVENUE_CYCLE: 'orange',
+  USER: 'purple',
+  CHANNEL_STAT: 'cyan',
+  SYSTEM_CONFIG: 'magenta',
+};
+
+interface AuditLogsTableProps {
+  logs: AuditLog[];
+  loading: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  onViewDetails: (log: AuditLog) => void;
+}
+
+const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
+  logs,
+  loading,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+  onViewDetails,
+}) => {
+  const { t } = useTranslation();
+
+  const columns: ColumnsType<AuditLog> = [
+    {
+      title: t('audit.action'),
+      dataIndex: 'action',
+      width: 180,
+      render: (action: string) => {
+        const colorMap: Record<string, string> = {
+          CREATE: 'green',
+          UPDATE: 'blue',
+          DELETE: 'red',
+          APPROVE: 'orange',
+          LOCK: 'purple',
+          COMPLETE: 'cyan',
+          LOGIN: 'geekblue',
+          CREATE_CYCLE: 'green',
+          RUN_CRON_JOB: 'gold',
+          UPDATE_CRON_CONFIG: 'blue',
+        };
+        return <Tag color={colorMap[action] || 'default'}>{t(`audit.actions.${action}`, action)}</Tag>;
+      },
+    },
+    {
+      title: t('audit.entity'),
+      dataIndex: 'entity',
+      width: 140,
+      render: (val: string) => (
+        <Tag color={entityColorMap[val] || 'default'}>{t(`audit.entities.${val}`, val)}</Tag>
+      ),
+    },
+    {
+      title: t('audit.user'),
+      width: 180,
+      render: (_: unknown, record: AuditLog) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.user?.full_name || '-'}</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{record.user?.email || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      title: t('common.createdAt'),
+      dataIndex: 'timestamp',
+      width: 160,
+      render: (val: string) => (
+        <div>
+          <div>{dayjs(val).format('DD/MM/YYYY')}</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{dayjs(val).format('HH:mm:ss')}</div>
+        </div>
+      ),
+    },
+    {
+      title: t('common.actions'),
+      width: 100,
+      align: 'center',
+      render: (_: unknown, record: AuditLog) => (
+        <Button type="link" size="small" onClick={() => onViewDetails(record)}>
+          {t('common.viewDetails')}
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <Table
+      columns={columns}
+      dataSource={logs}
+      rowKey="id"
+      loading={loading}
+      bordered
+      locale={getTableLocale(t)}
+      scroll={{ x: 800 }}
+      pagination={{
+        current: page,
+        pageSize,
+        total,
+        onChange: (p) => onPageChange(p),
+        onShowSizeChange: (_, size) => onPageSizeChange(size),
+        showTotal: (t_total) => `${t('common.total')}: ${t_total}`,
+        showSizeChanger: true,
+        showQuickJumper: true,
+        pageSizeOptions: ['10', '20', '50', '100'],
+      }}
+    />
+  );
+};
+
+export default AuditLogsTable;

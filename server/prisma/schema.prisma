@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  ACCOUNTANT
+  KOC
+}
+
+enum KOCStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CycleStatus {
+  OPEN
+  LOCKED
+  PAYMENT_COMPLETED
+}
+
+enum RecordStatus {
+  PENDING
+  APPROVED
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+/// Quản trị viên (Admin / Accountant / KOC)
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  password_hash String   @db.VarChar(255)
+  full_name     String   @db.VarChar(255)
+  role          UserRole @default(ACCOUNTANT)
+  is_active     Boolean  @default(true)
+  koc_id        String?  @unique @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @updatedAt @db.Timestamptz()
+
+  koc        KOC?       @relation(fields: [koc_id], references: [id], onDelete: SetNull)
+  audit_logs AuditLog[]
+
+  @@map("users")
+}
+
+/// Đối tác KOC
+model KOC {
+  id                 String    @id @default(uuid()) @db.Uuid
+  full_name          String    @db.VarChar(255)
+  channel_name       String    @db.VarChar(255)
+  youtube_channel_id String    @db.VarChar(100)
+  email              String    @db.VarChar(255)
+  phone              String?   @db.VarChar(20)
+  bank_account_number String?  @db.VarChar(50)
+  bank_name          String?   @db.VarChar(255)
+  tax_code           String?   @db.VarChar(30)
+  base_rate          Decimal   @default(0.8) @db.Decimal(5, 4)
+  pub_code           String?   @db.VarChar(50) // AdSense publisher ID, e.g. "pub-7049604904015296"
+  status             KOCStatus @default(ACTIVE)
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+  updated_at         DateTime  @updatedAt @db.Timestamptz()
+
+  revenue_records        RevenueRecord[]
+  channel_stats          ChannelStat[]
+  youtube_scrape_results YouTubeScrapeResult[]
+  monthly_revenue_analytics MonthlyRevenueAnalytics[]
+  user                   User?
+
+  @@map("kocs")
+}
+
+/// Kỳ đối soát (Monthly Revenue Cycle)
+model RevenueCycle {
+  id            Int         @id @default(autoincrement())
+  month         String      @db.VarChar(7) // Format: "MM/YYYY"
+  status        CycleStatus @default(OPEN)
+  exchange_rate Decimal     @db.Decimal(12, 2) // VND/USD
+  created_at    DateTime    @default(now()) @db.Timestamptz()
+  updated_at    DateTime    @updatedAt @db.Timestamptz()
+
+  revenue_records RevenueRecord[]
+
+  @@unique([month])
+  @@map("revenue_cycles")
+}
+
+/// Bảng lương chi tiết (Revenue Record per KOC per Cycle)
+model RevenueRecord {
+  id                   String       @id @default(uuid()) @db.Uuid
+  koc_id               String       @db.Uuid
+  cycle_id             Int
+  original_revenue_usd Decimal      @db.Decimal(14, 2)
+  us_tax_deduction     Decimal      @db.Decimal(14, 2)
+  bank_fee             Decimal      @db.Decimal(14, 2)
+  net_revenue          Decimal      @db.Decimal(14, 2)
+  company_share        Decimal      @db.Decimal(14, 2)
+  koc_share_gross      Decimal      @db.Decimal(14, 2)
+  koc_tax_deduction    Decimal      @db.Decimal(14, 2)
+  koc_receive_usd      Decimal      @db.Decimal(14, 2)
+  koc_receive_vnd      Decimal      @db.Decimal(18, 2)
+  scraped_pub_code     String?      @db.VarChar(50)
+  pub_code_match       Boolean?
+  status               RecordStatus @default(PENDING)
+  created_at           DateTime     @default(now()) @db.Timestamptz()
+  updated_at           DateTime     @updatedAt @db.Timestamptz()
+
+  koc   KOC          @relation(fields: [koc_id], references: [id], onDelete: Cascade)
+  cycle RevenueCycle  @relation(fields: [cycle_id], references: [id], onDelete: Cascade)
+
+  @@unique([koc_id, cycle_id])
+  @@map("revenue_records")
+}
+
+/// Audit Log - Lịch sử thay đổi
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  user_id   String?  @db.Uuid
+  action    String   @db.VarChar(100)
+  entity    String   @db.VarChar(50) // "KOC", "REVENUE_RECORD", "REVENUE_CYCLE"
+  entity_id String   @db.VarChar(100)
+  old_value Json?    @db.JsonB
+  new_value Json?    @db.JsonB
+  timestamp DateTime @default(now()) @db.Timestamptz()
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([entity, entity_id])
+  @@index([user_id])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+/// Channel Stats - Dữ liệu từ YouTube Studio Analytics
+model ChannelStat {
+  id          String   @id @default(uuid()) @db.Uuid
+  koc_id      String   @db.Uuid
+  view_count  BigInt   @default(0)
+  sub_count   BigInt   @default(0)
+  yt_analytics Json?   @db.JsonB  // Rich data from YT Studio analytics tabs
+  recorded_at DateTime @default(now()) @db.Timestamptz()
+
+  koc KOC @relation(fields: [koc_id], references: [id], onDelete: Cascade)
+
+  @@index([koc_id, recorded_at])
+  @@map("channel_stats")
+}
+
+/// YouTube Scrape Results - Lịch sử cào YouTube Studio Analytics (Revenue Explore)
+model YouTubeScrapeResult {
+  id                  String   @id @default(uuid()) @db.Uuid
+  koc_id              String   @db.Uuid
+  channel_id          String   @db.VarChar(100)
+
+  // Totals from revenue explore table
+  views               BigInt?
+  watch_time_hours    Decimal? @db.Decimal(14, 2)
+  estimated_revenue   Decimal? @db.Decimal(14, 4)
+  avg_watch_time      String?  @db.VarChar(20)   // e.g. "0:46"
+  period              String?  @db.VarChar(100)
+
+  // Revenue by country breakdown
+  country_data        Json?    @db.JsonB  // Array of RevenueByCountry
+
+  // Raw page text for debugging
+  raw_texts           Json?    @db.JsonB
+
+  scraped_at          DateTime @default(now()) @db.Timestamptz()
+
+  koc KOC @relation(fields: [koc_id], references: [id], onDelete: Cascade)
+
+  @@index([koc_id, scraped_at])
+  @@index([koc_id])
+  @@map("youtube_scrape_results")
+}
+
+/// System Configuration (key-value store)
+model SystemConfig {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String   @unique @db.VarChar(100)
+  value      Json     @db.JsonB
+  updated_at DateTime @updatedAt @db.Timestamptz()
+
+  @@map("system_configs")
+}
+
+/// Monthly Revenue Analytics - Doanh thu chi tiết theo tháng từ YouTube Studio
+model MonthlyRevenueAnalytics {
+  id                  String   @id @default(uuid()) @db.Uuid
+  koc_id              String   @db.Uuid
+  channel_id          String   @db.VarChar(100)
+
+  // Month identifier: "Tháng 1", "Tháng 2", etc. or "01/2026"
+  month_label         String   @db.VarChar(100)
+  // Normalized: YYYY-MM for sorting
+  month_key           String   @db.VarChar(7)
+
+  // Analytics data
+  views               BigInt?
+  views_percent       Decimal? @db.Decimal(8, 2)
+  watch_time_hours    Decimal? @db.Decimal(14, 2)
+  watch_time_percent  Decimal? @db.Decimal(8, 2)
+  avg_watch_time      String?  @db.VarChar(20)
+  estimated_revenue   Decimal? @db.Decimal(14, 4)
+  revenue_percent     Decimal? @db.Decimal(8, 2)
+
+  scraped_at          DateTime @default(now()) @db.Timestamptz()
+
+  koc KOC @relation(fields: [koc_id], references: [id], onDelete: Cascade)
+
+  @@unique([koc_id, month_key])
+  @@index([koc_id, month_key])
+  @@index([koc_id])
+  @@map("monthly_revenue_analytics")
+}
