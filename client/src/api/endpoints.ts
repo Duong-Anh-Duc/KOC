@@ -204,11 +204,11 @@ export const ytScraperApi = {
 
   /** Check YouTube Studio login status */
   checkStatus: () =>
-    apiClient.get<ApiResponse<{ loggedIn: boolean; email?: string }>>('/yt-scraper/status'),
+    apiClient.get<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/status'),
 
   /** Try to auto-connect using existing session */
   autoConnect: () =>
-    apiClient.post<ApiResponse<{ loggedIn: boolean; email?: string }>>('/yt-scraper/auto-connect'),
+    apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/auto-connect'),
 
   /** Scrape all active KOCs */
   scrapeAll: () =>
@@ -225,6 +225,14 @@ export const ytScraperApi = {
   /** Close browser */
   closeBrowser: () =>
     apiClient.post<ApiResponse>('/yt-scraper/close'),
+
+  /** Reset saved Chrome session (allows login with a different account) */
+  resetSession: () =>
+    apiClient.post<ApiResponse>('/yt-scraper/reset-session'),
+
+  /** Extract & refresh connected account info (channel name, email) */
+  refreshAccountInfo: () =>
+    apiClient.post<ApiResponse<{ channelName?: string; email?: string }>>('/yt-scraper/refresh-account-info'),
 
   // ============== Scrape Results (from DB) ==============
 

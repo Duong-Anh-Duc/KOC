@@ -227,7 +227,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
         <Space>
           <DatabaseOutlined />
           {t('ytScraper.latestResults')}
-          {latestResults && latestResults.length > 0 && <Tag color="green">{latestResults.length} KOCs</Tag>}
+          {latestResults && latestResults.length > 0 && <Tag color="green">{latestResults.length} {t('common.kocs')}</Tag>}
         </Space>
       }
       extra={

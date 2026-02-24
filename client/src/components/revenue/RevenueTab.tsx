@@ -4,8 +4,7 @@ import {
     DollarOutlined,
     LoadingOutlined,
     LockOutlined,
-    ReloadOutlined,
-    TeamOutlined,
+    TeamOutlined
 } from '@ant-design/icons';
 import { Button, Card, Col, Empty, Row, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import React from 'react';
@@ -41,8 +40,7 @@ interface RevenueTabProps {
   onDeleteRecord: (id: string) => void;
   onScrapeRevenue: (cycleId: number) => void;
   scrapeLoading: boolean;
-  onRefreshExchangeRate: () => void;
-  refreshExchangeRateLoading: boolean;
+
   onLockCycle: (id: number) => void;
   lockLoading: boolean;
   onCompleteCycle: (id: number) => void;
@@ -73,8 +71,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   onDeleteRecord,
   onScrapeRevenue,
   scrapeLoading,
-  onRefreshExchangeRate,
-  refreshExchangeRateLoading,
+
   onLockCycle,
   lockLoading,
   onCompleteCycle,
@@ -110,7 +107,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
         <SummaryBar
           items={[
             {
-              title: t('revenue.total') + ' KOCs',
+              title: t('revenue.totalKOCs'),
               value: records.length,
               prefix: <TeamOutlined />,
               valueStyle: { color: '#1677ff' },
@@ -154,19 +151,8 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
                 <Space size="small">
                   <Text>
                     {t('revenue.exchangeRate')}:{' '}
-                    <strong>{Number(selectedCycle.exchange_rate).toLocaleString()} VND/USD</strong>
+                    <strong>{Number(selectedCycle.exchange_rate).toLocaleString()} {t('common.vndUsd')}</strong>
                   </Text>
-                  {!cycleLocked && (
-                    <Tooltip title={t('cycle.fetchExchangeRate')}>
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={onRefreshExchangeRate}
-                        loading={refreshExchangeRateLoading}
-                      />
-                    </Tooltip>
-                  )}
                 </Space>
                 <Tag color={statusColorMap[selectedCycle.status]}>
                   {t(`status.${selectedCycle.status}`, selectedCycle.status)}

@@ -1,10 +1,12 @@
 import {
     ChromeOutlined,
-    CloseCircleOutlined,
     LoadingOutlined,
+    ReloadOutlined,
+    SwapOutlined,
     UserOutlined,
+    YoutubeOutlined,
 } from '@ant-design/icons';
-import { Alert, Badge, Button, Card, Col, Row, Space, Tag, Typography } from 'antd';
+import { Alert, Badge, Button, Card, Col, Popconfirm, Row, Space, Tag, Tooltip, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,8 +18,10 @@ interface LoginStatusCardProps {
   isLoggedIn: boolean;
   onOpenLogin: () => void;
   openLoginLoading: boolean;
-  onCloseBrowser: () => void;
-  closeBrowserLoading: boolean;
+  onChangeAccount: () => void;
+  changeAccountLoading: boolean;
+  onRefreshAccountInfo?: () => void;
+  refreshAccountInfoLoading?: boolean;
 }
 
 const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
@@ -26,16 +30,21 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
   isLoggedIn,
   onOpenLogin,
   openLoginLoading,
-  onCloseBrowser,
-  closeBrowserLoading,
+  onChangeAccount,
+  changeAccountLoading,
+  onRefreshAccountInfo,
+  refreshAccountInfoLoading,
 }) => {
   const { t } = useTranslation();
+
+  const channelName = statusData?.channelName;
+  const email = statusData?.email;
 
   return (
     <Card style={{ marginBottom: 16 }}>
       <Row gutter={16} align="middle">
         <Col flex="auto">
-          <Space size="large">
+          <Space size="middle" wrap>
             <Badge
               status={isLoggedIn ? 'success' : 'error'}
               text={
@@ -44,16 +53,36 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
                 </Text>
               }
             />
-            {statusData?.email && (
-              <Tag icon={<UserOutlined />} color="blue">
-                {statusData.email}
+            {isLoggedIn && channelName && (
+              <Tag icon={<YoutubeOutlined />} color="red" style={{ fontSize: 13, padding: '2px 10px' }}>
+                {channelName}
               </Tag>
+            )}
+            {isLoggedIn && email && (
+              <Tag icon={<UserOutlined />} color="blue" style={{ fontSize: 12 }}>
+                {email}
+              </Tag>
+            )}
+            {isLoggedIn && !channelName && !email && !statusLoading && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {t('ytScraper.accountInfoUnknown')}
+              </Text>
             )}
             {statusLoading && <LoadingOutlined />}
           </Space>
         </Col>
         <Col>
           <Space>
+            {isLoggedIn && onRefreshAccountInfo && (
+              <Tooltip title={t('ytScraper.refreshAccountInfo')}>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={onRefreshAccountInfo}
+                  loading={refreshAccountInfoLoading}
+                  size="small"
+                />
+              </Tooltip>
+            )}
             {!isLoggedIn ? (
               <Button
                 type="primary"
@@ -64,16 +93,22 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
               >
                 {t('ytScraper.openLogin')}
               </Button>
-            ) : (
+            ) : null}
+            <Popconfirm
+              title={t('ytScraper.changeAccount')}
+              description={t('ytScraper.changeAccountConfirm')}
+              onConfirm={onChangeAccount}
+              okText={t('common.yes')}
+              cancelText={t('common.no')}
+              okButtonProps={{ danger: true }}
+            >
               <Button
-                danger
-                icon={<CloseCircleOutlined />}
-                onClick={onCloseBrowser}
-                loading={closeBrowserLoading}
+                icon={<SwapOutlined />}
+                loading={changeAccountLoading}
               >
-                {t('ytScraper.closeBrowser')}
+                {t('ytScraper.changeAccount')}
               </Button>
-            )}
+            </Popconfirm>
           </Space>
         </Col>
       </Row>

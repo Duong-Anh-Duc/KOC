@@ -13,6 +13,13 @@ const RunHistoryTable: React.FC<RunHistoryTableProps> = ({ runHistory }) => {
 
   const historyColumns = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => index + 1,
+    },
+    {
       title: t('cron.runTime'),
       dataIndex: 'runAt',
       width: 180,

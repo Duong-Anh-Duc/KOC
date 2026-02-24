@@ -1,6 +1,8 @@
 {
   "app": {
-    "title": "EBE CMS - Hệ thống Quản lý Nội dung"
+    "title": "EBE CMS - Hệ thống Quản lý Nội dung",
+    "shortTitle": "EBE CMS",
+    "logoAlt": "Logo EBE"
   },
   "menu": {
     "dashboard": "Tổng quan",
@@ -38,6 +40,13 @@
     "cancel": "Huỷ",
     "search": "Tìm kiếm",
     "reload": "Tải lại",
+    "lightMode": "Sáng",
+    "darkMode": "Tối",
+    "vndUsd": "VND/USD",
+    "vnd": "VND",
+    "kocs": "KOCs",
+    "id": "ID",
+    "vs": "so với",
     "status": "Trạng thái",
     "total": "Tổng",
     "yes": "Có",
@@ -94,7 +103,9 @@
     "searchPlaceholder": "Tìm theo tên, kênh, email...",
     "pubCode": "Mã PUB (AdSense)",
     "pubCodePlaceholder": "pub-XXXXXXXXXXXXX",
-    "pubCodeHint": "Mã publisher AdSense YouTube (VD: pub-7049604904015296)"
+    "pubCodeHint": "Mã publisher AdSense YouTube (VD: pub-7049604904015296)",
+    "phonePlaceholder": "0901234567",
+    "bankAccountPlaceholder": "1234567890"
   },
   "revenue": {
     "title": "Quản lý Doanh thu",
@@ -129,6 +140,8 @@
     "belowThreshold": "Dưới ngưỡng thanh toán $100! Tích lũy: {{accumulated}} ({{months}})",
     "cannotApproveThreshold": "Không thể duyệt: Doanh thu tích lũy ${{accumulated}} < ${{threshold}}. Sẽ dồn sang tháng sau.",
     "updatingExchangeRate": "Đang cập nhật tỷ giá...",
+    "exchangeRatePlaceholder": "25400",
+    "totalKOCs": "Tổng KOCs",
     "pubCodeCheck": "Kiểm tra Mã Pub",
     "pubCodeMatched": "Mã pub khớp: {{code}}",
     "pubCodeMismatch": "Mã pub KHÔNG khớp! Lưu: {{stored}}, Quét: {{scraped}}",
@@ -205,6 +218,7 @@
     "changes": "Thay đổi",
     "filterEntity": "Lọc theo đối tượng",
     "totalLogs": "Tổng Nhật ký",
+    "filterAction": "Lọc theo hành động",
     "uniqueUsers": "Người dùng Duy nhất",
     "todayLogs": "Nhật ký Hôm nay",
     "oldValue": "Giá trị cũ",
@@ -334,7 +348,9 @@
     "APPROVED": "Đã duyệt",
     "OPEN": "Mở",
     "LOCKED": "Đã khóa",
-    "PAYMENT_COMPLETED": "Hoàn thành"
+    "PAYMENT_COMPLETED": "Hoàn thành",
+    "PAID": "Đã trả",
+    "COMPLETED": "Hoàn thành"
   },
   "validation": {
     "required": "Trường này là bắt buộc",
@@ -349,7 +365,9 @@
   },
   "language": {
     "en": "English",
-    "vi": "Tiếng Việt"
+    "vi": "Tiếng Việt",
+    "enLabel": "🇺🇸 English",
+    "viLabel": "🇻🇳 Tiếng Việt"
   },
   "table": {
     "filterTitle": "Bộ lọc",
@@ -513,7 +531,17 @@
     "viewMonthlyRevenue": "Xem doanh thu theo tháng",
     "currentMonthTag": "Hiện tại",
     "creatorLabel": "Creator",
-    "channelLabel": "Kênh"
+    "channelLabel": "Kênh",
+    "resetSession": "Đổi tài khoản",
+    "resetSessionConfirm": "Thao tác này sẽ xóa phiên đã lưu và đăng xuất khỏi tài khoản Google hiện tại. Bạn sẽ cần đăng nhập lại. Tiếp tục?",
+    "resetSessionSuccess": "Đã đặt lại phiên. Vui lòng đăng nhập lại.",
+    "resetSessionError": "Không thể đặt lại phiên",
+    "sessionReset": "Đặt lại phiên thành công. Vui lòng đăng nhập lại.",
+    "changeAccount": "Đổi tài khoản",
+    "changeAccountConfirm": "Thao tác này sẽ đăng xuất tài khoản YouTube hiện tại và mở trình duyệt để bạn đăng nhập tài khoản khác. Tiếp tục?",
+    "changeAccountSuccess": "Đã mở trình duyệt. Vui lòng đăng nhập tài khoản mới.",
+    "accountInfoUnknown": "Chưa có thông tin tài khoản — nhấn làm mới",
+    "refreshAccountInfo": "Làm mới thông tin tài khoản (tên kênh, email)"
   },
   "cron": {
     "configTitle": "Cấu hình Cronjob",
@@ -610,6 +638,7 @@
   },
   "email": {
     "sectionTitle": "Cấu hình Email",
+    "emailAddress": "Email",
     "smtpConfig": "Thông tin SMTP",
     "configInBackend": "Cấu hình trong Backend",
     "configInBackendDesc": "Các thông số SMTP được cấu hình trong file .env của server. Liên hệ quản trị viên hệ thống để thay đổi.",

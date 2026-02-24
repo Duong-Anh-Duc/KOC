@@ -165,21 +165,6 @@ const RevenueControlPage: React.FC = () => {
     });
   };
 
-  const handleRefreshExchangeRate = () => {
-    if (!selectedCycle) return;
-    fetchExchangeRateMutation.mutate(undefined, {
-      onSuccess: (res) => {
-        const newRate = res.data?.data?.averageRate;
-        if (newRate) {
-          updateExchangeRateMutation.mutate({
-            id: selectedCycle.id,
-            data: { exchange_rate: newRate },
-          });
-        }
-      },
-    });
-  };
-
   const handleCreateRecord = (values: { koc_id: string; original_revenue_usd: number; us_tax_deduction: number }) => {
     if (editingRecord) {
       updateRecordMutation.mutate(
@@ -212,7 +197,7 @@ const RevenueControlPage: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
-            {isAdmin && (
+            {false && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCycle}>
                 {t('cycle.create')}
               </Button>
@@ -267,8 +252,6 @@ const RevenueControlPage: React.FC = () => {
                   onDeleteRecord={(id) => deleteRecordMutation.mutate(id)}
                   onScrapeRevenue={handleScrapeRevenue}
                   scrapeLoading={scrapeRevenueMutation.isPending}
-                  onRefreshExchangeRate={handleRefreshExchangeRate}
-                  refreshExchangeRateLoading={updateExchangeRateMutation.isPending}
                   onLockCycle={(id) => lockCycleMutation.mutate(id)}
                   lockLoading={lockCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
@@ -304,16 +287,6 @@ const RevenueControlPage: React.FC = () => {
           onCancel={() => { setCycleModalOpen(false); cycleModalOpenRef.current = false; }}
           onSubmit={(values) => { handleCycleSubmit(values); cycleModalOpenRef.current = false; }}
           confirmLoading={createCycleMutation.isPending || updateCycleMutation.isPending}
-          onFetchExchangeRate={() => {
-            fetchExchangeRateMutation.mutate(undefined, {
-              onSuccess: (res) => {
-                const rate = res.data?.data?.averageRate;
-                if (rate) cycleForm.setFieldsValue({ exchange_rate: rate });
-              },
-            });
-          }}
-          fetchExchangeRateLoading={fetchExchangeRateMutation.isPending}
-          onFetchExchangeRateSuccess={(rate) => cycleForm.setFieldsValue({ exchange_rate: rate })}
         />
 
         <ScrapeResultModal

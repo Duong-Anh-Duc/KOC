@@ -1,13 +1,17 @@
 import {
-  ClockCircleOutlined,
-  PlayCircleOutlined,
-  SettingOutlined,
+    ClockCircleOutlined,
+    LoadingOutlined,
+    PlayCircleOutlined,
+    SettingOutlined,
+    SwapOutlined,
+    UserOutlined,
+    YoutubeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, Popconfirm, Row, Space, Spin, Typography } from 'antd';
+import { Button, Col, Form, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cronApi } from '../api';
+import { cronApi, ytScraperApi } from '../api';
 import { SummaryBar } from '../components/common';
 import { CronConfigCard, CronStatusCard, RunHistoryTable } from '../components/cron';
 import { toastError, toastSuccess } from '../utils';
@@ -153,6 +157,65 @@ const CronSettingsPage: React.FC = () => {
   const isLoading = runNowMutation.isPending;
   const loadingTip = t('cron.runningNow');
 
+  // YouTube Scraper - Status check only
+  const {
+    data: statusData,
+    isLoading: statusLoading,
+    refetch: refetchStatus,
+  } = useQuery({
+    queryKey: ['yt-scraper-status'],
+    queryFn: async () => {
+      const res = await ytScraperApi.checkStatus();
+      return res.data?.data;
+    },
+    retry: false,
+  });
+
+  // Auto-connect on first load
+  useQuery({
+    queryKey: ['yt-scraper-auto-connect'],
+    queryFn: async () => {
+      const res = await ytScraperApi.autoConnect();
+      if (res.data?.success) {
+        queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+      }
+      return res.data?.data;
+    },
+    retry: false,
+  });
+
+  const isLoggedIn = statusData?.loggedIn ?? false;
+
+  // Auto-fetch account info when logged in but no info cached yet
+  const refreshAccountInfoMutation = useMutation({
+    mutationFn: () => ytScraperApi.refreshAccountInfo(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+  });
+
+  useEffect(() => {
+    if (isLoggedIn && !statusData?.channelName && !statusData?.email && !statusLoading) {
+      refreshAccountInfoMutation.mutate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, statusLoading]);
+
+  // Change account (reset session + re-open login)
+  const changeAccountMutation = useMutation({
+    mutationFn: async () => {
+      await ytScraperApi.resetSession();
+      await ytScraperApi.openLogin();
+    },
+    onSuccess: () => {
+      toastSuccess('ytScraperChangeAccount', t('ytScraper.changeAccountSuccess'));
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: () => {
+      toastError('ytScraperChangeError', t('ytScraper.resetSessionError'));
+    },
+  });
+
   return (
     <Spin spinning={isLoading} tip={loadingTip} size="large" className="stats-page-spin">
     <div>
@@ -187,6 +250,49 @@ const CronSettingsPage: React.FC = () => {
             >
               {t('cron.runNow')}
             </Button>
+          </Popconfirm>
+          <Popconfirm
+            title={t('ytScraper.changeAccount')}
+            description={t('ytScraper.changeAccountConfirm')}
+            onConfirm={() => changeAccountMutation.mutate()}
+            okText={t('common.yes')}
+            cancelText={t('common.no')}
+            okButtonProps={{ danger: true }}
+          >
+            <Tooltip
+              title={
+                isLoggedIn ? (
+                  <div style={{ lineHeight: 1.8 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>🔗 {t('ytScraper.connected')}</div>
+                    {refreshAccountInfoMutation.isPending ? (
+                      <div><LoadingOutlined style={{ marginRight: 6 }} />Đang tải thông tin...</div>
+                    ) : (
+                      <>
+                        {statusData?.channelName && (
+                          <div><YoutubeOutlined style={{ marginRight: 6, color: '#ff4d4f' }} />{statusData.channelName}</div>
+                        )}
+                        {statusData?.email && (
+                          <div><UserOutlined style={{ marginRight: 6, color: '#69b1ff' }} />{statusData.email}</div>
+                        )}
+                        {!statusData?.channelName && !statusData?.email && (
+                          <div style={{ color: '#aaa', fontSize: 12 }}>Chưa có thông tin — nhấn Refresh</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : t('ytScraper.notConnected')
+              }
+              color="#1d1d1d"
+              placement="bottomRight"
+            >
+              <Button
+                icon={<SwapOutlined />}
+                loading={changeAccountMutation.isPending}
+                style={isLoggedIn ? { borderColor: '#52c41a', color: '#52c41a' } : {}}
+              >
+                {t('ytScraper.changeAccount')}
+              </Button>
+            </Tooltip>
           </Popconfirm>
         </Space>
       </div>

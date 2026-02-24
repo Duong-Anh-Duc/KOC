@@ -1,6 +1,6 @@
 import { EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Table, Tag, Tooltip, Typography } from 'antd';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTableLocale } from '../../utils';
 
@@ -29,8 +29,18 @@ interface StatsGrowthTableProps {
 
 const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading, onViewKOC }) => {
   const { t } = useTranslation();
+  const [currentPage, setCurrentPage] = useState(1);
+  const currentPageSize = 15;
 
   const columns = [
+    {
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'right' as const,
+      fixed: 'left' as const,
+      render: (_: unknown, __: unknown, index: number) => (currentPage - 1) * currentPageSize + index + 1,
+    },
     {
       title: t('koc.fullName'),
       dataIndex: 'full_name',
@@ -167,12 +177,14 @@ const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading
         bordered
         locale={getTableLocale(t)}
         pagination={{
+          current: currentPage,
           defaultPageSize: 15,
           pageSize: 15,
-          showSizeChanger: true,
+          showSizeChanger: false,
           showQuickJumper: true,
           pageSizeOptions: ['10', '15', '20', '30', '50'],
           showTotal: (total) => `${t('common.total')}: ${total}`,
+          onChange: (p) => setCurrentPage(p),
         }}
         scroll={{ x: 1400 }}
       />

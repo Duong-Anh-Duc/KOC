@@ -285,8 +285,8 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
                     dataIndex: 'status',
                     width: 100,
                     render: (status: string) => {
-                      const color = status === 'COMPLETED' ? 'green' : status === 'LOCKED' ? 'orange' : 'blue';
-                      return <Tag color={color}>{status}</Tag>;
+                      const color = status === 'PAYMENT_COMPLETED' ? 'green' : status === 'LOCKED' ? 'orange' : 'blue';
+                      return <Tag color={color}>{t(`status.${status}`, status)}</Tag>;
                     },
                   },
                   {

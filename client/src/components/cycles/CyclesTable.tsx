@@ -2,7 +2,7 @@ import { CheckCircleOutlined, EditOutlined, LockOutlined } from '@ant-design/ico
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
 import { getTableLocale } from '../../utils';
@@ -10,7 +10,7 @@ import { getTableLocale } from '../../utils';
 const statusColorMap: Record<string, string> = {
   OPEN: 'blue',
   LOCKED: 'orange',
-  COMPLETED: 'green',
+  PAYMENT_COMPLETED: 'green',
 };
 
 interface CyclesTableProps {
@@ -35,10 +35,18 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
   onComplete,
 }) => {
   const { t } = useTranslation();
+  const [currentPage, setCurrentPage] = useState(1);
 
   const columns: ColumnsType<RevenueCycle> = [
     {
-      title: 'ID',
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (currentPage - 1) * pageSize + index + 1,
+    },
+    {
+      title: t('common.id'),
       dataIndex: 'id',
       width: 60,
     },
@@ -51,7 +59,7 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
       title: t('revenue.exchangeRate'),
       dataIndex: 'exchange_rate',
       width: 140,
-      render: (val: string) => Number(val).toLocaleString() + ' VND',
+      render: (val: string) => Number(val).toLocaleString() + ' ' + t('common.vnd'),
     },
     {
       title: t('common.status'),
@@ -145,12 +153,14 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
       locale={getTableLocale(t)}
       scroll={{ x: 1000 }}
       pagination={{
+        current: currentPage,
         pageSize,
         showTotal: (total) => `${t('common.total')}: ${total}`,
         showSizeChanger: true,
         showQuickJumper: true,
         pageSizeOptions: ['10', '20', '50', '100'],
-        onShowSizeChange: (_, size) => onPageSizeChange(size),
+        onChange: (p) => setCurrentPage(p),
+        onShowSizeChange: (_, size) => { setCurrentPage(1); onPageSizeChange(size); },
       }}
     />
   );

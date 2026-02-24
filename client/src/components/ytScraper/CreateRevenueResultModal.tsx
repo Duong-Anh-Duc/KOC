@@ -32,7 +32,7 @@ const CreateRevenueResultModal: React.FC<CreateRevenueResultModalProps> = ({ ope
           <Row gutter={12} style={{ marginBottom: 16 }}>
             <Col span={8}>
               <Card size="small">
-                <Text type="secondary">KOCs</Text>
+                <Text type="secondary">{t('common.kocs')}</Text>
                 <Title level={4} style={{ margin: 0 }}>
                   {data.summary?.totalKOCs || 0}
                 </Title>

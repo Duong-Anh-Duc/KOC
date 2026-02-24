@@ -40,12 +40,12 @@ const LoginPage: React.FC = () => {
     items: [
       {
         key: 'vi',
-        label: '🇻🇳 Tiếng Việt',
+        label: t('language.viLabel'),
         onClick: () => handleLanguageChange('vi'),
       },
       {
         key: 'en',
-        label: '🇬🇧 English',
+        label: t('language.enLabel'),
         onClick: () => handleLanguageChange('en'),
       },
     ],
@@ -126,7 +126,7 @@ const LoginPage: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: 28 }} className="login-header-fade-in">
           <img 
             src="/images/logo.jpg" 
-            alt="EBE Logo"
+            alt={t('app.logoAlt')}
             style={{
               width: 80,
               height: 80,

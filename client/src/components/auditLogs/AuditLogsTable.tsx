@@ -40,6 +40,13 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
 
   const columns: ColumnsType<AuditLog> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
+    {
       title: t('audit.action'),
       dataIndex: 'action',
       width: 180,

@@ -13,14 +13,16 @@ const AuditLogsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [entityFilter, setEntityFilter] = useState<string | undefined>();
+  const [actionFilter, setActionFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['audit-logs', page, pageSize, entityFilter, dateRange],
+    queryKey: ['audit-logs', page, pageSize, entityFilter, actionFilter, dateRange],
     queryFn: async () => {
       const params: Record<string, unknown> = { page, limit: pageSize };
       if (entityFilter) params.entity = entityFilter;
+      if (actionFilter) params.action = actionFilter;
       if (dateRange && dateRange[0] && dateRange[1]) {
         params.start_date = dateRange[0].format('YYYY-MM-DD');
         params.end_date = dateRange[1].format('YYYY-MM-DD');
@@ -40,6 +42,8 @@ const AuditLogsPage: React.FC = () => {
         onDateRangeChange={(dates) => { setDateRange(dates); setPage(1); }}
         entityFilter={entityFilter}
         onEntityFilterChange={(val) => { setEntityFilter(val); setPage(1); }}
+        actionFilter={actionFilter}
+        onActionFilterChange={(val) => { setActionFilter(val); setPage(1); }}
         onRefresh={() => refetch()}
       />
 

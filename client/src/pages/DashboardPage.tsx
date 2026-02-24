@@ -2,11 +2,11 @@ import { Col, Row, Spin } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    CompanyVsKocChart,
-    CycleSummaryCard,
-    GrowthSummaryCard,
-    RevenueTrendChart,
-    StatsCards,
+  CompanyVsKocChart,
+  CycleSummaryCard,
+  GrowthSummaryCard,
+  RevenueTrendChart,
+  StatsCards,
 } from '../components/dashboard';
 import { useDashboardOverview, useRevenueTrend } from '../hooks';
 import { useAppStore } from '../stores';
@@ -45,7 +45,7 @@ const DashboardPage: React.FC = () => {
         <h2 style={{ margin: 0 }}>{t('menu.dashboard')}</h2>
       </div>
 
-      <StatsCards overview={overview} cycleSummary={cycleSummary} onRefresh={refetchOverview} />
+      <StatsCards overview={overview} cycleSummary={cycleSummary} />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {cycleSummary && (

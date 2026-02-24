@@ -1,6 +1,8 @@
 {
   "app": {
-    "title": "EBE CMS - Content Management System"
+    "title": "EBE CMS - Content Management System",
+    "shortTitle": "EBE CMS",
+    "logoAlt": "EBE Logo"
   },
   "menu": {
     "dashboard": "Dashboard",
@@ -38,6 +40,13 @@
     "cancel": "Cancel",
     "search": "Search",
     "reload": "Reload",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "vndUsd": "VND/USD",
+    "vnd": "VND",
+    "kocs": "KOCs",
+    "id": "ID",
+    "vs": "vs",
     "status": "Status",
     "total": "Total",
     "yes": "Yes",
@@ -94,7 +103,9 @@
     "searchPlaceholder": "Search by name, channel, email...",
     "pubCode": "PUB Code (AdSense)",
     "pubCodePlaceholder": "pub-XXXXXXXXXXXXX",
-    "pubCodeHint": "AdSense YouTube publisher ID (e.g., pub-7049604904015296)"
+    "pubCodeHint": "AdSense YouTube publisher ID (e.g., pub-7049604904015296)",
+    "phonePlaceholder": "0901234567",
+    "bankAccountPlaceholder": "1234567890"
   },
   "revenue": {
     "title": "Revenue Control",
@@ -129,6 +140,8 @@
     "belowThreshold": "Below $100 payment threshold! Accumulated: {{accumulated}} ({{months}})",
     "cannotApproveThreshold": "Cannot approve: Accumulated ${{accumulated}} < ${{threshold}}. Will carry over to next month.",
     "updatingExchangeRate": "Updating exchange rate...",
+    "exchangeRatePlaceholder": "25400",
+    "totalKOCs": "Total KOCs",
     "pubCodeCheck": "Pub Code Check",
     "pubCodeMatched": "Pub code matched: {{code}}",
     "pubCodeMismatch": "Pub code MISMATCH! Stored: {{stored}}, Scraped: {{scraped}}",
@@ -205,6 +218,7 @@
     "changes": "Changes",
     "filterEntity": "Filter by Entity",
     "totalLogs": "Total Logs",
+    "filterAction": "Filter by Action",
     "uniqueUsers": "Unique Users",
     "todayLogs": "Today's Logs",
     "oldValue": "Old Value",
@@ -334,7 +348,9 @@
     "APPROVED": "Approved",
     "OPEN": "Open",
     "LOCKED": "Locked",
-    "PAYMENT_COMPLETED": "Payment Completed"
+    "PAYMENT_COMPLETED": "Payment Completed",
+    "PAID": "Paid",
+    "COMPLETED": "Completed"
   },
   "validation": {
     "required": "This field is required",
@@ -349,7 +365,9 @@
   },
   "language": {
     "en": "English",
-    "vi": "Tiếng Việt"
+    "vi": "Tiếng Việt",
+    "enLabel": "🇺🇸 English",
+    "viLabel": "🇻🇳 Tiếng Việt"
   },
   "table": {
     "filterTitle": "Filter",
@@ -513,7 +531,17 @@
     "viewMonthlyRevenue": "View monthly revenue",
     "currentMonthTag": "Current",
     "creatorLabel": "Creator",
-    "channelLabel": "Channel"
+    "channelLabel": "Channel",
+    "resetSession": "Change Account",
+    "resetSessionConfirm": "This will delete the saved session and log out of the current Google account. You will need to log in again. Continue?",
+    "resetSessionSuccess": "Session reset. Please log in again.",
+    "resetSessionError": "Failed to reset session",
+    "sessionReset": "Session reset successfully. Please log in again.",
+    "changeAccount": "Đổi tài khoản",
+    "changeAccountConfirm": "This will log out of the current YouTube account and open the browser for you to log in with a different account. Continue?",
+    "changeAccountSuccess": "Browser opened. Please log in with a different account.",
+    "accountInfoUnknown": "Account info not yet fetched — click refresh",
+    "refreshAccountInfo": "Refresh account info (channel name, email)"
   },
   "cron": {
     "configTitle": "Cron Job Configuration",
@@ -610,6 +638,7 @@
   },
   "email": {
     "sectionTitle": "Email Configuration",
+    "emailAddress": "Email",
     "smtpConfig": "SMTP Information",
     "configInBackend": "Backend Configuration",
     "configInBackendDesc": "SMTP parameters are configured in the server's .env file. Contact system administrator to make changes.",

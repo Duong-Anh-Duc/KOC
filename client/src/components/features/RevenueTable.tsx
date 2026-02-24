@@ -174,17 +174,37 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
 
   const columns: ColumnsType<RevenueRecord> = [
     {
+      title: 'STT',
+      key: 'stt',
+      fixed: 'left',
+      width: 55,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => index + 1,
+    },
+    {
       title: t('koc.fullName'),
       dataIndex: ['koc', 'full_name'],
       key: 'koc_name',
       fixed: 'left',
       width: 160,
+      ellipsis: { showTitle: false },
+      render: (val: string) => (
+        <Tooltip title={val} placement="topLeft">
+          <Text strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val || '-'}</Text>
+        </Tooltip>
+      ),
     },
     {
       title: t('koc.channelName'),
       dataIndex: ['koc', 'channel_name'],
       key: 'channel_name',
       width: 140,
+      ellipsis: { showTitle: false },
+      render: (val: string) => val ? (
+        <Tooltip title={val} placement="topLeft">
+          <Text style={{ color: '#1677ff', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
+        </Tooltip>
+      ) : <Text type="secondary">-</Text>,
     },
     {
       title: t('revenue.originalRevenue'),
@@ -264,7 +284,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       key: 'koc_receive_usd',
       width: 140,
       align: 'right',
-      render: (val: number) => <strong style={{ color: '#1677ff' }}>{formatUSD(val)}</strong>,
+      render: (val: number) => <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(val)}</Text>,
     },
     {
       title: t('revenue.kocReceiveVnd'),
@@ -272,7 +292,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       key: 'koc_receive_vnd',
       width: 160,
       align: 'right',
-      render: (val: number) => <strong style={{ color: '#52c41a' }}>{formatVND(val)}</strong>,
+      render: (val: number) => <Text strong style={{ color: '#52c41a', fontSize: 13 }}>{formatVND(val)}</Text>,
     },
     {
       title: t('revenue.status'),
@@ -281,7 +301,10 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       width: 110,
       align: 'center',
       render: (status: string) => (
-        <Tag color={status === 'APPROVED' ? 'green' : 'gold'}>
+        <Tag
+          color={status === 'APPROVED' ? 'success' : 'warning'}
+          style={{ fontWeight: 600, minWidth: 64, textAlign: 'center', borderRadius: 12 }}
+        >
           {status === 'APPROVED' ? t('status.approved') : t('status.pending')}
         </Tag>
       ),
@@ -420,31 +443,48 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       scroll={{ x: 1800 }}
       pagination={false}
       size="small"
+      style={{ borderRadius: 8 }}
+      onRow={(record, index) => ({
+        style: {
+          backgroundColor:
+            record.status === 'APPROVED'
+              ? '#f6ffed'
+              : (index ?? 0) % 2 === 0 ? '#ffffff' : '#fffef0',
+          transition: 'background-color 0.15s',
+        },
+        onMouseEnter: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#e6f4ff'; },
+        onMouseLeave: (e) => {
+          (e.currentTarget as HTMLElement).style.backgroundColor =
+            record.status === 'APPROVED'
+              ? '#f6ffed'
+              : (index ?? 0) % 2 === 0 ? '#ffffff' : '#fffef0';
+        },
+      })}
       summary={() =>
         totals ? (
           <Table.Summary fixed>
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={2}>
-                <strong>{t('revenue.total')}</strong>
+            <Table.Summary.Row style={{ backgroundColor: '#e6f4ff', fontWeight: 700 }}>
+              <Table.Summary.Cell index={0} colSpan={3}>
+                <Text strong style={{ color: '#1677ff' }}>{t('revenue.total')}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={2} align="right">
-                <strong>{formatUSD(totals.totalOriginal)}</strong>
+              <Table.Summary.Cell index={3} align="right">
+                <Text strong>{formatUSD(totals.totalOriginal)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={3} colSpan={2} />
-              <Table.Summary.Cell index={5} align="right">
-                <strong>{formatUSD(totals.totalNetRevenue)}</strong>
-              </Table.Summary.Cell>
+              <Table.Summary.Cell index={4} colSpan={2} />
               <Table.Summary.Cell index={6} align="right">
-                <strong>{formatUSD(totals.totalCompanyShare)}</strong>
+                <Text strong>{formatUSD(totals.totalNetRevenue)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={7} colSpan={2} />
-              <Table.Summary.Cell index={9} align="right">
-                <strong style={{ color: '#1677ff' }}>{formatUSD(totals.totalKocReceiveUsd)}</strong>
+              <Table.Summary.Cell index={7} align="right">
+                <Text strong>{formatUSD(totals.totalCompanyShare)}</Text>
               </Table.Summary.Cell>
+              <Table.Summary.Cell index={8} colSpan={2} />
               <Table.Summary.Cell index={10} align="right">
-                <strong style={{ color: '#52c41a' }}>{formatVND(totals.totalKocReceiveVnd)}</strong>
+                <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(totals.totalKocReceiveUsd)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={11} colSpan={2} />
+              <Table.Summary.Cell index={11} align="right">
+                <Text strong style={{ color: '#52c41a', fontSize: 13 }}>{formatVND(totals.totalKocReceiveVnd)}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={12} colSpan={3} />
             </Table.Summary.Row>
           </Table.Summary>
         ) : null

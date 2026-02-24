@@ -4,11 +4,10 @@ import {
     DollarOutlined,
     FileTextOutlined,
     LockOutlined,
-    ReloadOutlined,
     TeamOutlined,
     UnlockOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Col, Progress, Row, Statistic, Tag, Tooltip, Typography } from 'antd';
+import { Card, Col, Progress, Row, Statistic, Tag, Tooltip, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatUSD, formatVND } from '../../utils';
@@ -18,10 +17,9 @@ const { Text } = Typography;
 interface StatsCardsProps {
   overview: any;
   cycleSummary: any;
-  onRefresh?: () => void;
 }
 
-const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary, onRefresh }) => {
+const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
   const { t } = useTranslation();
 
   const pubCodeStats = overview?.pubCodeStats;
@@ -155,24 +153,14 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary, onRefre
 
         <Col xs={24} sm={12} lg={8}>
           <Card style={{ height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Statistic
-                title={t('dashboard.currentExchangeRate')}
-                value={overview?.latestExchangeRate || 0}
-                suffix="VND/USD"
-                precision={0}
-                valueStyle={{ color: '#1890ff', fontSize: 20 }}
-                formatter={(val) => Number(val).toLocaleString('vi-VN')}
-              />
-              <Tooltip title={t('common.reload')}>
-                <Button
-                  type="text"
-                  icon={<ReloadOutlined />}
-                  onClick={onRefresh}
-                  size="small"
-                />
-              </Tooltip>
-            </div>
+            <Statistic
+              title={t('dashboard.currentExchangeRate')}
+              value={overview?.latestExchangeRate || 0}
+              suffix={t('common.vndUsd')}
+              precision={0}
+              valueStyle={{ color: '#1890ff', fontSize: 20 }}
+              formatter={(val) => Number(val).toLocaleString('vi-VN')}
+            />
             {cycleSummary && (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('dashboard.latestCycle')}: {cycleSummary.cycle.month}

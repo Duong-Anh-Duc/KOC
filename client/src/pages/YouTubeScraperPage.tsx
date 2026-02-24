@@ -104,12 +104,29 @@ const YouTubeScraperPage: React.FC = () => {
     },
   });
 
-  // Close browser
-  const closeBrowserMutation = useMutation({
-    mutationFn: () => ytScraperApi.closeBrowser(),
+  // Reset session then re-open login browser (change account)
+  const changeAccountMutation = useMutation({
+    mutationFn: async () => {
+      await ytScraperApi.resetSession();
+      await ytScraperApi.openLogin();
+    },
     onSuccess: () => {
-      message.success(t('ytScraper.browserClosed'));
+      message.success(t('ytScraper.changeAccountSuccess'));
       queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: () => {
+      message.error(t('ytScraper.resetSessionError'));
+    },
+  });
+
+  // Refresh connected account info (channel name + email)
+  const refreshAccountInfoMutation = useMutation({
+    mutationFn: () => ytScraperApi.refreshAccountInfo(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: () => {
+      message.error(t('ytScraper.resetSessionError'));
     },
   });
 
@@ -193,8 +210,10 @@ const YouTubeScraperPage: React.FC = () => {
           isLoggedIn={isLoggedIn}
           onOpenLogin={() => openLoginMutation.mutate()}
           openLoginLoading={openLoginMutation.isPending}
-          onCloseBrowser={() => closeBrowserMutation.mutate()}
-          closeBrowserLoading={closeBrowserMutation.isPending}
+          onChangeAccount={() => changeAccountMutation.mutate()}
+          changeAccountLoading={changeAccountMutation.isPending}
+          onRefreshAccountInfo={() => refreshAccountInfoMutation.mutate()}
+          refreshAccountInfoLoading={refreshAccountInfoMutation.isPending}
         />
 
         <CreateRevenueBar

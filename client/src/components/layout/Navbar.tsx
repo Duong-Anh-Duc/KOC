@@ -1,10 +1,10 @@
 import {
-    BulbOutlined,
-    GlobalOutlined,
-    LogoutOutlined,
-    MenuFoldOutlined,
-    MenuUnfoldOutlined,
-    UserOutlined,
+  BulbOutlined,
+  GlobalOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Avatar, Button, Dropdown, Layout, Space, Tag } from 'antd';
@@ -29,12 +29,12 @@ const Navbar: React.FC = () => {
   const languageItems: MenuProps['items'] = [
     {
       key: 'vi',
-      label: '🇻🇳 Tiếng Việt',
+      label: t('language.viLabel'),
       onClick: () => handleLanguageChange('vi'),
     },
     {
       key: 'en',
-      label: '🇺🇸 English',
+      label: t('language.enLabel'),
       onClick: () => handleLanguageChange('en'),
     },
   ];
@@ -83,7 +83,7 @@ const Navbar: React.FC = () => {
           icon={<BulbOutlined />}
           onClick={toggleDarkMode}
           style={{ color: '#fff' }}
-          title={darkMode ? 'Light Mode' : 'Dark Mode'}
+          title={darkMode ? t('common.lightMode') : t('common.darkMode')}
         />
 
         <Dropdown menu={{ items: languageItems, selectedKeys: [locale] }} placement="bottomRight">

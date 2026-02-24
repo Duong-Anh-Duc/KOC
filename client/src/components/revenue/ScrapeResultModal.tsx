@@ -26,7 +26,7 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
             <Col span={8}>
               <Card size="small">
-                <Text type="secondary">{t('common.total')} KOCs</Text>
+                <Text type="secondary">{t('revenue.totalKOCs')}</Text>
                 <Title level={4} style={{ margin: 0 }}>{data.summary?.totalKOCs || 0}</Title>
               </Card>
             </Col>

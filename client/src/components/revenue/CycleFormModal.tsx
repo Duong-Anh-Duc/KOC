@@ -1,5 +1,4 @@
-import { CloudDownloadOutlined } from '@ant-design/icons';
-import { Button, Form, Input, InputNumber, Modal, Space, Tooltip } from 'antd';
+import { Form, Input, InputNumber, Modal } from 'antd';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
@@ -36,9 +35,7 @@ interface CycleFormModalProps {
   onCancel: () => void;
   onSubmit: (values: { month: string; exchange_rate: number }) => void;
   confirmLoading: boolean;
-  onFetchExchangeRate: () => void;
-  fetchExchangeRateLoading: boolean;
-  onFetchExchangeRateSuccess: (rate: number) => void;
+
 }
 
 const CycleFormModal: React.FC<CycleFormModalProps> = ({
@@ -49,8 +46,6 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
   onCancel,
   onSubmit,
   confirmLoading,
-  onFetchExchangeRate,
-  fetchExchangeRateLoading,
 }) => {
   const { t } = useTranslation();
 
@@ -84,28 +79,18 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
         >
           <Input placeholder={t('cycle.monthPlaceholder')} disabled={!!editingCycle} />
         </Form.Item>
-        <Form.Item label={t('revenue.exchangeRate') + ' (VND/USD)'} required>
-          <Space.Compact style={{ width: '100%' }}>
-            <Form.Item
-              name="exchange_rate"
-              noStyle
-              rules={[{ required: true, message: t('validation.required') }]}
-            >
-              <InputNumber
-                min={0}
-                style={{ width: '100%' }}
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(value) => value?.replace(/,/g, '') as unknown as 0}
-                placeholder="25400"
-              />
-            </Form.Item>
-            <Tooltip title={t('cycle.fetchExchangeRate')}>
-              <Button
-                icon={<CloudDownloadOutlined />}
-                onClick={onFetchExchangeRate}
-              />
-            </Tooltip>
-          </Space.Compact>
+        <Form.Item
+          label={t('revenue.exchangeRate') + ' (VND/USD)'}
+          name="exchange_rate"
+          rules={[{ required: true, message: t('validation.required') }]}
+        >
+          <InputNumber
+            min={0}
+            style={{ width: '100%' }}
+            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(value) => value?.replace(/,/g, '') as unknown as 0}
+            placeholder="25400"
+          />
         </Form.Item>
       </Form>
     </Modal>

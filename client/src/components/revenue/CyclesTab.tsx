@@ -60,7 +60,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       title: t('revenue.exchangeRate'),
       dataIndex: 'exchange_rate',
       width: 140,
-      render: (val: string) => Number(val).toLocaleString() + ' VND',
+      render: (val: string) => Number(val).toLocaleString() + ' ' + t('common.vnd'),
     },
     {
       title: t('common.status'),

@@ -1,10 +1,12 @@
 import { DeleteOutlined, EditOutlined, UserAddOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
+import { Button, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { KOC } from '../../types';
 import { getTableLocale } from '../../utils';
+
+const { Text } = Typography;
 
 interface KOCTableProps {
   kocs: KOC[];
@@ -41,59 +43,103 @@ const KOCTable: React.FC<KOCTableProps> = ({
 
   const columns: ColumnsType<KOC> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
+    {
       title: t('koc.fullName'),
       dataIndex: 'full_name',
       key: 'full_name',
       width: 160,
       sorter: true,
+      ellipsis: { showTitle: false },
+      render: (val: string) => (
+        <Tooltip title={val} placement="topLeft">
+          <Text strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val || '-'}</Text>
+        </Tooltip>
+      ),
     },
     {
       title: t('koc.channelName'),
       dataIndex: 'channel_name',
       key: 'channel_name',
       width: 150,
+      ellipsis: { showTitle: false },
+      render: (val: string) => val ? (
+        <Tooltip title={val} placement="topLeft">
+          <Text style={{ color: '#1677ff', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
+        </Tooltip>
+      ) : <Text type="secondary">-</Text>,
     },
     {
       title: t('koc.email'),
       dataIndex: 'email',
       key: 'email',
-      width: 200,
+      width: 190,
+      ellipsis: { showTitle: false },
+      render: (val: string) => val ? (
+        <Tooltip title={val} placement="topLeft">
+          <Text style={{ fontSize: 12, color: '#434343', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
+        </Tooltip>
+      ) : <Text type="secondary">-</Text>,
     },
     {
       title: t('koc.phone'),
       dataIndex: 'phone',
       key: 'phone',
       width: 120,
+      render: (val: string) => val ? (
+        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{val}</Text>
+      ) : <Text type="secondary">-</Text>,
     },
     {
       title: t('koc.bankName'),
       dataIndex: 'bank_name',
       key: 'bank_name',
       width: 140,
+      ellipsis: { showTitle: false },
+      render: (val: string) => val ? (
+        <Tooltip title={val} placement="topLeft">
+          <Text style={{ fontSize: 12, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
+        </Tooltip>
+      ) : <Text type="secondary">-</Text>,
     },
     {
       title: t('koc.bankAccount'),
       dataIndex: 'bank_account_number',
       key: 'bank_account_number',
       width: 150,
+      render: (val: string | null) => val ? (
+        <Tag color="geekblue" style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>{val}</Tag>
+      ) : <Text type="secondary">-</Text>,
     },
     {
       title: t('koc.baseRate'),
       dataIndex: 'base_rate',
       key: 'base_rate',
-      width: 100,
+      width: 90,
       align: 'center',
-      render: (val: number) => `${(Number(val) * 100).toFixed(0)}%`,
+      render: (val: number) => (
+        <Tag color="cyan" style={{ fontWeight: 600, minWidth: 40, textAlign: 'center' }}>
+          {`${(Number(val) * 100).toFixed(0)}%`}
+        </Tag>
+      ),
     },
     {
       title: t('koc.pubCode'),
       dataIndex: 'pub_code',
       key: 'pub_code',
       width: 180,
+      ellipsis: { showTitle: false },
       render: (val: string | null) => val ? (
-        <Tag color="purple" style={{ fontFamily: 'monospace', fontSize: 11 }}>{val}</Tag>
+        <Tooltip title={val}>
+          <Tag color="purple" style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'default', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{val}</Tag>
+        </Tooltip>
       ) : (
-        <Tag color="default">-</Tag>
+        <Text type="secondary">-</Text>
       ),
     },
     {
@@ -103,7 +149,10 @@ const KOCTable: React.FC<KOCTableProps> = ({
       width: 100,
       align: 'center',
       render: (status: string) => (
-        <Tag color={status === 'ACTIVE' ? 'green' : 'default'}>
+        <Tag
+          color={status === 'ACTIVE' ? 'success' : 'default'}
+          style={{ fontWeight: 600, minWidth: 60, textAlign: 'center', borderRadius: 12 }}
+        >
           {status === 'ACTIVE' ? t('status.active') : t('status.inactive')}
         </Tag>
       ),
@@ -176,6 +225,14 @@ const KOCTable: React.FC<KOCTableProps> = ({
       bordered
       locale={getTableLocale(t)}
       scroll={{ x: 1400 }}
+      onRow={(_, index) => ({
+        style: {
+          backgroundColor: (index ?? 0) % 2 === 0 ? '#ffffff' : '#f7f9ff',
+          transition: 'background-color 0.15s',
+        },
+        onMouseEnter: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#e6f4ff'; },
+        onMouseLeave: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = (index ?? 0) % 2 === 0 ? '#ffffff' : '#f7f9ff'; },
+      })}
       pagination={
         statusFilter
           ? {
@@ -198,7 +255,8 @@ const KOCTable: React.FC<KOCTableProps> = ({
               onShowSizeChange: (_, size) => onPageSizeChange(size),
             }
       }
-      size="middle"
+      size="small"
+      style={{ borderRadius: 8 }}
     />
   );
 };

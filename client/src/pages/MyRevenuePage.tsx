@@ -43,6 +43,13 @@ const MyRevenuePage: React.FC = () => {
 
   const revenueColumns: ColumnsType<RecordWithCycle> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => index + 1,
+    },
+    {
       title: t('revenue.month'),
       key: 'month',
       width: 100,
@@ -121,6 +128,13 @@ const MyRevenuePage: React.FC = () => {
   ];
 
   const monthlyColumns: ColumnsType<MonthlyRevenueAnalytics> = [
+    {
+      title: 'STT',
+      key: 'stt',
+      width: 55,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => index + 1,
+    },
     {
       title: t('ytScraper.monthKey'),
       dataIndex: 'month_label',

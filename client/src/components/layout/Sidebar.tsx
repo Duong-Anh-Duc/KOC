@@ -108,10 +108,10 @@ const Sidebar: React.FC = () => {
           borderBottom: '1px solid rgba(255,255,255,0.1)',
         }}
       >
-        <img src="/images/logo.jpg" alt="EBE Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+        <img src="/images/logo.jpg" alt={t('app.logoAlt')} style={{ width: 40, height: 40, objectFit: 'contain' }} />
         {!sidebarCollapsed && (
           <h2 style={{ color: '#fff', margin: 0, fontSize: 18, fontWeight: 600 }}>
-            EBE CMS
+            {t('app.shortTitle')}
           </h2>
         )}
       </div>
