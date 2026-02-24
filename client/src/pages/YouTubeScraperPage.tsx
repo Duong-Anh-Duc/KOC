@@ -23,6 +23,7 @@ const YouTubeScraperPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   const [asyncJobId, setAsyncJobId] = useState<string | null>(null);
+  const [waitingForLogin, setWaitingForLogin] = useState(false);
   const [asyncJobStatus, setAsyncJobStatus] = useState<'pending' | 'running' | 'completed' | 'failed' | null>(null);
 
   // Revenue records creation state
@@ -39,7 +40,7 @@ const YouTubeScraperPage: React.FC = () => {
     },
   });
 
-  // Check login status
+  // Check login status — poll every 3s while waiting for user to log in
   const {
     data: statusData,
     isLoading: statusLoading,
@@ -48,9 +49,15 @@ const YouTubeScraperPage: React.FC = () => {
     queryKey: ['yt-scraper-status'],
     queryFn: async () => {
       const res = await ytScraperApi.checkStatus();
-      return res.data?.data;
+      const data = res.data?.data;
+      if (data?.loggedIn && waitingForLogin) {
+        setWaitingForLogin(false);
+        message.success(t('ytScraper.loginSuccess'));
+      }
+      return data;
     },
     retry: false,
+    refetchInterval: waitingForLogin ? 3000 : false,
   });
 
   // Auto-connect on first load
@@ -93,14 +100,16 @@ const YouTubeScraperPage: React.FC = () => {
     enabled: !!selectedKocId,
   });
 
-  // Open login browser
+  // Open login browser — then poll status until logged in
   const openLoginMutation = useMutation({
     mutationFn: () => ytScraperApi.openLogin(),
     onSuccess: () => {
       message.success(t('ytScraper.loginBrowserOpened'));
+      setWaitingForLogin(true);
     },
     onError: () => {
       message.error(t('ytScraper.loginBrowserError'));
+      setWaitingForLogin(false);
     },
   });
 
@@ -113,9 +122,11 @@ const YouTubeScraperPage: React.FC = () => {
     onSuccess: () => {
       message.success(t('ytScraper.changeAccountSuccess'));
       queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+      setWaitingForLogin(true);
     },
     onError: () => {
       message.error(t('ytScraper.resetSessionError'));
+      setWaitingForLogin(false);
     },
   });
 

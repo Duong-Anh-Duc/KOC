@@ -4,6 +4,7 @@ import { config } from './config';
 import prisma from './config/database';
 import logger from './middlewares/logger.middleware';
 import { CronService } from './services/cron.service';
+import { ExchangeRateService } from './services/exchange-rate.service';
 
 // Get local IP address
 const getLocalIP = (): string => {
@@ -36,6 +37,9 @@ const startServer = async () => {
       CronService.startScheduler().catch(err => {
         logger.warn('⚠️ Failed to start cron scheduler:', err.message);
       });
+
+      // Start exchange rate auto-refresher (every 10 minutes)
+      ExchangeRateService.startRateRefresher();
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error);

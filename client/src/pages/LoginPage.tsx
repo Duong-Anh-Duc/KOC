@@ -132,7 +132,12 @@ const LoginPage: React.FC = () => {
               height: 80,
               margin: '0 auto 20px',
               display: 'block',
-              objectFit: 'contain',
+              objectFit: 'cover',
+              objectPosition: 'left center',
+              border: 'none',
+              outline: 'none',
+              boxShadow: 'none',
+              clipPath: 'polygon(0 0, 92% 0, 92% 100%, 0 100%)'
             }}
             className="login-logo-bounce"
           />
@@ -196,7 +201,7 @@ const LoginPage: React.FC = () => {
 
         <div style={{ textAlign: 'center', marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {t('auth.demoAccount')}: admin@koc.vn / Admin@123456
+            {t('auth.demoAccount')}: admin@koc-scraper.com / Admin@Koc2026!
           </Text>
         </div>
       </Card>

@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-koc_db}
     ports:
-      - "5432:5432"
+      - "5434:5432"   # 5432 và 5433 đã dùng bởi service khác
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -41,15 +41,15 @@ services:
     environment:
       # Override DATABASE_URL so it points to the 'db' service inside Docker
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-koc_db}
-      PORT: 3001
+      PORT: 3002
       NODE_ENV: production
-      # Allow requests from the production domain
-      CORS_ORIGIN: https://koc-scraper.com,https://www.koc-scraper.com
+      # Allow requests from IP:port trực tiếp
+      CORS_ORIGIN: http://46.62.170.132:8080
     env_file:
-      # All other secrets (JWT_SECRET, GMAIL_*, etc.) come from server/.env
-      - ./server/.env
+      # Secrets từ .env.production (SMTP, JWT, etc.)
+      - ./server/.env.production
     ports:
-      - "3001:3001"   # giữ để debug trực tiếp; xóa để chỉ cho nginx proxy
+      - "3002:3002"   # System nginx sẽ proxy /api → port này
     volumes:
       # Persist Chrome session data across container restarts
       - chrome_data:/app/.chrome-data
@@ -63,40 +63,14 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        # Vite bật tại build time – dùng URL tương đối để nginx proxy /api
-        VITE_API_URL: /api
-        VITE_SERVER_URL: https://koc-scraper.com
-    restart: unless-stopped
-    # Không expose ra ngoài – nginx proxy mới tiếp nhận
-    expose:
-      - "80"
-    depends_on:
-      - server
-
-  # ── Nginx Reverse Proxy (SSL termination) ─────────────────
-  nginx:
-    image: nginx:1.27-alpine
+        # Trỏ thẳng vào IP:port của server, không qua proxy
+        VITE_API_URL: http://46.62.170.132:3002/api
+        VITE_SERVER_URL: http://46.62.170.132:3002
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
+      - "8080:80"   # Truy cập qua http://46.62.170.132:8080
     depends_on:
-      - client
       - server
-
-  # ── Certbot (Let's Encrypt auto-renewal) ────────────────
-  certbot:
-    image: certbot/certbot
-    restart: unless-stopped
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    # Kiểm tra gia hạn mỗi 12 giờ
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
 
 volumes:
   postgres_data:

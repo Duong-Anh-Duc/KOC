@@ -93,22 +93,23 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
               >
                 {t('ytScraper.openLogin')}
               </Button>
-            ) : null}
-            <Popconfirm
-              title={t('ytScraper.changeAccount')}
-              description={t('ytScraper.changeAccountConfirm')}
-              onConfirm={onChangeAccount}
-              okText={t('common.yes')}
-              cancelText={t('common.no')}
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                icon={<SwapOutlined />}
-                loading={changeAccountLoading}
+            ) : (
+              <Popconfirm
+                title={t('ytScraper.changeAccount')}
+                description={t('ytScraper.changeAccountConfirm')}
+                onConfirm={onChangeAccount}
+                okText={t('common.yes')}
+                cancelText={t('common.no')}
+                okButtonProps={{ danger: true }}
               >
-                {isLoggedIn ? t('ytScraper.changeAccount') : t('ytScraper.connect')}
-              </Button>
-            </Popconfirm>
+                <Button
+                  icon={<SwapOutlined />}
+                  loading={changeAccountLoading}
+                >
+                  {t('ytScraper.changeAccount')}
+                </Button>
+              </Popconfirm>
+            )}
           </Space>
         </Col>
       </Row>

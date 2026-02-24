@@ -1,11 +1,11 @@
 import {
-    ClockCircleOutlined,
-    LoadingOutlined,
-    PlayCircleOutlined,
-    SettingOutlined,
-    SwapOutlined,
-    UserOutlined,
-    YoutubeOutlined,
+  ClockCircleOutlined,
+  LoadingOutlined,
+  PlayCircleOutlined,
+  SettingOutlined,
+  SwapOutlined,
+  UserOutlined,
+  YoutubeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
@@ -157,7 +157,8 @@ const CronSettingsPage: React.FC = () => {
   const isLoading = runNowMutation.isPending;
   const loadingTip = t('cron.runningNow');
 
-  // YouTube Scraper - Status check only
+  // YouTube Scraper - Status check — poll every 3s while waiting for user to login
+  const [waitingForLogin, setWaitingForLogin] = React.useState(false);
   const {
     data: statusData,
     isLoading: statusLoading,
@@ -166,9 +167,15 @@ const CronSettingsPage: React.FC = () => {
     queryKey: ['yt-scraper-status'],
     queryFn: async () => {
       const res = await ytScraperApi.checkStatus();
-      return res.data?.data;
+      const data = res.data?.data;
+      if (data?.loggedIn && waitingForLogin) {
+        setWaitingForLogin(false);
+        toastSuccess('ytLoginSuccess', t('ytScraper.loginSuccess'));
+      }
+      return data;
     },
     retry: false,
+    refetchInterval: waitingForLogin ? 3000 : false,
   });
 
   // Auto-connect on first load
@@ -210,9 +217,11 @@ const CronSettingsPage: React.FC = () => {
     onSuccess: () => {
       toastSuccess('ytScraperChangeAccount', t('ytScraper.changeAccountSuccess'));
       queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+      setWaitingForLogin(true);
     },
     onError: () => {
       toastError('ytScraperChangeError', t('ytScraper.resetSessionError'));
+      setWaitingForLogin(false);
     },
   });
 
@@ -251,17 +260,17 @@ const CronSettingsPage: React.FC = () => {
               {t('cron.runNow')}
             </Button>
           </Popconfirm>
-          <Popconfirm
-            title={t('ytScraper.changeAccount')}
-            description={t('ytScraper.changeAccountConfirm')}
-            onConfirm={() => changeAccountMutation.mutate()}
-            okText={t('common.yes')}
-            cancelText={t('common.no')}
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip
-              title={
-                isLoggedIn ? (
+          {isLoggedIn ? (
+            <Popconfirm
+              title={t('ytScraper.changeAccount')}
+              description={t('ytScraper.changeAccountConfirm')}
+              onConfirm={() => changeAccountMutation.mutate()}
+              okText={t('common.yes')}
+              cancelText={t('common.no')}
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip
+                title={
                   <div style={{ lineHeight: 1.8 }}>
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>🔗 {t('ytScraper.connected')}</div>
                     {refreshAccountInfoMutation.isPending ? (
@@ -280,20 +289,29 @@ const CronSettingsPage: React.FC = () => {
                       </>
                     )}
                   </div>
-                ) : t('ytScraper.notConnected')
-              }
-              color="#1d1d1d"
-              placement="bottomRight"
-            >
-              <Button
-                icon={<SwapOutlined />}
-                loading={changeAccountMutation.isPending}
-                style={isLoggedIn ? { borderColor: '#52c41a', color: '#52c41a' } : {}}
+                }
+                color="#1d1d1d"
+                placement="bottomRight"
               >
-                {isLoggedIn ? t('ytScraper.changeAccount') : t('ytScraper.connect')}
-              </Button>
-            </Tooltip>
-          </Popconfirm>
+                <Button
+                  icon={<SwapOutlined />}
+                  loading={changeAccountMutation.isPending}
+                  style={{ borderColor: '#52c41a', color: '#52c41a' }}
+                >
+                  {t('ytScraper.changeAccount')}
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          ) : (
+            <Button
+              type="primary"
+              icon={<SwapOutlined />}
+              loading={changeAccountMutation.isPending}
+              onClick={() => changeAccountMutation.mutate()}
+            >
+              {t('ytScraper.connect')}
+            </Button>
+          )}
         </Space>
       </div>
 

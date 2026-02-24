@@ -7,6 +7,8 @@ import logger from '../middlewares/logger.middleware';
 const CHROME_USER_DATA_DIR = path.join(process.cwd(), '.chrome-data');
 // Cached account info (stored inside the Chrome data dir so it's cleared on session reset)
 const ACCOUNT_INFO_FILE = path.join(CHROME_USER_DATA_DIR, 'account-info.json');
+// Sentinel file written ONLY after actual YouTube Studio login is verified
+const SESSION_VERIFIED_FILE = path.join(CHROME_USER_DATA_DIR, 'session-verified');
 
 /** Revenue by country row */
 export interface RevenueByCountry {
@@ -55,6 +57,10 @@ async function safeClosePage(page: Page | null): Promise<void> {
 
 export class YouTubeScraperService {
   private static browser: Browser | null = null;
+  /** True while a headful login browser is open — prevents headless operations from interfering */
+  private static loginBrowserOpen: boolean = false;
+  /** Timestamp when sentinel was last written — used to delay headless extract after fresh login */
+  private static sessionVerifiedAt: number = 0;
 
   /**
    * Check if session exists without opening browser
@@ -66,23 +72,32 @@ export class YouTubeScraperService {
       logger.info('❌ No session: Chrome profile directory does not exist');
       return false;
     }
-
     // Check if Default profile exists (where cookies are stored)
     const defaultProfilePath = path.join(CHROME_USER_DATA_DIR, 'Default');
     if (!fs.existsSync(defaultProfilePath)) {
       logger.info('❌ No session: Default profile not found');
       return false;
     }
-
     // Check if cookies file exists
     const cookiesPath = path.join(defaultProfilePath, 'Cookies');
     if (!fs.existsSync(cookiesPath)) {
       logger.info('❌ No session: Cookies file not found');
       return false;
     }
-
-    logger.info('✅ Valid session found: Ready to scrape without opening browser');
+    logger.info('✅ Valid session found (Cookies file present)');
     return true;
+  }
+
+  /**
+   * Write the session-verified sentinel file to mark a confirmed login
+   */
+  private static markSessionVerified(): void {
+    try {
+      fs.mkdirSync(CHROME_USER_DATA_DIR, { recursive: true });
+      fs.writeFileSync(SESSION_VERIFIED_FILE, new Date().toISOString());
+      this.sessionVerifiedAt = Date.now();
+      logger.info('✅ Session marked as verified.');
+    } catch { /* ignore */ }
   }
 
   /**
@@ -145,6 +160,7 @@ export class YouTubeScraperService {
    * Close the browser instance
    */
   static async closeBrowser(): Promise<void> {
+    this.loginBrowserOpen = false;
     if (this.browser) {
       try {
         await this.browser.close();
@@ -160,10 +176,24 @@ export class YouTubeScraperService {
    */
   static async resetSession(): Promise<void> {
     await this.closeBrowser();
-    if (fs.existsSync(CHROME_USER_DATA_DIR)) {
-      fs.rmSync(CHROME_USER_DATA_DIR, { recursive: true, force: true });
-      logger.info('🗑️ Chrome session data deleted.');
+
+    if (!fs.existsSync(CHROME_USER_DATA_DIR)) return;
+
+    // Wait for Chrome to fully release file locks before deleting
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await sleep(attempt * 500); // 500ms, 1s, 1.5s, 2s, 2.5s
+        fs.rmSync(CHROME_USER_DATA_DIR, { recursive: true, force: true });
+        logger.info('🗑️ Chrome session data deleted.');
+        return;
+      } catch (err) {
+        lastError = err;
+        logger.warn(`⚠️ Attempt ${attempt} to delete chrome-data failed, retrying...`);
+      }
     }
+    throw lastError;
   }
 
   /**
@@ -172,15 +202,41 @@ export class YouTubeScraperService {
    */
   static async openLoginBrowser(): Promise<{ message: string }> {
     try {
+      // Close any existing browser (headless) before opening headful login browser
+      await this.closeBrowser();
+
+      this.loginBrowserOpen = true;
       const browser = await this.getBrowser(false); // Explicitly headful for user to login
+
+      // Reset loginBrowserOpen when Chrome is closed by user
+      browser.on('disconnected', () => {
+        this.loginBrowserOpen = false;
+      });
+
       const page = await browser.newPage();
       await page.goto('https://studio.youtube.com', {
         waitUntil: 'domcontentloaded',
         timeout: 120000,
       });
+
+      // Monitor navigation: when user completes Google login and lands on YouTube Studio,
+      // write the sentinel file so checkLoginStatus() knows login is real
+      page.on('framenavigated', async (frame) => {
+        if (frame !== page.mainFrame()) return;
+        const url = frame.url();
+        if (url.includes('studio.youtube.com') && !url.includes('accounts.google.com')) {
+          logger.info('✅ Headful browser navigated to YouTube Studio — login confirmed!');
+          this.markSessionVerified();
+          this.loginBrowserOpen = false;
+          // Close the browser automatically after a short delay so user can see result
+          setTimeout(() => this.closeBrowser().catch(() => {}), 2000);
+        }
+      });
+
       logger.info('🌐 Opened VISIBLE browser for YouTube Studio login. Please log in manually.');
       return { message: 'Browser opened. Please log in to YouTube Studio manually. After login, you can close this and use the scraper.' };
     } catch (error) {
+      this.loginBrowserOpen = false;
       logger.error('Failed to open login browser:', error);
       throw error;
     }
@@ -191,6 +247,11 @@ export class YouTubeScraperService {
    * Returns { channelName, email } - both may be undefined if extraction fails.
    */
   static async extractAndCacheAccountInfo(): Promise<{ channelName?: string; email?: string }> {
+    // Don't run headless operations while headful login browser is open
+    if (this.loginBrowserOpen) {
+      logger.info('⏭️ Skipping extractAndCacheAccountInfo — login browser is open.');
+      return {};
+    }
     let page = null;
     try {
       const browser = await this.getBrowser(true);
@@ -209,10 +270,17 @@ export class YouTubeScraperService {
         timeout: 30000,
       });
 
-      // If redirected to Google login, session is invalid
+      // If redirected to Google login, session is invalid — only remove sentinel, keep chrome-data
       if (page.url().includes('accounts.google.com')) {
         logger.warn('⚠️ Not logged in (redirected to Google login)');
         await safeClosePage(page);
+        await this.closeBrowser();
+        try {
+          if (fs.existsSync(SESSION_VERIFIED_FILE)) {
+            fs.unlinkSync(SESSION_VERIFIED_FILE);
+            logger.info('🗑️ Sentinel file deleted (session expired).');
+          }
+        } catch { /* ignore */ }
         return {};
       }
 
@@ -249,6 +317,9 @@ export class YouTubeScraperService {
 
       logger.info(`✅ Account info extracted: channel="${channelName}" email="${email || 'unknown'}"`);
 
+      // Mark session as verified (headless could access YouTube Studio)
+      this.markSessionVerified();
+
       const info = { channelName, email, extractedAt: new Date().toISOString() };
       try { fs.writeFileSync(ACCOUNT_INFO_FILE, JSON.stringify(info, null, 2)); } catch { /* ignore */ }
 
@@ -265,6 +336,16 @@ export class YouTubeScraperService {
    * Check if user is logged in to YouTube Studio
    */
   static async checkLoginStatus(): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+    // While login browser is open, check sentinel for real-time login detection
+    if (this.loginBrowserOpen) {
+      if (fs.existsSync(SESSION_VERIFIED_FILE)) {
+        // Sentinel was just written by framenavigated — login confirmed
+        this.loginBrowserOpen = false;
+      } else {
+        return { loggedIn: false };
+      }
+    }
+
     const hasSession = this.hasValidSession();
     if (!hasSession) return { loggedIn: false };
 
@@ -278,7 +359,10 @@ export class YouTubeScraperService {
     }
 
     // No cache yet — extract in background (don't block the response)
-    this.extractAndCacheAccountInfo().catch(() => {});
+    // Wait at least 10s after a fresh login so cookies are fully flushed to disk
+    const msSinceVerified = Date.now() - this.sessionVerifiedAt;
+    const delayMs = Math.max(0, 10000 - msSinceVerified);
+    setTimeout(() => this.extractAndCacheAccountInfo().catch(() => {}), delayMs);
     return { loggedIn: true };
   }
 
