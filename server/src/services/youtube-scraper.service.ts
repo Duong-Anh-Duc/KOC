@@ -61,24 +61,29 @@ export class YouTubeScraperService {
   private static loginBrowserOpen: boolean = false;
   /** Timestamp when sentinel was last written — used to delay headless extract after fresh login */
   private static sessionVerifiedAt: number = 0;
+  /** Flag to prevent multiple auto-close timers from framenavigated firing multiple times */
+  private static closeScheduled: boolean = false;
 
   /**
    * Check if session exists without opening browser
    * @returns true if Chrome profile directory has valid session data
    */
   static hasValidSession(): boolean {
-    // Check if .chrome-data directory exists
+    // Primary check: sentinel file written after confirmed YouTube Studio login
+    if (fs.existsSync(SESSION_VERIFIED_FILE)) {
+      logger.info('✅ Valid session found (sentinel file present)');
+      return true;
+    }
+    // Fallback check: Chrome profile + Cookies file exists
     if (!fs.existsSync(CHROME_USER_DATA_DIR)) {
       logger.info('❌ No session: Chrome profile directory does not exist');
       return false;
     }
-    // Check if Default profile exists (where cookies are stored)
     const defaultProfilePath = path.join(CHROME_USER_DATA_DIR, 'Default');
     if (!fs.existsSync(defaultProfilePath)) {
       logger.info('❌ No session: Default profile not found');
       return false;
     }
-    // Check if cookies file exists
     const cookiesPath = path.join(defaultProfilePath, 'Cookies');
     if (!fs.existsSync(cookiesPath)) {
       logger.info('❌ No session: Cookies file not found');
@@ -221,6 +226,7 @@ export class YouTubeScraperService {
 
       // Monitor navigation: when user completes Google login and lands on YouTube Studio,
       // write the sentinel file so checkLoginStatus() knows login is real
+      this.closeScheduled = false;
       page.on('framenavigated', async (frame) => {
         if (frame !== page.mainFrame()) return;
         const url = frame.url();
@@ -228,8 +234,15 @@ export class YouTubeScraperService {
           logger.info('✅ Headful browser navigated to YouTube Studio — login confirmed!');
           this.markSessionVerified();
           this.loginBrowserOpen = false;
-          // Close the browser automatically after a short delay so user can see result
-          setTimeout(() => this.closeBrowser().catch(() => {}), 2000);
+          // Guard: only schedule ONE close timer regardless of how many times framenavigated fires
+          if (!this.closeScheduled) {
+            this.closeScheduled = true;
+            // Wait 8s to allow Chrome to fully flush cookies/session to disk before closing
+            setTimeout(() => {
+              this.closeScheduled = false;
+              this.closeBrowser().catch(() => {});
+            }, 8000);
+          }
         }
       });
 
