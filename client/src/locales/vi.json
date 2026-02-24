@@ -538,6 +538,7 @@
     "resetSessionError": "Không thể đặt lại phiên",
     "sessionReset": "Đặt lại phiên thành công. Vui lòng đăng nhập lại.",
     "changeAccount": "Đổi tài khoản",
+    "connect": "Kết nối",
     "changeAccountConfirm": "Thao tác này sẽ đăng xuất tài khoản YouTube hiện tại và mở trình duyệt để bạn đăng nhập tài khoản khác. Tiếp tục?",
     "changeAccountSuccess": "Đã mở trình duyệt. Vui lòng đăng nhập tài khoản mới.",
     "accountInfoUnknown": "Chưa có thông tin tài khoản — nhấn làm mới",

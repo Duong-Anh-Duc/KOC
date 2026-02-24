@@ -84,7 +84,7 @@ export class YouTubeScraperController {
     } catch (error: any) {
       const t = (req as any).t;
       if (error.message === 'NOT_LOGGED_IN') {
-        res.status(401).json({
+        res.status(403).json({
           success: false,
           message: t ? t('ytScraper.notLoggedIn') : 'Not logged in to YouTube Studio. Please use /api/yt-scraper/login first.',
         });
@@ -213,7 +213,7 @@ export class YouTubeScraperController {
           data: { loggedIn: true, sessionValid: true },
         });
       } else {
-        res.status(401).json({
+        res.status(200).json({
           success: false,
           message: t ? t('ytScraper.autoConnectFailed') : '❌ Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google.',
           data: { loggedIn: false, sessionValid: false },

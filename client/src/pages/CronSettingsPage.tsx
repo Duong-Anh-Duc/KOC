@@ -290,7 +290,7 @@ const CronSettingsPage: React.FC = () => {
                 loading={changeAccountMutation.isPending}
                 style={isLoggedIn ? { borderColor: '#52c41a', color: '#52c41a' } : {}}
               >
-                {t('ytScraper.changeAccount')}
+                {isLoggedIn ? t('ytScraper.changeAccount') : t('ytScraper.connect')}
               </Button>
             </Tooltip>
           </Popconfirm>

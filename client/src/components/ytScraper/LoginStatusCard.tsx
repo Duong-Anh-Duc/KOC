@@ -1,10 +1,10 @@
 import {
-    ChromeOutlined,
-    LoadingOutlined,
-    ReloadOutlined,
-    SwapOutlined,
-    UserOutlined,
-    YoutubeOutlined,
+  ChromeOutlined,
+  LoadingOutlined,
+  ReloadOutlined,
+  SwapOutlined,
+  UserOutlined,
+  YoutubeOutlined,
 } from '@ant-design/icons';
 import { Alert, Badge, Button, Card, Col, Popconfirm, Row, Space, Tag, Tooltip, Typography } from 'antd';
 import React from 'react';
@@ -106,7 +106,7 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
                 icon={<SwapOutlined />}
                 loading={changeAccountLoading}
               >
-                {t('ytScraper.changeAccount')}
+                {isLoggedIn ? t('ytScraper.changeAccount') : t('ytScraper.connect')}
               </Button>
             </Popconfirm>
           </Space>

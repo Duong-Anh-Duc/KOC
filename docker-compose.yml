@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml  –  KOC Revenue Management (local build)
+#
+# Usage:
+#   docker compose up --build          # build & start everything
+#   docker compose up --build -d       # detached mode
+#   docker compose down -v             # stop & remove volumes
+#
+# The frontend is served on http://localhost:80
+# The backend API is on       http://localhost:3001
+# PostgreSQL is on            localhost:5432
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-koc_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (Express + Prisma + Puppeteer) ─────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Override DATABASE_URL so it points to the 'db' service inside Docker
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-koc_db}
+      PORT: 3001
+      NODE_ENV: production
+    env_file:
+      # All other secrets (JWT_SECRET, GMAIL_*, etc.) come from server/.env
+      - ./server/.env
+    ports:
+      - "3001:3001"
+    volumes:
+      # Persist Chrome session data across container restarts
+      - chrome_data:/app/.chrome-data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Frontend (Vite build → nginx) ─────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        # Vite bakes these URLs into the bundle at build time.
+        # Browser calls the API directly at localhost:3001.
+        VITE_API_URL: http://localhost:3001/api
+        VITE_SERVER_URL: http://localhost:3001
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  chrome_data:
