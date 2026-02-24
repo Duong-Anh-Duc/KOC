@@ -31,6 +31,7 @@ export class AuditLogService {
     page?: number;
     limit?: number;
     entity?: string;
+    action?: string;
     entityId?: string;
     userId?: string;
   }) {
@@ -40,6 +41,7 @@ export class AuditLogService {
 
     const where: Record<string, unknown> = {};
     if (options.entity) where.entity = options.entity;
+    if (options.action) where.action = options.action;
     if (options.entityId) where.entity_id = options.entityId;
     if (options.userId) where.user_id = options.userId;
 

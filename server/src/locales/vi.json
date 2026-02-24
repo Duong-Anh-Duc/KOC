@@ -44,7 +44,8 @@
     "cannotDeleteFromLocked": "Không thể xóa bản ghi từ kỳ đã khóa",
     "belowThreshold": "Không thể duyệt: Doanh thu tích lũy chưa đạt ngưỡng $100",
     "calculationPreview": "Xem trước tính toán",
-    "paymentStatusRetrieved": "Đã lấy trạng thái thanh toán"
+    "paymentStatusRetrieved": "Đã lấy trạng thái thanh toán",
+    "cycleNotFound": "Không tìm thấy kỳ đối soát"
   },
   "cycle": {
     "created": "Tạo kỳ đối soát thành công",
@@ -59,14 +60,18 @@
     "mustLockFirst": "Cần khóa kỳ đối soát trước khi hoàn tất",
     "pendingRecords": "Còn {{count}} bản ghi chưa được phê duyệt",
     "onlyOpenCanDelete": "Chỉ có thể xóa kỳ đối soát đang mở",
-    "hasRecords": "Không thể xóa kỳ đối soát có bản ghi"
+    "hasRecords": "Không thể xóa kỳ đối soát có bản ghi",
+    "exchangeRateFetched": "Lấy tỷ giá thành công",
+    "scrapeComplete": "Cào hoàn tất: {{created}} tạo mới, {{updated}} cập nhật, {{skipped}} bỏ qua, {{errors}} lỗi"
   },
   "stats": {
     "retrieved": "Đã lấy thống kê kênh",
     "fetched": "Đã lấy và lưu thống kê kênh",
     "fetchAllResult": "Thống kê: {{success}} thành công, {{failed}} thất bại",
     "latestRetrieved": "Đã lấy thống kê mới nhất",
-    "fetchFailed": "Lỗi khi lấy thống kê kênh: {{channelId}}"
+    "fetchFailed": "Lỗi khi lấy thống kê kênh: {{channelId}}",
+    "growthCalculated": "Tính toán tăng trưởng thành công",
+    "correlationCalculated": "Tính toán tương quan thành công"
   },
   "dashboard": {
     "overview": "Tổng quan bảng điều khiển",
@@ -100,7 +105,9 @@
     "testSent": "Email kiểm tra đã gửi thành công",
     "testFailed": "Gửi email kiểm tra thất bại",
     "revenueSent": "Đã gửi {{sent}} email, {{failed}} thất bại, {{skipped}} bỏ qua",
-    "cyclesRetrieved": "Đã lấy danh sách chu kỳ"
+    "cyclesRetrieved": "Đã lấy danh sách chu kỳ",
+    "emailRequired": "Địa chỉ email là bắt buộc",
+    "monthRequired": "Tháng là bắt buộc (VD: 01/2026)"
   },
   "ytScraper": {
     "browserClosed": "Đã đóng trình duyệt",
@@ -108,8 +115,8 @@
     "notLoggedIn": "Chưa đăng nhập YouTube Studio. Vui lòng đăng nhập tại /api/yt-scraper/login",
     "noActiveKocs": "Không có KOC đang hoạt động với YouTube Channel ID",
     "jobNotFound": "Không tìm thấy công việc",
-    "autoConnectSuccess": "✅ Kết nối ẩn thành công - Sẵn sàng cào dữ liệu",
-    "autoConnectFailed": "❌ Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google",
+    "autoConnectSuccess": "Kết nối ẩn thành công - Sẵn sàng cào dữ liệu",
+    "autoConnectFailed": "Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google",
     "latestResultsFound": "Đã tìm thấy dữ liệu cào mới nhất cho {{count}} KOC",
     "historyFound": "Đã tìm thấy {{count}} bản ghi cào",
     "noScrapeData": "Không tìm thấy dữ liệu cào cho KOC này",
@@ -118,7 +125,10 @@
     "parseTestCompleted": "Hoàn tất kiểm tra parse. Đã lưu đầu ra vào: {{path}}",
     "kocNotFound": "Không tìm thấy KOC",
     "scrapedMonthlyData": "Đã cào {{count}} tháng dữ liệu doanh thu",
-    "monthlyDataRetrieved": "Đã lấy dữ liệu doanh thu theo tháng"
+    "monthlyDataRetrieved": "Đã lấy dữ liệu doanh thu theo tháng",
+    "noRevenueData": "Không có dữ liệu doanh thu",
+    "recordAlreadyExists": "Bản ghi đã tồn tại",
+    "sessionReset": "Đặt lại phiên thành công. Vui lòng đăng nhập lại."
   },
   "youtubeAPI": {
     "openAuthUrl": "Mở URL này để cấp quyền truy cập YouTube",
@@ -129,5 +139,11 @@
     "authFailed": "Cấp quyền thất bại",
     "missingDateRange": "Thiếu startDate hoặc endDate",
     "accessRevoked": "Đã thu hồi quyền truy cập thành công"
+  },
+  "pubCode": {
+    "matched": "Mã PUB khớp",
+    "mismatched": "Mã PUB KHÔNG KHỚP! Đã lưu: {{stored}}, Đã cào: {{scraped}}",
+    "noData": "Không thể xác minh mã PUB",
+    "verifyAllResult": "Đã xác minh {{total}} KOC: {{matched}} khớp, {{mismatched}} không khớp, {{noData}} không có dữ liệu, {{errors}} lỗi"
   }
 }

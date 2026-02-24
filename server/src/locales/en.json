@@ -44,7 +44,8 @@
     "cannotDeleteFromLocked": "Cannot delete record from locked cycle",
     "belowThreshold": "Cannot approve: Accumulated revenue below $100 threshold",
     "calculationPreview": "Calculation preview",
-    "paymentStatusRetrieved": "Payment status retrieved"
+    "paymentStatusRetrieved": "Payment status retrieved",
+    "cycleNotFound": "Revenue cycle not found"
   },
   "cycle": {
     "created": "Revenue cycle created",
@@ -59,14 +60,18 @@
     "mustLockFirst": "Cycle must be locked before completing",
     "pendingRecords": "{{count}} records are still pending approval",
     "onlyOpenCanDelete": "Only OPEN cycles can be deleted",
-    "hasRecords": "Cannot delete cycle with existing records"
+    "hasRecords": "Cannot delete cycle with existing records",
+    "exchangeRateFetched": "Exchange rate fetched successfully",
+    "scrapeComplete": "Scrape completed: {{created}} created, {{updated}} updated, {{skipped}} skipped, {{errors}} errors"
   },
   "stats": {
     "retrieved": "Channel stats retrieved",
     "fetched": "Channel stats fetched and saved",
     "fetchAllResult": "Stats recorded: {{success}} success, {{failed}} failed",
     "latestRetrieved": "Latest stats retrieved",
-    "fetchFailed": "Failed to fetch stats for channel: {{channelId}}"
+    "fetchFailed": "Failed to fetch stats for channel: {{channelId}}",
+    "growthCalculated": "Growth calculated successfully",
+    "correlationCalculated": "Correlation calculated successfully"
   },
   "dashboard": {
     "overview": "Dashboard overview",
@@ -100,7 +105,9 @@
     "testSent": "Test email sent successfully",
     "testFailed": "Failed to send test email",
     "revenueSent": "Sent {{sent}} emails, {{failed}} failed, {{skipped}} skipped",
-    "cyclesRetrieved": "Cycles retrieved"
+    "cyclesRetrieved": "Cycles retrieved",
+    "emailRequired": "Email address is required",
+    "monthRequired": "Month is required (e.g. 01/2026)"
   },
   "ytScraper": {
     "browserClosed": "Browser closed",
@@ -108,8 +115,8 @@
     "notLoggedIn": "Not logged in to YouTube Studio. Please use /api/yt-scraper/login first",
     "noActiveKocs": "No active KOCs with YouTube channel IDs",
     "jobNotFound": "Job not found",
-    "autoConnectSuccess": "✅ Auto-connected successfully - Ready to scrape",
-    "autoConnectFailed": "❌ No session found. Please open browser to login to Google",
+    "autoConnectSuccess": "Auto-connected successfully - Ready to scrape",
+    "autoConnectFailed": "No session found. Please open browser to login to Google",
     "latestResultsFound": "Found latest scrape data for {{count}} KOCs",
     "historyFound": "Found {{count}} scrape records",
     "noScrapeData": "No scrape data found for this KOC",
@@ -118,7 +125,14 @@
     "parseTestCompleted": "Parse test completed. Output saved to: {{path}}",
     "kocNotFound": "KOC not found",
     "scrapedMonthlyData": "Scraped {{count}} months of revenue data",
-    "monthlyDataRetrieved": "Monthly revenue data retrieved"
+    "monthlyDataRetrieved": "Monthly revenue data retrieved",
+    "sessionReset": "Session reset successfully. Please log in again."
+  },
+  "pubCode": {
+    "matched": "PUB code matched",
+    "mismatched": "PUB code MISMATCH! Stored: {{stored}}, Scraped: {{scraped}}",
+    "noData": "Could not verify PUB code",
+    "verifyAllResult": "Verified {{total}} KOCs: {{matched}} matched, {{mismatched}} mismatched, {{noData}} no data, {{errors}} errors"
   },
   "youtubeAPI": {
     "openAuthUrl": "Open this URL to authorize YouTube access",

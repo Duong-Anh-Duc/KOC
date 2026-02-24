@@ -11,6 +11,8 @@ router.post('/login', YouTubeScraperController.openLogin);
 router.get('/status', YouTubeScraperController.checkStatus);
 router.post('/auto-connect', YouTubeScraperController.autoConnect);
 router.post('/close', YouTubeScraperController.closeBrowser);
+router.post('/reset-session', YouTubeScraperController.resetSession);
+router.post('/refresh-account-info', YouTubeScraperController.refreshAccountInfo);
 
 // Scrape all active KOCs
 router.post('/scrape-all', YouTubeScraperController.scrapeAll);

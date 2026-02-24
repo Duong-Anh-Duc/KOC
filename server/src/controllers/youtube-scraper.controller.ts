@@ -109,6 +109,33 @@ export class YouTubeScraperController {
   }
 
   /**
+   * POST /api/yt-scraper/reset-session
+   * Reset (delete) saved Chrome session so user can log in with a different account
+   */
+  static async resetSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const t = (req as any).t;
+      await YouTubeScraperService.resetSession();
+      res.status(200).json({ success: true, message: t ? t('ytScraper.sessionReset') : 'Session reset successfully. Please log in again.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/yt-scraper/refresh-account-info
+   * Extract and return the connected YouTube account info (channel name, email)
+   */
+  static async refreshAccountInfo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const info = await YouTubeScraperService.extractAndCacheAccountInfo();
+      res.status(200).json({ success: true, data: info });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /api/yt-scraper/scrape-all-async
    * Start async batch scrape job (returns immediately with jobId)
    */

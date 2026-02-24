@@ -7,12 +7,13 @@ export class AuditController {
    */
   static async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { page, limit, entity, entity_id, user_id } = req.query;
+      const { page, limit, entity, entity_id, user_id, action } = req.query;
 
       const result = await AuditLogService.getLogs({
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
         entity: entity as string,
+        action: action as string,
         entityId: entity_id as string,
         userId: user_id as string,
       });

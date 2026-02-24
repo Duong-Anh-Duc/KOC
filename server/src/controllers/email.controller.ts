@@ -85,7 +85,7 @@ export class EmailController {
       const { email } = req.body;
 
       if (!email) {
-        res.status(400).json({ success: false, message: 'Email address is required' });
+        res.status(400).json({ success: false, message: t ? t('email.emailRequired') : 'Email address is required' });
         return;
       }
 
@@ -113,7 +113,7 @@ export class EmailController {
       const { month } = req.body;
 
       if (!month) {
-        res.status(400).json({ success: false, message: 'Month is required (e.g. 01/2026)' });
+        res.status(400).json({ success: false, message: t ? t('email.monthRequired') : 'Month is required (e.g. 01/2026)' });
         return;
       }
 

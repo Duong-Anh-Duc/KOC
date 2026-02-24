@@ -5,6 +5,8 @@ import logger from '../middlewares/logger.middleware';
 
 // Persistent Chrome profile directory for maintaining login session
 const CHROME_USER_DATA_DIR = path.join(process.cwd(), '.chrome-data');
+// Cached account info (stored inside the Chrome data dir so it's cleared on session reset)
+const ACCOUNT_INFO_FILE = path.join(CHROME_USER_DATA_DIR, 'account-info.json');
 
 /** Revenue by country row */
 export interface RevenueByCountry {
@@ -154,6 +156,17 @@ export class YouTubeScraperService {
   }
 
   /**
+   * Reset session: close browser and delete the saved Chrome profile/session data
+   */
+  static async resetSession(): Promise<void> {
+    await this.closeBrowser();
+    if (fs.existsSync(CHROME_USER_DATA_DIR)) {
+      fs.rmSync(CHROME_USER_DATA_DIR, { recursive: true, force: true });
+      logger.info('🗑️ Chrome session data deleted.');
+    }
+  }
+
+  /**
    * Step 1: Open browser for manual Google login (headful - VISIBLE)
    * User logs in once, session is saved in chrome-data directory
    */
@@ -174,15 +187,99 @@ export class YouTubeScraperService {
   }
 
   /**
+   * Extract account info from YouTube Studio page (headless) and cache to file.
+   * Returns { channelName, email } - both may be undefined if extraction fails.
+   */
+  static async extractAndCacheAccountInfo(): Promise<{ channelName?: string; email?: string }> {
+    let page = null;
+    try {
+      const browser = await this.getBrowser(true);
+      page = await browser.newPage();
+
+      // Stealth
+      await page.evaluateOnNewDocument(`
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        window.chrome = { runtime: {} };
+        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      `);
+
+      await page.goto('https://studio.youtube.com', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
+
+      // If redirected to Google login, session is invalid
+      if (page.url().includes('accounts.google.com')) {
+        logger.warn('⚠️ Not logged in (redirected to Google login)');
+        await safeClosePage(page);
+        return {};
+      }
+
+      // Wait a bit for page to render
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Extract channel name from page title: "{Channel Name} - YouTube Studio"
+      const title = await page.title();
+      const channelName = title.replace(/\s*-\s*YouTube Studio.*$/i, '').trim() || undefined;
+
+      // Try to get email from account switcher aria-label
+      let email: string | undefined;
+      try {
+        email = await page.evaluate(() => {
+          // Try various selectors YouTube uses for the account button
+          const selectors = [
+            '[aria-label*="@"]',
+            '[title*="@"]',
+            'yt-img-shadow[aria-label]',
+            '#avatar-btn',
+            'button[aria-label*="Google"]',
+          ];
+          for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el) {
+              const label = el.getAttribute('aria-label') || el.getAttribute('title') || '';
+              const match = label.match(/[\w.-]+@[\w.-]+\.[a-z]{2,}/i);
+              if (match) return match[0];
+            }
+          }
+          return null;
+        }) as string | null ?? undefined;
+      } catch { /* ignore */ }
+
+      logger.info(`✅ Account info extracted: channel="${channelName}" email="${email || 'unknown'}"`);
+
+      const info = { channelName, email, extractedAt: new Date().toISOString() };
+      try { fs.writeFileSync(ACCOUNT_INFO_FILE, JSON.stringify(info, null, 2)); } catch { /* ignore */ }
+
+      await safeClosePage(page);
+      return info;
+    } catch (err: any) {
+      logger.warn('Could not extract account info:', err.message);
+      if (page) await safeClosePage(page);
+      return {};
+    }
+  }
+
+  /**
    * Check if user is logged in to YouTube Studio
    */
-  static async checkLoginStatus(): Promise<{ loggedIn: boolean; email?: string }> {
-    // Just check if session exists - no browser opened
+  static async checkLoginStatus(): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
     const hasSession = this.hasValidSession();
-    if (hasSession) {
-      return { loggedIn: true, email: 'Session found (email not available)' };
+    if (!hasSession) return { loggedIn: false };
+
+    // Return cached account info if available
+    if (fs.existsSync(ACCOUNT_INFO_FILE)) {
+      try {
+        const raw = fs.readFileSync(ACCOUNT_INFO_FILE, 'utf-8');
+        const info = JSON.parse(raw);
+        return { loggedIn: true, channelName: info.channelName, email: info.email };
+      } catch { /* ignore */ }
     }
-    return { loggedIn: false };
+
+    // No cache yet — extract in background (don't block the response)
+    this.extractAndCacheAccountInfo().catch(() => {});
+    return { loggedIn: true };
   }
 
   /**

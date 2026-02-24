@@ -190,8 +190,8 @@ export class RevenueService {
     records: Array<{ koc_id: string; original_revenue_usd: number; us_tax_deduction: number }>
   ) {
     const cycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
-    if (!cycle) throw new ApiError(404, 'Revenue cycle not found');
-    if (cycle.status !== 'OPEN') throw new ApiError(400, 'Revenue cycle is locked');
+    if (!cycle) throw new ApiError(404, 'revenue.cycleNotFound');
+    if (cycle.status !== 'OPEN') throw new ApiError(400, 'revenue.cycleLocked');
 
     const results = [];
 
