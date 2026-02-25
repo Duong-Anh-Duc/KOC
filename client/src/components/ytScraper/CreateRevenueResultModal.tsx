@@ -2,6 +2,7 @@ import { DollarOutlined } from '@ant-design/icons';
 import { Button, Card, Col, Modal, Row, Tag, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatUSD } from '../../utils';
 
 const { Title, Text } = Typography;
 
@@ -57,17 +58,17 @@ const CreateRevenueResultModal: React.FC<CreateRevenueResultModalProps> = ({ ope
           </Row>
 
           {data.created?.length > 0 && (
-            <Card size="small" title={`✅ ${t('ytScraper.recordsCreated')} (${data.created.length})`} style={{ marginBottom: 12 }}>
+            <Card size="small" title={`${t('ytScraper.recordsCreated')} (${data.created.length})`} style={{ marginBottom: 12 }}>
               {data.created.map((item: any, i: number) => (
                 <Tag key={i} color="green" style={{ marginBottom: 4 }}>
-                  {item.koc}: ${item.revenue?.toFixed(2)}
+                  {item.koc}: {item.revenue != null ? formatUSD(item.revenue) : '-'}
                 </Tag>
               ))}
             </Card>
           )}
 
           {data.skipped?.length > 0 && (
-            <Card size="small" title={`⏭️ ${t('ytScraper.recordsSkipped')} (${data.skipped.length})`}>
+            <Card size="small" title={`${t('ytScraper.recordsSkipped')} (${data.skipped.length})`}>
               {data.skipped.map((item: any, i: number) => (
                 <Tag key={i} color="orange" style={{ marginBottom: 4 }}>
                   {item.koc}: {item.reason}

@@ -2,7 +2,7 @@ import { EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Table, Tag, Tooltip, Typography } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getTableLocale } from '../../utils';
+import { formatUSD, getTableLocale } from '../../utils';
 
 const { Title, Text } = Typography;
 
@@ -95,12 +95,12 @@ const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading
     {
       title: t('stats.revenue'),
       dataIndex: 'estimated_revenue_28d_num',
-      width: 110,
+      width: 150,
       align: 'right' as const,
       sorter: (a: any, b: any) => (a.estimated_revenue_28d_num || 0) - (b.estimated_revenue_28d_num || 0),
       render: (val: number) => (
         <Text strong style={{ color: '#faad14' }}>
-          {val ? `$${val.toFixed(2)}` : '-'}
+          {val ? formatUSD(val) : '-'}
         </Text>
       ),
     },

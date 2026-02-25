@@ -51,6 +51,7 @@ export interface KOC {
   bank_name: string | null;
   tax_code: string | null;
   base_rate: number;
+  min_payment: number;
   pub_code: string | null;
   status: 'ACTIVE' | 'INACTIVE';
   created_at: string;
@@ -69,6 +70,7 @@ export interface CreateKOCInput {
   bank_name?: string;
   tax_code?: string;
   base_rate?: number;
+  min_payment?: number;
   pub_code?: string;
 }
 
@@ -288,3 +290,23 @@ export interface MonthlyRevenueAnalytics {
   scraped_at: string;
   koc?: { full_name: string; channel_name: string; youtube_channel_id: string };
 }
+
+// ============================================================
+// PROGRESS / SSE TYPES
+// ============================================================
+
+export interface ProgressEvent {
+  step: number;
+  total: number;
+  percent: number;
+  message: string;
+}
+
+export interface PaymentStatusEntry {
+  accumulated: number;
+  belowThreshold: boolean;
+  accumulatedMonths: Array<{ month: string; revenue: number }>;
+  threshold: number;
+}
+
+export type PaymentStatusMap = Record<string, PaymentStatusEntry>;

@@ -1,6 +1,7 @@
 import { Button, Card, Col, Modal, Row, Tag, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatUSD } from '../../utils';
 
 const { Title, Text } = Typography;
 
@@ -57,27 +58,27 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           </Row>
 
           {data.created?.length > 0 && (
-            <Card size="small" title={`✅ ${t('cycle.recordsCreated')} (${data.created.length})`} style={{ marginBottom: 12 }}>
+            <Card size="small" title={`${t('cycle.recordsCreated')} (${data.created.length})`} style={{ marginBottom: 12 }}>
               {data.created.map((item: any, i: number) => (
                 <Tag key={i} color="green" style={{ marginBottom: 4 }}>
-                  {item.koc}: ${item.revenue?.toFixed(2)}
+                  {item.koc}: {item.revenue != null ? formatUSD(item.revenue) : '-'}
                 </Tag>
               ))}
             </Card>
           )}
 
           {data.updated?.length > 0 && (
-            <Card size="small" title={`🔄 ${t('cycle.recordsUpdated')} (${data.updated.length})`} style={{ marginBottom: 12 }}>
+            <Card size="small" title={`${t('cycle.recordsUpdated')} (${data.updated.length})`} style={{ marginBottom: 12 }}>
               {data.updated.map((item: any, i: number) => (
                 <Tag key={i} color="blue" style={{ marginBottom: 4 }}>
-                  {item.koc}: ${item.revenue?.toFixed(2)}
+                  {item.koc}: {item.revenue != null ? formatUSD(item.revenue) : '-'}
                 </Tag>
               ))}
             </Card>
           )}
 
           {data.skipped?.length > 0 && (
-            <Card size="small" title={`⏭️ ${t('cycle.recordsSkipped')} (${data.skipped.length})`} style={{ marginBottom: 12 }}>
+            <Card size="small" title={`${t('cycle.recordsSkipped')} (${data.skipped.length})`} style={{ marginBottom: 12 }}>
               {data.skipped.map((item: any, i: number) => (
                 <Tag key={i} color="orange" style={{ marginBottom: 4 }}>
                   {item.koc}: {item.reason}
@@ -87,7 +88,7 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           )}
 
           {data.scrapeErrors?.length > 0 && (
-            <Card size="small" title={`❌ ${t('common.errors')} (${data.scrapeErrors.length})`}>
+            <Card size="small" title={`${t('common.errors')} (${data.scrapeErrors.length})`}>
               {data.scrapeErrors.map((item: any, i: number) => (
                 <Tag key={i} color="red" style={{ marginBottom: 4 }}>
                   {item.channelId}: {item.error}

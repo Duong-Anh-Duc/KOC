@@ -10,7 +10,7 @@ import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueByCountry, YouTubeScrapeResult } from '../../types';
-import { getTableLocale } from '../../utils';
+import { formatUSD, getTableLocale } from '../../utils';
 
 const { Text } = Typography;
 
@@ -68,7 +68,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       render: (val: number | null) =>
         val != null ? (
           <Text strong style={{ color: '#52c41a', fontSize: 14 }}>
-            ${Number(val) < 0.01 && Number(val) > 0 ? Number(val).toFixed(3) : Number(val).toFixed(2)}
+            {Number(val) < 0.01 && Number(val) > 0 ? `$${Number(val).toFixed(3)}` : formatUSD(val)}
           </Text>
         ) : (
           '-'
@@ -159,7 +159,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
         val != null ? (
           <span>
             <Text strong style={{ color: '#52c41a' }}>
-              ${Number(val) < 0.01 && Number(val) > 0 ? Number(val).toFixed(3) : Number(val).toFixed(2)}
+              {Number(val) < 0.01 && Number(val) > 0 ? `$${Number(val).toFixed(3)}` : formatUSD(val)}
             </Text>
             {record.revenuePercent != null && (
               <Text type="secondary" style={{ marginLeft: 4 }}>
@@ -313,7 +313,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
               </Table.Summary.Cell>
               <Table.Summary.Cell index={3} align="right">
                 <Text strong style={{ color: '#52c41a', fontSize: 15 }}>
-                  ${totalRevenue.toFixed(2)}
+                  {formatUSD(totalRevenue)}
                 </Text>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={4} align="right">

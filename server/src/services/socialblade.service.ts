@@ -3,29 +3,30 @@ import prisma from '../config/database';
 import { ApiError } from '../middlewares';
 import logger from '../middlewares/logger.middleware';
 import type {
-    ChannelStats28dData,
-    ColumnSpec,
-    CountryStatsRow,
-    CountryStatsTotals,
-    DayStatsRow,
-    DayStatsTotals,
+  ChannelStats28dData,
+  ColumnSpec,
+  CountryStatsRow,
+  CountryStatsTotals,
+  DayStatsRow,
+  DayStatsTotals,
 } from '../types/stats.types';
 import {
-    isCountryName,
-    isDateLine,
-    isValueLine,
-    parseDimensionRowValues,
-    parseTotalRow,
+  isCountryName,
+  isDateLine,
+  isValueLine,
+  parseDimensionRowValues,
+  parseTotalRow,
 } from '../utils/parseHelpers';
+import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 // Re-export types so existing imports from this file still work
 export type {
-    ChannelStats28dData,
-    CountryStatsRow,
-    CountryStatsTotals,
-    DayStatsRow,
-    DayStatsTotals
+  ChannelStats28dData,
+  CountryStatsRow,
+  CountryStatsTotals,
+  DayStatsRow,
+  DayStatsTotals
 } from '../types/stats.types';
 
 // ============================================================
@@ -427,9 +428,62 @@ export class SocialBladeService {
       await new Promise(r => setTimeout(r, 3000));
     }
 
-    logger.info(`🎉 Completed fetching stats: ${results.length} success, ${errors.length} failed`);
+    logger.info(`Stats completed: ${results.length} success, ${errors.length} failed`);
 
     return { success: results.length, failed: errors.length, errors };
+  }
+
+  /**
+   * Same as recordAllStats but emits SSE progress events via ProgressService.
+   */
+  static async recordAllStatsWithProgress(taskId: string) {
+    const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE' } });
+    const total = kocs.length;
+    const results = [];
+    const errors = [];
+
+    logger.info(`Starting to fetch 28d stats for ${total} KOCs (taskId: ${taskId})...`);
+
+    for (let i = 0; i < kocs.length; i++) {
+      const koc = kocs[i];
+      const step = i + 1;
+      const percent = Math.round((i / total) * 100);
+
+      ProgressService.emit(taskId, {
+        step,
+        total,
+        percent,
+        message: `Đang xử lý: ${koc.channel_name} (${step}/${total})`,
+      });
+
+      try {
+        const stats = await this.scrapeChannelStats(koc.youtube_channel_id);
+
+        await prisma.channelStat.create({
+          data: {
+            koc_id: koc.id,
+            view_count: stats.byCountry.totals.views || 0,
+            sub_count: stats.byCountry.totals.subscribersNet || 0,
+            yt_analytics: stats as any,
+          },
+        });
+
+        results.push(koc.id);
+        logger.info(`Stats recorded for ${koc.channel_name} (${results.length}/${total})`);
+      } catch (error) {
+        errors.push({ kocId: koc.id, channelName: koc.channel_name, error: String(error) });
+        logger.error(`Failed to record stats for ${koc.channel_name}: ${error}`);
+      }
+
+      if (i < kocs.length - 1) {
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+
+    const resultData = { success: results.length, failed: errors.length, errors };
+    logger.info(`Stats fetch completed: ${results.length} success, ${errors.length} failed`);
+    ProgressService.complete(taskId, resultData);
+    return resultData;
   }
 
   // ============================================================

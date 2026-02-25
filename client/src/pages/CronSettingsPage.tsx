@@ -1,11 +1,11 @@
 import {
-  ClockCircleOutlined,
-  LoadingOutlined,
-  PlayCircleOutlined,
-  SettingOutlined,
-  SwapOutlined,
-  UserOutlined,
-  YoutubeOutlined,
+    ClockCircleOutlined,
+    LoadingOutlined,
+    PlayCircleOutlined,
+    SettingOutlined,
+    SwapOutlined,
+    UserOutlined,
+    YoutubeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
@@ -272,7 +272,7 @@ const CronSettingsPage: React.FC = () => {
               <Tooltip
                 title={
                   <div style={{ lineHeight: 1.8 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>🔗 {t('ytScraper.connected')}</div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('ytScraper.connected')}</div>
                     {refreshAccountInfoMutation.isPending ? (
                       <div><LoadingOutlined style={{ marginRight: 6 }} />Đang tải thông tin...</div>
                     ) : (

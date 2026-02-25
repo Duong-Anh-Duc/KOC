@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { AuditLogService } from '../services';
 import { EmailService } from '../services/email.service';
+import { ProgressService } from '../services/progress.service';
 import { AuthenticatedRequest } from '../types';
 
 export class EmailController {
@@ -117,36 +118,70 @@ export class EmailController {
         return;
       }
 
-      const results = await EmailService.sendAllRevenueEmails(month);
+      const taskId = ProgressService.generateTaskId('send-emails');
 
-      // Audit log
-      try {
-        await AuditLogService.log(
-          req.user?.userId || null,
-          'SEND_REVENUE_EMAILS',
-          'SYSTEM_CONFIG',
-          'email_revenue',
-          null,
-          {
-            month,
-            sent: results.sent.length,
-            failed: results.failed.length,
-            skipped: results.skipped.length,
-          } as unknown as Record<string, unknown>
-        );
-      } catch (auditError) {
-        console.error('Failed to create audit log:', auditError);
-      }
-
-      res.status(200).json({
+      res.status(202).json({
         success: true,
-        message: t
-          ? t('email.revenueSent', { sent: results.sent.length, failed: results.failed.length, skipped: results.skipped.length })
-          : `Revenue emails: ${results.sent.length} sent, ${results.failed.length} failed, ${results.skipped.length} skipped`,
-        data: results,
+        message: t ? t('progress.taskStarted') : 'Task started',
+        data: { taskId },
+      });
+
+      // Run in background
+      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null).catch(err => {
+        ProgressService.error(taskId, err.message);
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  /**
+   * Background method to send revenue emails with progress
+   */
+  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null): Promise<void> {
+    try {
+      const results = await EmailService.sendAllRevenueEmails(month, (step, total, kocName) => {
+        const percent = Math.round((step / total) * 100);
+        ProgressService.emit(taskId, {
+          step, total, percent,
+          message: `Sending email to ${kocName} (${step}/${total})`,
+        });
+      });
+
+      // Audit log
+      if (userId) {
+        try {
+          await AuditLogService.log(
+            userId,
+            'SEND_REVENUE_EMAILS',
+            'SYSTEM_CONFIG',
+            'email_revenue',
+            null,
+            {
+              month,
+              sent: results.sent.length,
+              failed: results.failed.length,
+              skipped: results.skipped.length,
+            } as unknown as Record<string, unknown>
+          );
+        } catch (auditError) {
+          console.error('Failed to create audit log:', auditError);
+        }
+      }
+
+      ProgressService.complete(taskId, {
+        month,
+        sent: results.sent,
+        failed: results.failed,
+        skipped: results.skipped,
+        summary: {
+          totalSent: results.sent.length,
+          totalFailed: results.failed.length,
+          totalSkipped: results.skipped.length,
+        },
+      });
+    } catch (error: any) {
+      ProgressService.error(taskId, error.message);
     }
   }
 

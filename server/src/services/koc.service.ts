@@ -80,6 +80,7 @@ export class KOCService {
     bank_name: string;
     tax_code: string;
     base_rate?: number;
+    min_payment?: number;
     pub_code?: string;
   }) {
     const koc = await prisma.kOC.create({
@@ -93,6 +94,7 @@ export class KOCService {
         bank_name: data.bank_name,
         tax_code: data.tax_code,
         base_rate: data.base_rate ?? 0.8,
+        min_payment: data.min_payment ?? 100,
         pub_code: data.pub_code || null,
       },
     });
@@ -115,19 +117,26 @@ export class KOCService {
       bank_name: string;
       tax_code: string;
       base_rate: number;
+      min_payment: number;
       pub_code: string;
       status: KOCStatus;
     }>
   ) {
+    console.log('💾 KOCService.update - Input data:', JSON.stringify(data, null, 2));
+    console.log('💾 KOCService.update - min_payment in data:', data.min_payment, 'type:', typeof data.min_payment);
+    
     const existing = await prisma.kOC.findUnique({ where: { id } });
     if (!existing) throw new ApiError(404, 'koc.notFound');
 
     const oldValue = { ...existing };
+    console.log('💾 KOCService.update - Old min_payment:', oldValue.min_payment);
 
     const updated = await prisma.kOC.update({
       where: { id },
       data,
     });
+    
+    console.log('💾 KOCService.update - Updated min_payment:', updated.min_payment, 'type:', typeof updated.min_payment);
 
     return { koc: updated, oldValue };
   }

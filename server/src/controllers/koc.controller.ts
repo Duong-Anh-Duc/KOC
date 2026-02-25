@@ -103,7 +103,12 @@ export class KOCController {
    */
   static async update(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      console.log('🔧 KOC UPDATE - Raw request body:', JSON.stringify(req.body, null, 2));
+      console.log('🔧 KOC UPDATE - min_payment type:', typeof req.body.min_payment, 'value:', req.body.min_payment);
+      
       const { koc, oldValue } = await KOCService.update(req.params.id as string, req.body);
+      
+      console.log('🔧 KOC UPDATE - After DB update, new min_payment:', koc.min_payment, 'type:', typeof koc.min_payment);
 
       // Audit log
       if (req.user) {

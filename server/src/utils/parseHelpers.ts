@@ -1,3 +1,4 @@
+import { ExchangeRateService } from '../services/exchange-rate.service';
 import type { ColumnSpec } from '../types/stats.types';
 
 // ============================================================
@@ -58,11 +59,24 @@ export function parseDecimalValue(str: string | undefined): number | null {
 }
 
 /**
- * Parse a revenue/dollar value (strips $ and whitespace).
+ * Parse a revenue/dollar value. Handles both USD ($) and VND (₫).
+ * VND amounts are automatically converted to USD using the cached exchange rate.
  * Returns null if empty/invalid.
  */
 export function parseRevenueValue(str: string | undefined): number | null {
   if (!str) return null;
+
+  // Handle VND currency (₫)
+  if (str.includes('₫')) {
+    const vndCleaned = str.replace(/[₫\s]/g, '');
+    if (!vndCleaned) return null;
+    const vndAmount = parseNumber(vndCleaned);
+    if (!vndAmount || isNaN(vndAmount)) return null;
+    const usdAmount = ExchangeRateService.convertVndToUsd(vndAmount);
+    return usdAmount;
+  }
+
+  // Handle USD currency ($) or plain number
   const cleaned = str.replace(/[$\s]/g, '');
   if (!cleaned) return null;
   const num = parseNumber(cleaned);
@@ -110,6 +124,11 @@ export function isDollarLine(s: string): boolean {
   return /\$/.test(s) && /\d/.test(s);
 }
 
+/** Check if string contains a VND amount (₫) */
+export function isVndLine(s: string): boolean {
+  return /₫/.test(s) && /\d/.test(s);
+}
+
 /** Check if string is a percentage like "12,5%" */
 export function isPercentLine(s: string): boolean {
   return /\d/.test(s) && /%/.test(s.trim());
@@ -126,7 +145,7 @@ export function isValueLine(s: string): boolean {
   if (!t || t.length > 30) return false;
   // Filter out UI texts (Vietnamese, English, Spanish)
   if (/xác minh|danh tính|tìm hiểu|tiếp theo|verificar|identidad|más información|siguiente|verify|identity|learn more|next|continue|confirmar|información/i.test(t)) return false;
-  return isDash(t) || isTimeLine(t) || isDollarLine(t) ||
+  return isDash(t) || isTimeLine(t) || isDollarLine(t) || isVndLine(t) ||
     isPercentLine(t) || isNumberLine(t);
 }
 

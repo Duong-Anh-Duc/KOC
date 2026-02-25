@@ -9,7 +9,7 @@ import {
 import { Button, Card, Col, Empty, Row, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../../types';
+import type { PaymentStatusMap, RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../../types';
 import { formatUSD, formatVND } from '../../utils';
 import { SummaryBar } from '../common';
 import { RevenueTable } from '../features';
@@ -52,7 +52,7 @@ interface RevenueTabProps {
   historyKocId: string | null;
   onViewHistory: (kocId: string) => void;
   onCloseHistory: () => void;
-  paymentStatus: any;
+  paymentStatus?: PaymentStatusMap;
 }
 
 const RevenueTab: React.FC<RevenueTabProps> = ({

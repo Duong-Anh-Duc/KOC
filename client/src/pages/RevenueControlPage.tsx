@@ -1,14 +1,16 @@
+import { useProgress } from '@/hooks/useProgress';
 import {
   CalendarOutlined,
   DollarOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
-import { Button, Form, Space, Spin, Tabs, Typography } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button, Form, Space, Tabs, Typography } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
+import { TaskProgressBar } from '../components/common';
 import { RevenueRecordModal } from '../components/features';
 import { CycleFormModal, CyclesTab, RevenueTab, ScrapeResultModal } from '../components/revenue';
 import {
@@ -69,6 +71,16 @@ const RevenueControlPage: React.FC = () => {
   const fetchExchangeRateMutation = useFetchExchangeRate();
   const scrapeRevenueMutation = useScrapeRevenue();
   const updateExchangeRateMutation = useUpdateExchangeRate();
+
+  // SSE Progress for scrape revenue
+  const queryClient = useQueryClient();
+  const scrapeProgress = useProgress((result: unknown) => {
+    // When scrape completes, show result and refresh data
+    setScrapeResultData(result);
+    setScrapeResultOpen(true);
+    queryClient.invalidateQueries({ queryKey: ['cycles'] });
+    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+  });
 
   // Scrape result modal
   const [scrapeResultOpen, setScrapeResultOpen] = useState(false);
@@ -159,8 +171,10 @@ const RevenueControlPage: React.FC = () => {
   const handleScrapeRevenue = (cycleId: number) => {
     scrapeRevenueMutation.mutate(cycleId, {
       onSuccess: (res) => {
-        setScrapeResultData(res.data?.data);
-        setScrapeResultOpen(true);
+        const taskId = res.data?.data?.taskId;
+        if (taskId) {
+          scrapeProgress.startTask(taskId);
+        }
       },
     });
   };
@@ -185,18 +199,12 @@ const RevenueControlPage: React.FC = () => {
     }
   };
 
-  const isLoadingOverlay = scrapeRevenueMutation.isPending || updateExchangeRateMutation.isPending;
-  const loadingText = scrapeRevenueMutation.isPending 
-    ? t('ytScraper.scrapingRevenue')
-    : t('revenue.updatingExchangeRate');
-
   return (
-    <Spin spinning={isLoadingOverlay} tip={loadingText} size="large" className="stats-page-spin">
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
             {false && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCycle}>
                 {t('cycle.create')}
@@ -204,6 +212,9 @@ const RevenueControlPage: React.FC = () => {
             )}
           </Space>
         </div>
+
+        {/* SSE Progress Bar for scrape revenue */}
+        <TaskProgressBar state={scrapeProgress.state} onDismiss={scrapeProgress.reset} />
 
         <Tabs
           activeKey={activeTab}
@@ -251,7 +262,7 @@ const RevenueControlPage: React.FC = () => {
                   onApprove={(id) => approveMutation.mutate(id)}
                   onDeleteRecord={(id) => deleteRecordMutation.mutate(id)}
                   onScrapeRevenue={handleScrapeRevenue}
-                  scrapeLoading={scrapeRevenueMutation.isPending}
+                  scrapeLoading={scrapeRevenueMutation.isPending || scrapeProgress.state.active}
                   onLockCycle={(id) => lockCycleMutation.mutate(id)}
                   lockLoading={lockCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
@@ -295,7 +306,6 @@ const RevenueControlPage: React.FC = () => {
           onClose={() => setScrapeResultOpen(false)}
         />
       </div>
-    </Spin>
   );
 };
 

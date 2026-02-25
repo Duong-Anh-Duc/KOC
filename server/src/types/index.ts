@@ -98,6 +98,7 @@ export interface CreateKOCInput {
   bank_name: string;
   tax_code: string;
   base_rate?: number;
+  min_payment?: number;
   pub_code?: string;
 }
 

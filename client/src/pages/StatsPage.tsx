@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Spin } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statsApi } from '../api';
-import { SummaryBar } from '../components/common';
+import { SummaryBar, TaskProgressBar } from '../components/common';
 import { StatsDetailModal, StatsGrowthTable, StatsHeader, Top10Chart } from '../components/stats';
-import { toastError, toastSuccess } from '../utils';
+import { useProgress } from '../hooks/useProgress';
+import { toastError } from '../utils';
 
 /** Format large numbers: 6900000 → "6.9M", 31600 → "31.6K" */
 const formatNumber = (val: number | null | undefined): string => {
@@ -38,28 +38,32 @@ const StatsPage: React.FC = () => {
     enabled: !!selectedKOC,
   });
 
+  // SSE progress for fetch all stats
+  const statsProgress = useProgress((result: unknown) => {
+    const data = result as { success?: number; failed?: number } | null;
+    if (data) {
+      refetchAll();
+    }
+  });
+
   const fetchAllStatsMutation = useMutation({
     mutationFn: async () => {
-      console.log('🚀 Starting fetch all stats...');
       const res = await statsApi.fetchAllStats();
-      console.log('✅ Fetch all stats completed:', res.data);
       return res;
     },
     onSuccess: (res) => {
-      const data = res.data?.data;
-      console.log('📊 Success callback - Data:', data);
-      toastSuccess('statsFetchSuccess', t('stats.fetchAllResult', { success: data?.success || 0, failed: data?.failed || 0 }));
-      refetchAll();
+      const taskId = res.data?.data?.taskId;
+      if (taskId) {
+        statsProgress.startTask(taskId);
+      }
     },
     onError: (error: any) => {
-      console.error('❌ Fetch all stats error:', error);
       const message = error?.response?.data?.message || error?.message || t('stats.fetchError');
       toastError('statsFetchError', message);
     },
   });
 
   const handleFetchAll = () => {
-    toastSuccess('statsFetchStarted', t('stats.fetchStarted'));
     fetchAllStatsMutation.mutate();
   };
 
@@ -76,13 +80,14 @@ const StatsPage: React.FC = () => {
   const detailData = detailResponse?.data || null;
 
   return (
-    <Spin spinning={fetchAllStatsMutation.isPending} tip={t('stats.loadingYTStudio')} size="large" className="stats-page-spin">
-      <div style={{ minHeight: '100vh' }}>
-        <StatsHeader
-          onRefresh={() => refetchAll()}
-          onFetchAll={handleFetchAll}
-          fetchLoading={fetchAllStatsMutation.isPending}
-        />
+    <div style={{ minHeight: '100vh' }}>
+      <TaskProgressBar state={statsProgress.state} onDismiss={statsProgress.reset} />
+
+      <StatsHeader
+        onRefresh={() => refetchAll()}
+        onFetchAll={handleFetchAll}
+        fetchLoading={fetchAllStatsMutation.isPending || statsProgress.state.active}
+      />
 
         <SummaryBar
           items={[
@@ -129,7 +134,6 @@ const StatsPage: React.FC = () => {
           onClose={() => setSelectedKOC(undefined)}
         />
       </div>
-    </Spin>
   );
 };
 

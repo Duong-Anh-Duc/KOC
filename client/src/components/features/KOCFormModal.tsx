@@ -26,20 +26,26 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
       form.setFieldsValue({
         ...editingKOC,
         base_rate: Number(editingKOC.base_rate),
+        min_payment: Number(editingKOC.min_payment),
       });
     } else if (open) {
       form.resetFields();
       form.setFieldValue('base_rate', 0.8);
+      form.setFieldValue('min_payment', 100);
     }
   }, [open, editingKOC, form]);
 
   const handleFinish = (values: CreateKOCInput) => {
-    onSubmit(values);
+    onSubmit({
+      ...values,
+      base_rate: Number(values.base_rate),
+      min_payment: Number(values.min_payment),
+    });
   };
 
   return (
     <Modal
-        title={editingKOC ? t('koc.edit') : t('koc.create')}
+      title={editingKOC ? t('koc.edit') : t('koc.create')}
       open={open}
       onCancel={onCancel}
       onOk={() => form.submit()}
@@ -150,6 +156,28 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
           </Col>
           <Col span={12}>
             <Form.Item
+              name="min_payment"
+              label={t('koc.minPayment')}
+              extra={t('koc.minPaymentHint')}
+              rules={[
+                { required: true, message: t('validation.required') },
+                { type: 'number', min: 0, message: t('validation.required') },
+              ]}
+            >
+              <InputNumber
+                min={0}
+                step={10}
+                precision={0}
+                style={{ width: '100%' }}
+                addonBefore="$"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={editingKOC ? 12 : 24}>
+            <Form.Item
               name="pub_code"
               label={t('koc.pubCode')}
               extra={t('koc.pubCodeHint')}
@@ -157,9 +185,6 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               <Input placeholder={t('koc.pubCodePlaceholder')} />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={16}>
           {editingKOC && (
             <Col span={12}>
               <Form.Item name="status" label={t('koc.status')}>

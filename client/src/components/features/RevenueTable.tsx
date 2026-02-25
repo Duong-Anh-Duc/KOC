@@ -1,15 +1,15 @@
-import type { RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
+import type { PaymentStatusMap, RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
 import { formatUSD, formatVND, getTableLocale } from '@/utils';
 import {
-    BarChartOutlined,
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    DeleteOutlined,
-    EditOutlined,
-    EyeOutlined,
-    HistoryOutlined,
-    QuestionCircleOutlined,
-    WarningOutlined,
+  BarChartOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  HistoryOutlined,
+  QuestionCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -39,8 +39,8 @@ interface RevenueTableProps {
   /** Currently selected KOC ID for history */
   selectedHistoryKocId?: string | null;
   onCloseHistory?: () => void;
-  /** Payment status ($100 threshold) per KOC */
-  paymentStatus?: Record<string, { accumulated: number; belowThreshold: boolean; accumulatedMonths: string[] }>;
+  /** Payment status per KOC */
+  paymentStatus?: PaymentStatusMap;
 }
 
 const RevenueTable: React.FC<RevenueTableProps> = ({
@@ -215,14 +215,26 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       render: (val: number, record: RevenueRecord) => {
         const status = paymentStatus?.[record.koc_id];
         const belowThreshold = status?.belowThreshold;
+        const tooltipContent = status && belowThreshold ? (
+          <div>
+            <div style={{ marginBottom: 4 }}>
+              {t('revenue.belowThresholdTitle', { threshold: `$${status.threshold}` })}
+            </div>
+            <div style={{ marginBottom: 4 }}>
+              {t('revenue.accumulatedTotal')}: <strong>${status.accumulated.toFixed(2)}</strong>
+            </div>
+            {status.accumulatedMonths.map((m, i) => (
+              <div key={i} style={{ fontSize: 12 }}>
+                {m.month}: ${m.revenue.toFixed(2)}
+              </div>
+            ))}
+          </div>
+        ) : null;
         return (
           <span>
             {formatUSD(val)}
-            {belowThreshold && (
-              <Tooltip title={t('revenue.belowThreshold', {
-                accumulated: `$${status.accumulated.toFixed(2)}`,
-                months: status.accumulatedMonths.join(', '),
-              })}>
+            {belowThreshold && tooltipContent && (
+              <Tooltip title={tooltipContent}>
                 <WarningOutlined style={{ color: '#faad14', marginLeft: 6, fontSize: 12 }} />
               </Tooltip>
             )}
@@ -388,7 +400,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
             const status = paymentStatus?.[record.koc_id];
             const belowThreshold = status?.belowThreshold;
             return belowThreshold ? (
-              <Tooltip title={t('revenue.cannotApproveThreshold', { accumulated: status?.accumulated?.toFixed(2), threshold: 100 })}>
+              <Tooltip title={t('revenue.cannotApproveThreshold', { accumulated: status?.accumulated?.toFixed(2), threshold: status?.threshold ?? 100 })}>
                 <Button
                   type="text"
                   size="small"

@@ -467,7 +467,7 @@ export class EmailService {
    * Send revenue emails to all KOCs for a specific cycle month
    * Returns summary of sent/failed
    */
-  static async sendAllRevenueEmails(month: string): Promise<{
+  static async sendAllRevenueEmails(month: string, onProgress?: (step: number, total: number, kocName: string) => void): Promise<{
     sent: Array<{ kocId: string; kocName: string; email: string }>;
     failed: Array<{ kocId: string; kocName: string; email: string; error: string }>;
     skipped: Array<{ kocId: string; kocName: string; reason: string }>;
@@ -497,8 +497,13 @@ export class EmailService {
 
     const exchangeRate = toNum(cycle.exchange_rate);
 
-    for (const record of cycle.revenue_records) {
+    for (let i = 0; i < cycle.revenue_records.length; i++) {
+      const record = cycle.revenue_records[i];
       const koc = record.koc;
+
+      if (onProgress) {
+        onProgress(i + 1, cycle.revenue_records.length, koc.full_name);
+      }
 
       // Skip if KOC has no email
       if (!koc.email) {

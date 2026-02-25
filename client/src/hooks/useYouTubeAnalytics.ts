@@ -56,7 +56,7 @@ export const useYouTubeAnalytics = () => {
           clearInterval(pollInterval);
           popup?.close();
           setLoading(false);
-          message.success('✅ Authorization successful!');
+          message.success('Authorization successful!');
         }
       }, 2000);
 
@@ -79,7 +79,7 @@ export const useYouTubeAnalytics = () => {
       setLoading(true);
       const response = await youtubeAPI.fetchAnalytics(channelId, startDate, endDate);
       setData(response.data.data);
-      message.success('✅ Analytics fetched successfully');
+      message.success('Analytics fetched successfully');
       return response.data.data;
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Failed to fetch analytics');

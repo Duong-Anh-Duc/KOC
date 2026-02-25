@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import prisma from '../config/database';
 import { AUDIT_ACTIONS, ENTITIES } from '../constants';
 import { AuditLogService, CycleService, ExchangeRateService, RevenueService } from '../services';
+import { ProgressService } from '../services/progress.service';
 import { YouTubeScrapeResultService } from '../services/youtube-scrape-result.service';
 import { YouTubeScraperService } from '../services/youtube-scraper.service';
 import { AuthenticatedRequest } from '../types';
@@ -223,119 +224,19 @@ export class CycleController {
         return;
       }
 
-      const month = cycle.month; // "MM/YYYY"
+      const month = cycle.month;
+      const taskId = ProgressService.generateTaskId('scrape-revenue');
 
-      // Get all active KOCs
-      const kocs = await prisma.kOC.findMany({
-        where: { status: 'ACTIVE' },
-        select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, base_rate: true },
+      // Return taskId immediately so client can subscribe to SSE
+      res.status(202).json({
+        success: true,
+        message: t ? t('progress.taskStarted') : 'Task started',
+        data: { taskId },
       });
 
-      if (kocs.length === 0) {
-        res.status(400).json({ success: false, message: t ? t('ytScraper.noActiveKocs') : 'No active KOCs found' });
-        return;
-      }
-
-      // Scrape all channels (use default minus_1_month - no custom date)
-      const channelIds = kocs
-        .map(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id))
-        .filter(id => id && id.length > 0);
-
-      const { results: scrapeResults, errors: scrapeErrors } =
-        await YouTubeScraperService.scrapeMultipleChannels(channelIds);
-
-      // Save scrape results to DB
-      const channelToKocMap = new Map<string, typeof kocs[0]>();
-      for (const koc of kocs) {
-        if (koc.youtube_channel_id) {
-          channelToKocMap.set(YouTubeScraperService.cleanChannelId(koc.youtube_channel_id), koc);
-        }
-      }
-
-      // Save scrape results
-      for (const result of scrapeResults) {
-        const koc = channelToKocMap.get(result.channelId);
-        if (koc) {
-          await YouTubeScrapeResultService.saveResult(koc.id, koc.youtube_channel_id, result);
-        }
-      }
-
-      // Auto-create revenue records from scraped data
-      const US_TAX_RATE = 0.30;
-      const US_COUNTRY_NAMES = ['hoa kỳ', 'united states', 'us', 'usa', 'états-unis'];
-      const created: Array<{ koc: string; revenue: number }> = [];
-      const updated: Array<{ koc: string; revenue: number }> = [];
-      const skipped: Array<{ koc: string; reason: string }> = [];
-
-      for (const result of scrapeResults) {
-        const koc = channelToKocMap.get(result.channelId);
-        if (!koc) continue;
-
-        const revenue = result.totals.estimatedRevenue;
-        if (revenue == null || revenue <= 0) {
-          skipped.push({ koc: koc.channel_name, reason: 'No revenue data' });
-          continue;
-        }
-
-        try {
-          // Calculate US tax from country breakdown: US revenue * 30%
-          const countries = result.countries || [];
-          const usCountry = countries.find((c: any) =>
-            US_COUNTRY_NAMES.includes(c.country?.toLowerCase?.())
-          );
-          const usTax = usCountry?.estimatedRevenue ? usCountry.estimatedRevenue * US_TAX_RATE : 0;
-
-          // Check if record already exists
-          const existing = await prisma.revenueRecord.findUnique({
-            where: { koc_id_cycle_id: { koc_id: koc.id, cycle_id: cycleId } },
-          });
-
-          if (existing) {
-            // Always update to refresh pub code and latest data
-            await RevenueService.updateRecord(existing.id, revenue, usTax);
-            updated.push({ koc: koc.channel_name, revenue });
-          } else {
-            // Create new record
-            await RevenueService.createRecord(koc.id, cycleId, revenue, usTax);
-            created.push({ koc: koc.channel_name, revenue });
-          }
-        } catch (error: any) {
-          skipped.push({ koc: koc.channel_name, reason: error.message });
-        }
-      }
-
-      // Log audit
-      if (req.user) {
-        await AuditLogService.log(
-          req.user.userId,
-          'SCRAPE_REVENUE',
-          ENTITIES.REVENUE_CYCLE,
-          String(cycleId),
-          null,
-          { month, created: created.length, updated: updated.length, skipped: skipped.length, errors: scrapeErrors.length }
-        );
-      }
-
-      res.status(200).json({
-        success: true,
-        message: t
-          ? t('cycle.scrapeComplete', { created: created.length, updated: updated.length, skipped: skipped.length, errors: scrapeErrors.length })
-          : `Scrape complete: ${created.length} created, ${updated.length} updated, ${skipped.length} skipped, ${scrapeErrors.length} errors`,
-        data: {
-          month,
-          created,
-          updated,
-          skipped,
-          scrapeErrors,
-          summary: {
-            totalKOCs: kocs.length,
-            scraped: scrapeResults.length,
-            recordsCreated: created.length,
-            recordsUpdated: updated.length,
-            recordsSkipped: skipped.length,
-            scrapeFailed: scrapeErrors.length,
-          },
-        },
+      // Run scrape in background with progress reporting
+      CycleController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null).catch(err => {
+        ProgressService.error(taskId, err.message);
       });
     } catch (error: any) {
       const t = (req as any).t;
@@ -347,6 +248,141 @@ export class CycleController {
         return;
       }
       next(error);
+    }
+  }
+
+  /**
+   * Background method to run scrape revenue with progress
+   */
+  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null): Promise<void> {
+    try {
+      const kocs = await prisma.kOC.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, base_rate: true },
+      });
+
+      if (kocs.length === 0) {
+        ProgressService.error(taskId, 'No active KOCs found');
+        return;
+      }
+
+      const channelIds = kocs
+        .map(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id))
+        .filter(id => id && id.length > 0);
+
+      const totalSteps = channelIds.length + kocs.length;
+      let currentStep = 0;
+
+      ProgressService.emit(taskId, {
+        step: 0, total: totalSteps, percent: 0,
+        message: `Starting scrape for ${channelIds.length} channels...`,
+      });
+
+      const channelToKocMap = new Map<string, typeof kocs[0]>();
+      for (const koc of kocs) {
+        if (koc.youtube_channel_id) {
+          channelToKocMap.set(YouTubeScraperService.cleanChannelId(koc.youtube_channel_id), koc);
+        }
+      }
+
+      // Scrape channels with progress callback
+      const { results: scrapeResults, errors: scrapeErrors } =
+        await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, (channelId, idx, total) => {
+          currentStep = idx + 1;
+          const koc = channelToKocMap.get(channelId);
+          const percent = Math.round((currentStep / totalSteps) * 100);
+          ProgressService.emit(taskId, {
+            step: currentStep, total: totalSteps, percent,
+            message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
+          });
+        });
+
+      // Save scrape results to DB
+      for (const result of scrapeResults) {
+        const koc = channelToKocMap.get(result.channelId);
+        if (koc) {
+          await YouTubeScrapeResultService.saveResult(koc.id, koc.youtube_channel_id, result);
+        }
+      }
+
+      // Create/update revenue records with progress
+      const US_TAX_RATE = 0.30;
+      const US_COUNTRY_NAMES = ['hoa kỳ', 'united states', 'us', 'usa', 'états-unis'];
+      const created: Array<{ koc: string; revenue: number }> = [];
+      const updated: Array<{ koc: string; revenue: number }> = [];
+      const skipped: Array<{ koc: string; reason: string }> = [];
+
+      for (let i = 0; i < scrapeResults.length; i++) {
+        const result = scrapeResults[i];
+        const koc = channelToKocMap.get(result.channelId);
+        if (!koc) continue;
+
+        currentStep = channelIds.length + i + 1;
+        const percent = Math.round((currentStep / totalSteps) * 100);
+        ProgressService.emit(taskId, {
+          step: currentStep, total: totalSteps, percent,
+          message: `Creating record for ${koc.channel_name} (${i + 1}/${scrapeResults.length})`,
+        });
+
+        const revenue = result.totals.estimatedRevenue;
+        if (revenue == null) {
+          skipped.push({ koc: koc.channel_name, reason: 'No revenue data' });
+          continue;
+        }
+
+        try {
+          const countries = result.countries || [];
+          const usCountry = countries.find((c: any) =>
+            US_COUNTRY_NAMES.includes(c.country?.toLowerCase?.())
+          );
+          const usTax = usCountry?.estimatedRevenue ? usCountry.estimatedRevenue * US_TAX_RATE : 0;
+
+          const existing = await prisma.revenueRecord.findUnique({
+            where: { koc_id_cycle_id: { koc_id: koc.id, cycle_id: cycleId } },
+          });
+
+          if (existing) {
+            await RevenueService.updateRecord(existing.id, revenue, usTax);
+            updated.push({ koc: koc.channel_name, revenue });
+          } else {
+            await RevenueService.createRecord(koc.id, cycleId, revenue, usTax);
+            created.push({ koc: koc.channel_name, revenue });
+          }
+        } catch (error: any) {
+          skipped.push({ koc: koc.channel_name, reason: error.message });
+        }
+      }
+
+      // Audit log
+      if (userId) {
+        await AuditLogService.log(
+          userId,
+          'SCRAPE_REVENUE',
+          ENTITIES.REVENUE_CYCLE,
+          String(cycleId),
+          null,
+          { month, created: created.length, updated: updated.length, skipped: skipped.length, errors: scrapeErrors.length }
+        );
+      }
+
+      // Send final result via SSE
+      ProgressService.complete(taskId, {
+        month,
+        created,
+        updated,
+        skipped,
+        scrapeErrors,
+        summary: {
+          totalKOCs: kocs.length,
+          scraped: scrapeResults.length,
+          recordsCreated: created.length,
+          recordsUpdated: updated.length,
+          recordsSkipped: skipped.length,
+          scrapeFailed: scrapeErrors.length,
+        },
+      });
+    } catch (error: any) {
+      ProgressService.error(taskId, error.message);
     }
   }
 }

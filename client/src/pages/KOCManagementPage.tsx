@@ -77,7 +77,13 @@ const KOCManagementPage: React.FC = () => {
     if (editingKOC) {
       updateMutation.mutate(
         { id: editingKOC.id, data: values as UpdateKOCInput },
-        { onSuccess: () => setModalOpen(false) }
+        { 
+          onSuccess: () => {
+            setModalOpen(false);
+            setEditingKOC(null);
+            refetch();
+          }
+        }
       );
     } else {
       createMutation.mutate(values, { onSuccess: () => setModalOpen(false) });

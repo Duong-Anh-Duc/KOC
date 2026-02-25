@@ -143,5 +143,8 @@
     "authFailed": "Authorization Failed",
     "missingDateRange": "Missing startDate or endDate",
     "accessRevoked": "Access revoked successfully"
+  },
+  "progress": {
+    "taskStarted": "Task started"
   }
 }

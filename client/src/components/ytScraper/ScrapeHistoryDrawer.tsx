@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { YouTubeScrapeResult } from '../../types';
-import { getTableLocale } from '../../utils';
+import { formatUSD, getTableLocale } from '../../utils';
 
 const { Text } = Typography;
 
@@ -40,7 +40,7 @@ const ScrapeHistoryDrawer: React.FC<ScrapeHistoryDrawerProps> = ({
       render: (val: number | null) =>
         val != null ? (
           <Text strong style={{ color: '#52c41a' }}>
-            ${Number(val).toFixed(2)}
+            {formatUSD(val)}
           </Text>
         ) : (
           '-'

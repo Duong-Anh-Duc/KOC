@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import puppeteer, { Browser, Page } from 'puppeteer';
 import logger from '../middlewares/logger.middleware';
+import { ExchangeRateService } from './exchange-rate.service';
 
 // Persistent Chrome profile directory for maintaining login session
 const CHROME_USER_DATA_DIR = path.join(process.cwd(), '.chrome-data');
@@ -108,8 +109,9 @@ export class YouTubeScraperService {
   /**
    * Get or create a Puppeteer browser with persistent profile
    * @param headless - true (invisible, default) | false (visible, only for manual login)
+   * @param attemptNumber - Internal counter for retry logic
    */
-  static async getBrowser(headless: boolean = true): Promise<Browser> {
+  static async getBrowser(headless: boolean = true, attemptNumber: number = 1): Promise<Browser> {
     // If browser exists and connected, reuse it
     if (this.browser && this.browser.connected) {
       return this.browser;
@@ -152,7 +154,28 @@ export class YouTubeScraperService {
     } catch (error: any) {
       // If launch failed due to existing Chrome instance, provide helpful message
       if (error.message?.includes('already running')) {
-        logger.error('❌ Chrome is already running. Kill the process manually:');
+        logger.error('❌ Chrome is already running. Attempting to kill process and retry...');
+        
+        // Try to kill Chrome process
+        if (attemptNumber === 1) {
+          try {
+            const { execSync } = require('child_process');
+            const killCmd = process.platform === 'darwin' 
+              ? 'pkill -9 -f "Chrome.*chrome-data"'
+              : 'pkill -9 -f "chrome.*chrome-data"';
+            execSync(killCmd, { stdio: 'ignore' });
+            logger.info('🔄 Chrome process killed. Retrying browser launch...');
+            
+            // Wait a moment for process to fully die
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Retry once
+            return this.getBrowser(headless, 2);
+          } catch (killErr) {
+            logger.warn(`⚠️ Failed to auto-kill Chrome: ${killErr}`);
+          }
+        }
+        
         logger.error('   macOS: pkill -f "Chrome.*chrome-data"');
         logger.error('   Linux: pkill -f "chrome.*chrome-data"');
         throw new Error('Chrome browser is already running. Please close it first or restart your system.');
@@ -487,7 +510,11 @@ export class YouTubeScraperService {
    * Max time: ~10 minutes per channel
    * @param month - Optional month in "MM/YYYY" format
    */
-  static async scrapeMultipleChannels(channelIds: string[], month?: string): Promise<{
+  static async scrapeMultipleChannels(
+    channelIds: string[],
+    month?: string,
+    onProgress?: (channelId: string, index: number, total: number) => void
+  ): Promise<{
     results: YouTubeAnalyticsData[];
     errors: Array<{ channelId: string; error: string }>;
   }> {
@@ -495,16 +522,19 @@ export class YouTubeScraperService {
     const errors: Array<{ channelId: string; error: string }> = [];
     const total = channelIds.length;
     let page: Page | null = null;
+    let browser: Browser | null = null;
 
     try {
-      const browser = await this.getBrowser(); // Headless mode (invisible)
+      browser = await this.getBrowser(); // Headless mode (invisible)
       page = await browser.newPage();
       logger.info(`📋 Starting batch scrape for ${total} channels (using shared page)${month ? ` for month ${month}` : ''}`);
-
 
       for (let i = 0; i < channelIds.length; i++) {
         const channelId = channelIds[i];
         try {
+          // Report progress
+          if (onProgress) onProgress(channelId, i, total);
+          
           logger.info(`[${i + 1}/${total}] Processing channel: ${channelId}`);
           const data = await this.scrapeChannelWithPage(page, channelId, month);
           results.push(data);
@@ -526,6 +556,15 @@ export class YouTubeScraperService {
       return { results, errors };
     } finally {
       await safeClosePage(page);
+      // Close browser to prevent "Chrome already running" errors
+      if (browser) {
+        try {
+          await browser.close();
+          logger.debug('✅ Browser closed after batch scrape');
+        } catch (err) {
+          logger.warn(`⚠️ Error closing browser: ${err}`);
+        }
+      }
     }
   }
 
@@ -612,9 +651,14 @@ export class YouTubeScraperService {
     };
     const countries: RevenueByCountry[] = [];
     let period = '';
+    
+    // Create a log file for this parse
+    const logPath = path.join(process.cwd(), `parse-revenue-${Date.now()}.log`);
+    let logContent = `=== REVENUE PARSING LOG ===\nTime: ${new Date().toISOString()}\n\n`;
 
     try {
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      logContent += `Total lines in text: ${lines.length}\n\n`;
 
       // Extract period from text (e.g. "1 – 31 thg 1, 2026" or "Tháng 1")
       for (const line of lines) {
@@ -650,12 +694,39 @@ export class YouTubeScraperService {
         // Parse "Tổng" (Total) row
         if (/^Tổng$|^Total$/i.test(line) && !foundTotal) {
           foundTotal = true;
+          logContent += `\n📊 FOUND TOTAL ROW at line ${i}\n`;
+          logContent += `Next lines for extraction:\n`;
+          for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+            logContent += `  [${j}]: "${lines[j]}"\n`;
+          }
           // Next values should be: revenue, views, watch_time, avg_watch_time
           const rowValues = this.extractTableRowValues(lines, i + 1, 4);
-          if (rowValues.length >= 1) totals.estimatedRevenue = this.parseRevenueValue(rowValues[0]);
-          if (rowValues.length >= 2) totals.views = this.parseIntegerValue(rowValues[1]);
-          if (rowValues.length >= 3) totals.watchTimeHours = this.parseDecimalValue(rowValues[2]);
-          if (rowValues.length >= 4) totals.avgWatchTime = this.parseTimeValue(rowValues[3]);
+          logContent += `\nExtracted values: [${rowValues.map(v => `"${v}"`).join(', ')}] (count: ${rowValues.length})\n`;
+          logger.info(`📊 TOTAL ROW - Raw values: [${rowValues.join(', ')}]`);
+          if (rowValues.length >= 1) {
+            const revParsed = this.parseRevenueValue(rowValues[0]);
+            totals.estimatedRevenue = revParsed;
+            logContent += `  [0] "${rowValues[0]}" → Revenue = ${revParsed}\n`;
+            logger.info(`   [Total] Revenue field: "${rowValues[0]}" → ${totals.estimatedRevenue}`);
+          }
+          if (rowValues.length >= 2) {
+            const viewsParsed = this.parseIntegerValue(rowValues[1]);
+            totals.views = viewsParsed;
+            logContent += `  [1] "${rowValues[1]}" → Views = ${viewsParsed}\n`;
+            logger.info(`   [Total] Views field: "${rowValues[1]}" → ${totals.views}`);
+          }
+          if (rowValues.length >= 3) {
+            const wtParsed = this.parseDecimalValue(rowValues[2]);
+            totals.watchTimeHours = wtParsed;
+            logContent += `  [2] "${rowValues[2]}" → WatchTime = ${wtParsed}\n`;
+            logger.info(`   [Total] WatchTime field: "${rowValues[2]}" → ${totals.watchTimeHours}`);
+          }
+          if (rowValues.length >= 4) {
+            totals.avgWatchTime = this.parseTimeValue(rowValues[3]);
+            logContent += `  [3] "${rowValues[3]}" → AvgTime = ${totals.avgWatchTime}\n`;
+          }
+          logContent += `\nFinal totals: revenue=${totals.estimatedRevenue}, views=${totals.views}, watchTime=${totals.watchTimeHours}\n`;
+          logger.info(`   [Total] Final: revenue=${totals.estimatedRevenue}, views=${totals.views}`);
           continue;
         }
 
@@ -666,6 +737,10 @@ export class YouTubeScraperService {
           if (this.isCountryName(line)) {
             const country = line;
             const rowValues = this.extractTableRowValues(lines, i + 1, 8);
+            logContent += `\n🌍 Country: ${country}\n`;
+            logContent += `  Raw values: [${rowValues.map(v => `"${v}"`).join(', ')}]\n`;
+            logger.info(`🌍 Parsing country: ${country}`);
+            logger.info(`   Raw values: [${rowValues.join(', ')}]`);
             // Row format: "15,83 $" "93,7%" "871.898" "98,9%" "5.510,5" "98,8%" "0:46"
             // Or without percentages depending on layout
             
@@ -684,39 +759,64 @@ export class YouTubeScraperService {
             let valueIdx = 0;
             for (let v = 0; v < rowValues.length && valueIdx < 7; v++) {
               const val = rowValues[v];
+              logger.debug(`   [v=${v}, idx=${valueIdx}] Processing: "${val}"`);
               
-              if (valueIdx === 0 && /\$/.test(val)) {
-                countryData.estimatedRevenue = this.parseRevenueValue(val);
-                valueIdx = 1;
+              if (valueIdx === 0) {
+                // Revenue field: check for $ or dash
+                if (val === '-') {
+                  countryData.estimatedRevenue = 0; // No earnings = 0
+                  valueIdx = 2; // Skip revenue percent field, next should be views
+                  logger.debug(`     → Revenue = 0 (dash), skip to idx=2`);
+                } else if (/\$/.test(val)) {
+                  countryData.estimatedRevenue = this.parseRevenueValue(val);
+                  valueIdx = 1;
+                  logger.debug(`     → Revenue = ${countryData.estimatedRevenue}, move to idx=1`);
+                } else if (/^[\d.,]+$/.test(val)) {
+                  // No $ sign - this is likely views (no revenue row)
+                  countryData.estimatedRevenue = 0;
+                  countryData.views = this.parseIntegerValue(val);
+                  valueIdx = 3;
+                  logger.debug(`     → No $ sign: Revenue = 0, Views = ${countryData.views}, move to idx=3`);
+                }
               } else if (valueIdx === 1 && /%/.test(val)) {
                 countryData.revenuePercent = this.parsePercentValue(val);
                 valueIdx = 2;
+                logger.debug(`     → RevenuePercent = ${countryData.revenuePercent}, move to idx=2`);
               } else if (valueIdx === 2 && /^[\d.,]+$/.test(val)) {
                 countryData.views = this.parseIntegerValue(val);
                 valueIdx = 3;
+                logger.debug(`     → Views = ${countryData.views}, move to idx=3`);
               } else if (valueIdx === 3 && /%/.test(val)) {
                 countryData.viewsPercent = this.parsePercentValue(val);
                 valueIdx = 4;
+                logger.debug(`     → ViewsPercent = ${countryData.viewsPercent}, move to idx=4`);
               } else if (valueIdx === 4 && /^[\d.,]+$/.test(val)) {
                 countryData.watchTimeHours = this.parseDecimalValue(val);
                 valueIdx = 5;
+                logger.debug(`     → WatchTimeHours = ${countryData.watchTimeHours}, move to idx=5`);
               } else if (valueIdx === 5 && /%/.test(val)) {
                 countryData.watchTimePercent = this.parsePercentValue(val);
                 valueIdx = 6;
+                logger.debug(`     → WatchTimePercent = ${countryData.watchTimePercent}, move to idx=6`);
               } else if (valueIdx >= 6 && /^\d{1,2}:\d{2}$/.test(val)) {
                 countryData.avgWatchTime = val;
                 valueIdx = 7;
+                logger.debug(`     → AvgWatchTime = ${countryData.avgWatchTime}, move to idx=7`);
               } else if (valueIdx === 1 && /^[\d.,]+$/.test(val)) {
                 // No percent after revenue - move to views
                 countryData.views = this.parseIntegerValue(val);
                 valueIdx = 3;
+                logger.debug(`     → No % after revenue: Views = ${countryData.views}, move to idx=3`);
               } else if (valueIdx === 2 && /^\d{1,2}:\d{2}$/.test(val)) {
                 // Direct to avg watch time
                 countryData.avgWatchTime = val;
                 valueIdx = 7;
+                logger.debug(`     → Direct to time: AvgWatchTime = ${countryData.avgWatchTime}, move to idx=7`);
               }
             }
 
+            logger.info(`   Final: revenue=${countryData.estimatedRevenue}, views=${countryData.views}, watchTime=${countryData.watchTimeHours}`);
+            logContent += `  Result: revenue=${countryData.estimatedRevenue}, views=${countryData.views}, watchTime=${countryData.watchTimeHours}\n`;
             if (countryData.estimatedRevenue !== null || countryData.views !== null) {
               countries.push(countryData);
             }
@@ -730,6 +830,22 @@ export class YouTubeScraperService {
       }
     } catch (err) {
       logger.error('Error parsing revenue explore text:', err);
+      logContent += `\nERROR: ${err}\n`;
+    }
+
+    // Save final results to log file
+    logContent += `\n\n=== FINAL RESULT ===\n`;
+    logContent += `Total Totals: revenue=${totals.estimatedRevenue}, views=${totals.views}, watchTime=${totals.watchTimeHours}\n`;
+    logContent += `Countries parsed: ${countries.length}\n`;
+    countries.forEach((c, idx) => {
+      logContent += `  [${idx}] ${c.country}: revenue=${c.estimatedRevenue}, views=${c.views}\n`;
+    });
+    
+    try {
+      fs.writeFileSync(logPath, logContent, 'utf-8');
+      logger.info(`✅ Parsing log saved to: ${logPath}`);
+    } catch (err) {
+      logger.error(`Failed to write parsing log: ${err}`);
     }
 
     return { totals, countries, period };
@@ -737,6 +853,7 @@ export class YouTubeScraperService {
 
   /**
    * Extract N values from lines starting at startIdx, skipping non-value lines
+   * Include "-" (empty/no earnings indicator) as valid value
    */
   private static extractTableRowValues(lines: string[], startIdx: number, maxValues: number): string[] {
     const values: string[] = [];
@@ -744,9 +861,11 @@ export class YouTubeScraperService {
       const line = lines[i];
       // Stop if we hit a country name or section header
       if (this.isCountryName(line) || /^(Tổng|Total|Địa lý|Geography)$/i.test(line)) break;
-      // Value patterns: "16,89 $", "881.685", "5.578,5", "0:46", "93,7%"
-      if (/[\d$%:]/.test(line) && line.length < 30) {
+      // Value patterns: "16,89 $", "881.685", "5.578,5", "0:46", "93,7%", "-", "—" (em dash, no earnings)
+      // Match: digits/dots/commas, $, %, :, or dash variants (-, —)
+      if (line === '-' || line === '—' || (/[\d$%:]/.test(line) && line.length < 30)) {
         values.push(line);
+        logger.debug(`       [extractTableRowValues] Found: "${line}"`);
         if (values.length >= maxValues) break;
       }
     }
@@ -767,14 +886,30 @@ export class YouTubeScraperService {
   }
 
   /**
-   * Parse revenue value like "16,89 $" or "$16.89" or "0,001 $"
+   * Parse revenue value like "16,89 $" or "$16.89" or "0,001 $" or "-" (no earnings)
    */
   private static parseRevenueValue(str: string): number | null {
-    if (!str) return null;
+    // Handle dash variants (-, —) = no earnings → return 0 to display on charts
+    if (!str || str === '-' || str === '—') return 0;
+
+    // Handle VND currency (₫)
+    if (str.includes('₫')) {
+      const vndCleaned = str.replace(/[₫\s]/g, '');
+      if (!vndCleaned) return 0;
+      const vndAmount = this.parseNumber(vndCleaned);
+      if (isNaN(vndAmount) || vndAmount === 0) return 0;
+      const usdAmount = ExchangeRateService.convertVndToUsd(vndAmount);
+      if (usdAmount !== null) {
+        logger.debug(`📊 VND→USD: ${str} (${vndAmount} ₫) = ${usdAmount} $`);
+      }
+      return usdAmount ?? 0;
+    }
+
+    // Handle USD currency ($)
     const cleaned = str.replace(/[$\s]/g, '');
-    if (!cleaned) return null;
+    if (!cleaned) return 0;
     const num = this.parseNumber(cleaned);
-    return isNaN(num) ? null : num;
+    return isNaN(num) ? 0 : num;
   }
 
   /**

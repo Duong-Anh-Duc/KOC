@@ -1,27 +1,29 @@
+import { useProgress } from '@/hooks/useProgress';
 import { CheckCircleOutlined, MailOutlined, SafetyCertificateOutlined, SendOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    Alert,
-    Button,
-    Card,
-    Col,
-    Descriptions,
-    Divider,
-    Input,
-    Modal,
-    Row,
-    Select,
-    Space,
-    Spin,
-    Switch,
-    Table,
-    Tag,
-    Typography
+  Alert,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Divider,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Table,
+  Tag,
+  Typography
 } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emailApi } from '../../api';
 import { toastError, toastSuccess } from '../../utils';
+import { TaskProgressBar } from '../common';
 
 const { Text } = Typography;
 
@@ -85,6 +87,21 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
     },
   });
 
+  // SSE Progress for sending revenue emails
+  const emailProgress = useProgress((result: unknown) => {
+    onSendingChange?.(false);
+    const data = result as Record<string, any>;
+    if (data) {
+      setSendResults(data);
+      setSendResultModal(true);
+      toastSuccess('emailRevenueSent', t('email.revenueSentSuccess', {
+        sent: data.sent?.length || data.summary?.totalSent || 0,
+        failed: data.failed?.length || data.summary?.totalFailed || 0,
+      }));
+    }
+    queryClient.invalidateQueries({ queryKey: ['email-cycles'] });
+  });
+
   // Send revenue emails mutation
   const sendRevenueMutation = useMutation({
     mutationFn: (month: string) => {
@@ -92,17 +109,12 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
       return emailApi.sendRevenueEmails(month);
     },
     onSuccess: (res) => {
-      onSendingChange?.(false);
-      const data = res.data?.data;
-      if (data) {
-        setSendResults(data);
-        setSendResultModal(true);
-        toastSuccess('emailRevenueSent', t('email.revenueSentSuccess', {
-          sent: data.sent?.length || 0,
-          failed: data.failed?.length || 0,
-        }));
+      const taskId = res.data?.data?.taskId;
+      if (taskId) {
+        emailProgress.startTask(taskId);
+      } else {
+        onSendingChange?.(false);
       }
-      queryClient.invalidateQueries({ queryKey: ['email-cycles'] });
     },
     onError: () => {
       onSendingChange?.(false);
@@ -248,7 +260,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
                 type="primary"
                 danger
                 icon={<SendOutlined />}
-                loading={sendRevenueMutation.isPending}
+                loading={sendRevenueMutation.isPending || emailProgress.state.active}
                 onClick={() => {
                   if (selectedMonth) {
                     Modal.confirm({
@@ -266,6 +278,9 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
                 {t('email.sendAll')}
               </Button>
             </Space.Compact>
+
+            {/* SSE Progress Bar for email sending */}
+            <TaskProgressBar state={emailProgress.state} onDismiss={emailProgress.reset} />
 
             {/* Cycle records preview */}
             {cycles.length > 0 && (
@@ -369,7 +384,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
 
             {sendResults.sent?.length > 0 && (
               <>
-                <Text strong style={{ color: '#52c41a' }}>✅ {t('email.sentList')}</Text>
+                <Text strong style={{ color: '#52c41a' }}>{t('email.sentList')}</Text>
                 <Table
                   dataSource={sendResults.sent}
                   rowKey="kocId"
@@ -386,7 +401,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
 
             {sendResults.failed?.length > 0 && (
               <>
-                <Text strong style={{ color: '#ff4d4f' }}>❌ {t('email.failedList')}</Text>
+                <Text strong style={{ color: '#ff4d4f' }}>{t('email.failedList')}</Text>
                 <Table
                   dataSource={sendResults.failed}
                   rowKey="kocId"
@@ -404,7 +419,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
 
             {sendResults.skipped?.length > 0 && (
               <>
-                <Text strong style={{ color: '#faad14' }}>⚠️ {t('email.skippedList')}</Text>
+                <Text strong style={{ color: '#faad14' }}>{t('email.skippedList')}</Text>
                 <Table
                   dataSource={sendResults.skipped}
                   rowKey="kocId"

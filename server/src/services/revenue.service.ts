@@ -348,8 +348,9 @@ export class RevenueService {
 
   /**
    * Get payment status for each record in a cycle.
-   * Checks if accumulated original_revenue_usd across consecutive unpaid months reaches $100 threshold.
-   * Returns map of koc_id -> { accumulated, belowThreshold, accumulatedMonths }
+   * Uses per-KOC min_payment threshold. Accumulates original_revenue_usd across months.
+   * When a cycle is PAYMENT_COMPLETED, records in that cycle are considered paid → reset accumulation.
+   * Returns map of koc_id -> { accumulated, belowThreshold, accumulatedMonths, threshold }
    */
   static async getPaymentStatus(cycleId: number) {
     const cycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
@@ -371,41 +372,62 @@ export class RevenueService {
       orderBy: { cycle: { month: 'asc' } },
     });
 
+    // Build cycle status map (to know which cycles are PAYMENT_COMPLETED)
+    const cycleStatusMap = new Map<number, string>();
+    for (const c of allCycles) {
+      cycleStatusMap.set(c.id, c.status);
+    }
+
+    // Get all KOCs with their min_payment
+    const kocIds = [...new Set(records.map(r => r.koc_id))];
+    const kocs = await prisma.kOC.findMany({
+      where: { id: { in: kocIds } },
+      select: { id: true, min_payment: true },
+    });
+    const kocThresholdMap = new Map<string, number>();
+    for (const koc of kocs) {
+      kocThresholdMap.set(koc.id, Number(koc.min_payment));
+    }
+
     // Group records by KOC
-    const kocRecords = new Map<string, Array<{ cycleId: number; revenue: number; month: string }>>();
+    const kocRecords = new Map<string, Array<{ cycleId: number; revenue: number; month: string; status: string; cycleStatus: string }>>();
     for (const record of records) {
       const entries = kocRecords.get(record.koc_id) || [];
       entries.push({
         cycleId: record.cycle_id,
         revenue: Number(record.original_revenue_usd),
         month: record.cycle.month,
+        status: record.status,
+        cycleStatus: cycleStatusMap.get(record.cycle_id) || 'OPEN',
       });
       kocRecords.set(record.koc_id, entries);
     }
 
     // Calculate accumulated balance for each KOC
-    const threshold = REVENUE_CONSTANTS.MIN_PAYMENT_THRESHOLD;
-    const result: Record<string, { accumulated: number; belowThreshold: boolean; accumulatedMonths: string[] }> = {};
+    const result: Record<string, { accumulated: number; belowThreshold: boolean; accumulatedMonths: Array<{ month: string; revenue: number }>; threshold: number }> = {};
 
     for (const [kocId, entries] of kocRecords) {
+      const threshold = kocThresholdMap.get(kocId) ?? REVENUE_CONSTANTS.MIN_PAYMENT_THRESHOLD;
       let accumulated = 0;
-      const accumulatedMonths: string[] = [];
+      const accumulatedMonths: Array<{ month: string; revenue: number }> = [];
 
       for (const entry of entries) {
-        accumulated += entry.revenue;
-        accumulatedMonths.push(entry.month);
-
-        if (accumulated >= threshold) {
-          // Reset — payment would have been made
+        // If the cycle was PAYMENT_COMPLETED, that means payment was made → reset
+        if (entry.cycleStatus === 'PAYMENT_COMPLETED') {
           accumulated = 0;
           accumulatedMonths.length = 0;
+          continue;
         }
+
+        accumulated += entry.revenue;
+        accumulatedMonths.push({ month: entry.month, revenue: entry.revenue });
       }
 
       result[kocId] = {
-        accumulated,
+        accumulated: RevenueService.round2(accumulated),
         belowThreshold: accumulated < threshold,
         accumulatedMonths,
+        threshold,
       };
     }
 

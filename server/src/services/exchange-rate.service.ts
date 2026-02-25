@@ -25,6 +25,27 @@ export class ExchangeRateService {
   }
 
   /**
+   * Convert VND to USD using current cached exchange rate
+   * @param vndAmount Amount in Vietnamese Dong (₫)
+   * @returns Amount in USD (rounded to 2 decimals), or null if input is null/0
+   */
+  static convertVndToUsd(vndAmount: number | null): number | null {
+    if (vndAmount === null || vndAmount === undefined || vndAmount === 0) {
+      return vndAmount;
+    }
+
+    const currentRate = this.cachedRate?.averageRate;
+    if (!currentRate || currentRate <= 0) {
+      logger.warn(`⚠️ Cannot convert VND to USD: no valid exchange rate cached`);
+      return null;
+    }
+
+    const usdAmount = vndAmount / currentRate;
+    // Round to 2 decimal places
+    return Math.round(usdAmount * 100) / 100;
+  }
+
+  /**
    * Start a background job that fetches the exchange rate every 10 minutes
    * and updates all OPEN revenue cycles automatically.
    */

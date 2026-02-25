@@ -105,7 +105,9 @@
     "pubCodePlaceholder": "pub-XXXXXXXXXXXXX",
     "pubCodeHint": "AdSense YouTube publisher ID (e.g., pub-7049604904015296)",
     "phonePlaceholder": "0901234567",
-    "bankAccountPlaceholder": "1234567890"
+    "bankAccountPlaceholder": "1234567890",
+    "minPayment": "Min Payment Threshold (USD)",
+    "minPaymentHint": "Accumulated revenue must reach this threshold for payment (default $100)"
   },
   "revenue": {
     "title": "Revenue Control",
@@ -137,7 +139,9 @@
     "createRecord": "Create Record",
     "updateRevenue": "Update Revenue",
     "updateRevenueHint": "Scrape YouTube data and update revenue records",
-    "belowThreshold": "Below $100 payment threshold! Accumulated: {{accumulated}} ({{months}})",
+    "belowThreshold": "Below payment threshold! Accumulated: {{accumulated}} ({{months}})",
+    "belowThresholdTitle": "Below payment threshold {{threshold}}",
+    "accumulatedTotal": "Accumulated total",
     "cannotApproveThreshold": "Cannot approve: Accumulated ${{accumulated}} < ${{threshold}}. Will carry over to next month.",
     "updatingExchangeRate": "Updating exchange rate...",
     "exchangeRatePlaceholder": "25400",
@@ -542,7 +546,10 @@
     "changeAccountConfirm": "This will log out of the current YouTube account and open the browser for you to log in with a different account. Continue?",
     "changeAccountSuccess": "Browser opened. Please log in with a different account.",
     "accountInfoUnknown": "Account info not yet fetched — click refresh",
-    "refreshAccountInfo": "Refresh account info (channel name, email)"
+    "refreshAccountInfo": "Refresh account info (channel name, email)",
+    "loginSuccess": "YouTube connected successfully!",
+    "autoConnectSuccess": "Auto-connected successfully - Ready to scrape",
+    "autoConnectFailed": "No session found. Please open browser to login to Google"
   },
   "cron": {
     "configTitle": "Cron Job Configuration",
@@ -685,5 +692,19 @@
     "revenueSentSuccess": "Sent {{sent}} emails, {{failed}} failed",
     "revenueSentFailed": "Failed to send revenue emails",
     "sendingEmails": "Sending revenue emails to all KOCs..."
+  },
+  "progress": {
+    "completed": "Completed!",
+    "error": "Error",
+    "connectionLost": "Connection lost",
+    "connectionError": "Connection error",
+    "unknownError": "Unknown error",
+    "done": "Done",
+    "taskStarted": "Task started",
+    "taskCompleted": "Task completed",
+    "taskError": "Task error",
+    "scraping": "Scraping data...",
+    "sendingEmails": "Sending emails...",
+    "processing": "Processing..."
   }
 }

@@ -1,24 +1,25 @@
 import type {
-  ApiResponse,
-  AuditLog,
-  AuthUser,
-  BulkCreateRevenueRecordInput,
-  ChannelStat,
-  CreateCycleInput,
-  CreateKOCInput,
-  CreateRevenueRecordInput,
-  DashboardOverview,
-  KOC,
-  LoginInput,
-  MonthlyRevenueAnalytics,
-  PaginatedResponse,
-  RevenueCycle,
-  RevenueRecord,
-  RevenueTrend,
-  UpdateCycleInput,
-  UpdateKOCInput,
-  UpdateRevenueRecordInput,
-  YouTubeScrapeResult,
+    ApiResponse,
+    AuditLog,
+    AuthUser,
+    BulkCreateRevenueRecordInput,
+    ChannelStat,
+    CreateCycleInput,
+    CreateKOCInput,
+    CreateRevenueRecordInput,
+    DashboardOverview,
+    KOC,
+    LoginInput,
+    MonthlyRevenueAnalytics,
+    PaginatedResponse,
+    PaymentStatusMap,
+    RevenueCycle,
+    RevenueRecord,
+    RevenueTrend,
+    UpdateCycleInput,
+    UpdateKOCInput,
+    UpdateRevenueRecordInput,
+    YouTubeScrapeResult,
 } from '../types';
 import apiClient from './client';
 
@@ -88,15 +89,9 @@ export const cycleApi = {
   getExchangeRate: () =>
     apiClient.get<ApiResponse<{ averageRate: number; source: string; fetchedAt: string }>>('/cycles/exchange-rate'),
 
-  /** Scrape YouTube revenue for all KOCs in this cycle's month and auto-create records */
+  /** Scrape YouTube revenue for all KOCs in this cycle's month and auto-create records (returns taskId for SSE progress) */
   scrapeRevenue: (id: number) =>
-    apiClient.post<ApiResponse<{
-      month: string;
-      created: Array<{ koc: string; revenue: number }>;
-      skipped: Array<{ koc: string; reason: string }>;
-      scrapeErrors: Array<{ channelId: string; error: string }>;
-      summary: { totalKOCs: number; scraped: number; recordsCreated: number; recordsSkipped: number; scrapeFailed: number };
-    }>>(`/cycles/${id}/scrape-revenue`),
+    apiClient.post<ApiResponse<{ taskId: string }>>(`/cycles/${id}/scrape-revenue`),
 };
 
 // ============================================================
@@ -134,9 +129,9 @@ export const revenueApi = {
   }) =>
     apiClient.post<ApiResponse<RevenueRecord>>('/revenue/calculate', data),
 
-  /** Get payment status ($100 threshold) for all KOCs in a cycle */
+  /** Get payment status for all KOCs in a cycle */
   getPaymentStatus: (cycleId: number) =>
-    apiClient.get<ApiResponse<Record<string, { accumulated: number; belowThreshold: boolean; accumulatedMonths: string[] }>>>('/revenue/payment-status', {
+    apiClient.get<ApiResponse<PaymentStatusMap>>('/revenue/payment-status', {
       params: { cycle_id: cycleId },
     }),
 };
@@ -152,7 +147,7 @@ export const statsApi = {
     apiClient.post<ApiResponse<ChannelStat>>(`/stats/${kocId}/fetch`),
 
   fetchAllStats: () =>
-    apiClient.post<ApiResponse<{ success: number; failed: number }>>('/stats/fetch-all'),
+    apiClient.post<ApiResponse<{ taskId: string }>>('/stats/fetch-all'),
 
   getLatest: () =>
     apiClient.get<ApiResponse<Array<{ koc_id: string; full_name: string; channel_name: string; latest_stats: ChannelStat | null }>>>('/stats/latest'),
@@ -210,9 +205,9 @@ export const ytScraperApi = {
   autoConnect: () =>
     apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/auto-connect'),
 
-  /** Scrape all active KOCs */
+  /** Scrape all active KOCs (returns taskId for SSE progress) */
   scrapeAll: () =>
-    apiClient.post<ApiResponse<{ results: any[]; errors: Array<{ channelId: string; error: string }>; summary: { total: number; success: number; failed: number } }>>('/yt-scraper/scrape-all'),
+    apiClient.post<ApiResponse<{ taskId: string }>>('/yt-scraper/scrape-all'),
 
   /** Start async scrape job for all active KOCs (returns immediately) */
   scrapeAllAsync: () =>
@@ -349,13 +344,9 @@ export const emailApi = {
   sendTest: (email: string) =>
     apiClient.post<ApiResponse<{ success: boolean; messageId?: string; error?: string }>>('/email/test', { email }),
 
-  /** Send revenue emails for a specific month */
+  /** Send revenue emails for a specific month (returns taskId for SSE progress) */
   sendRevenueEmails: (month: string) =>
-    apiClient.post<ApiResponse<{
-      sent: Array<{ kocId: string; kocName: string; email: string }>;
-      failed: Array<{ kocId: string; kocName: string; email: string; error: string }>;
-      skipped: Array<{ kocId: string; kocName: string; reason: string }>;
-    }>>('/email/send-revenue', { month }),
+    apiClient.post<ApiResponse<{ taskId: string }>>('/email/send-revenue', { month }),
 
   /** Get available cycles for email sending */
   getCycles: () =>

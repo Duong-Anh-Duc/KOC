@@ -4,6 +4,7 @@ import * as path from 'path';
 import prisma from '../config/database';
 import { CycleService, RevenueService, SocialBladeService } from '../services';
 import { MonthlyRevenueService } from '../services/monthly-revenue.service';
+import { ProgressService } from '../services/progress.service';
 import { PubCodeService } from '../services/pub-code.service';
 import { YouTubeScrapeResultService } from '../services/youtube-scrape-result.service';
 import { YouTubeScraperSchedulerService } from '../services/youtube-scraper-scheduler.service';
@@ -51,7 +52,48 @@ export class YouTubeScraperController {
       });
 
       const channelIds = kocs.map(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id));
-      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannels(channelIds);
+      const taskId = ProgressService.generateTaskId('scrape-data');
+
+      res.status(202).json({
+        success: true,
+        message: t ? t('progress.taskStarted') : 'Task started',
+        data: { taskId },
+      });
+
+      // Run in background
+      YouTubeScraperController.runScrapeAll(kocs, channelIds, taskId).catch(err => {
+        ProgressService.error(taskId, err.message);
+      });
+    } catch (error: any) {
+      const t = (req as any).t;
+      if (error.message === 'NOT_LOGGED_IN') {
+        res.status(403).json({
+          success: false,
+          message: t ? t('ytScraper.notLoggedIn') : 'Not logged in to YouTube Studio. Please use /api/yt-scraper/login first.',
+        });
+        return;
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Background method to scrape all channels with progress
+   */
+  private static async runScrapeAll(
+    kocs: Array<{ id: string; full_name: string; channel_name: string; youtube_channel_id: string }>,
+    channelIds: string[],
+    taskId: string,
+  ): Promise<void> {
+    try {
+      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, (channelId, idx, total) => {
+        const koc = kocs.find(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id) === channelId);
+        const percent = Math.round(((idx + 1) / total) * 100);
+        ProgressService.emit(taskId, {
+          step: idx + 1, total, percent,
+          message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
+        });
+      });
 
       // Map results back to KOC info & save
       const enrichedResults = results.map(r => {
@@ -68,29 +110,17 @@ export class YouTubeScraperController {
         }));
       await YouTubeScrapeResultService.saveBatchResults(batchItems);
 
-      res.status(200).json({
-        success: true,
-        message: t ? t('ytScraper.scrapedChannels', { count: results.length, errors: errors.length }) : `Scraped ${results.length} channels, ${errors.length} errors`,
-        data: {
-          results: enrichedResults,
-          errors,
-          summary: {
-            total: kocs.length,
-            success: results.length,
-            failed: errors.length,
-          },
+      ProgressService.complete(taskId, {
+        results: enrichedResults,
+        errors,
+        summary: {
+          total: kocs.length,
+          success: results.length,
+          failed: errors.length,
         },
       });
     } catch (error: any) {
-      const t = (req as any).t;
-      if (error.message === 'NOT_LOGGED_IN') {
-        res.status(403).json({
-          success: false,
-          message: t ? t('ytScraper.notLoggedIn') : 'Not logged in to YouTube Studio. Please use /api/yt-scraper/login first.',
-        });
-        return;
-      }
-      next(error);
+      ProgressService.error(taskId, error.message);
     }
   }
 
@@ -318,7 +348,7 @@ export class YouTubeScraperController {
         const revenue = result.estimated_revenue;
         const kocName = result.channel_name || result.full_name || 'Unknown';
 
-        if (revenue == null || revenue <= 0) {
+        if (revenue == null) {
           skipped.push({ koc: kocName, reason: 'No revenue data' });
           continue;
         }

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { SocialBladeService } from '../services';
+import { ProgressService } from '../services/progress.service';
 
 export class StatsController {
   /**
@@ -43,16 +44,22 @@ export class StatsController {
 
   /**
    * POST /api/stats/fetch-all
+   * Returns immediately with taskId; runs fetch in background with SSE progress.
    */
   static async fetchAllStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await SocialBladeService.recordAllStats();
+      const taskId = ProgressService.generateTaskId('stats');
 
-      const t = (_req as any).t;
-      res.status(200).json({
+      // Respond immediately with taskId
+      res.status(202).json({
         success: true,
-        message: t ? t('stats.fetchAllResult', { success: result.success, failed: result.failed }) : `Stats recorded: ${result.success} success, ${result.failed} failed`,
-        data: result,
+        message: 'Stats fetch started',
+        data: { taskId },
+      });
+
+      // Run in background
+      SocialBladeService.recordAllStatsWithProgress(taskId).catch(() => {
+        // Error handled inside service
       });
     } catch (error) {
       next(error);

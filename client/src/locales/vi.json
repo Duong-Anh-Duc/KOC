@@ -105,7 +105,9 @@
     "pubCodePlaceholder": "pub-XXXXXXXXXXXXX",
     "pubCodeHint": "Mã publisher AdSense YouTube (VD: pub-7049604904015296)",
     "phonePlaceholder": "0901234567",
-    "bankAccountPlaceholder": "1234567890"
+    "bankAccountPlaceholder": "1234567890",
+    "minPayment": "Ngưỡng thanh toán tối thiểu (USD)",
+    "minPaymentHint": "Doanh thu tích lũy phải đạt ngưỡng này mới được thanh toán (mặc định $100)"
   },
   "revenue": {
     "title": "Quản lý Doanh thu",
@@ -137,7 +139,9 @@
     "createRecord": "Tạo bản ghi",
     "updateRevenue": "Cập nhật doanh thu",
     "updateRevenueHint": "Cào dữ liệu YouTube và cập nhật bản ghi doanh thu",
-    "belowThreshold": "Dưới ngưỡng thanh toán $100! Tích lũy: {{accumulated}} ({{months}})",
+    "belowThreshold": "Dưới ngưỡng thanh toán! Tích lũy: {{accumulated}} ({{months}})",
+    "belowThresholdTitle": "Dưới ngưỡng thanh toán {{threshold}}",
+    "accumulatedTotal": "Tổng tích lũy",
     "cannotApproveThreshold": "Không thể duyệt: Doanh thu tích lũy ${{accumulated}} < ${{threshold}}. Sẽ dồn sang tháng sau.",
     "updatingExchangeRate": "Đang cập nhật tỷ giá...",
     "exchangeRatePlaceholder": "25400",
@@ -542,7 +546,10 @@
     "changeAccountConfirm": "Thao tác này sẽ đăng xuất tài khoản YouTube hiện tại và mở trình duyệt để bạn đăng nhập tài khoản khác. Tiếp tục?",
     "changeAccountSuccess": "Đã mở trình duyệt. Vui lòng đăng nhập tài khoản mới.",
     "accountInfoUnknown": "Chưa có thông tin tài khoản — nhấn làm mới",
-    "refreshAccountInfo": "Làm mới thông tin tài khoản (tên kênh, email)"
+    "refreshAccountInfo": "Làm mới thông tin tài khoản (tên kênh, email)",
+    "loginSuccess": "Đã kết nối YouTube thành công!",
+    "autoConnectSuccess": "Kết nối ẩn thành công - Sẵn sàng cào dữ liệu",
+    "autoConnectFailed": "Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google"
   },
   "cron": {
     "configTitle": "Cấu hình Cronjob",
@@ -685,5 +692,19 @@
     "revenueSentSuccess": "Đã gửi {{sent}} email, {{failed}} thất bại",
     "revenueSentFailed": "Gửi email doanh thu thất bại",
     "sendingEmails": "Đang gửi email doanh thu cho tất cả KOC..."
+  },
+  "progress": {
+    "completed": "Hoàn thành!",
+    "error": "Lỗi",
+    "connectionLost": "Mất kết nối",
+    "connectionError": "Lỗi kết nối",
+    "unknownError": "Lỗi không xác định",
+    "done": "Xong",
+    "taskStarted": "Đã bắt đầu tác vụ",
+    "taskCompleted": "Tác vụ hoàn thành",
+    "taskError": "Tác vụ gặp lỗi",
+    "scraping": "Đang cào dữ liệu...",
+    "sendingEmails": "Đang gửi email...",
+    "processing": "Đang xử lý..."
   }
 }

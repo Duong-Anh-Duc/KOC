@@ -145,5 +145,8 @@
     "mismatched": "Mã PUB KHÔNG KHỚP! Đã lưu: {{stored}}, Đã cào: {{scraped}}",
     "noData": "Không thể xác minh mã PUB",
     "verifyAllResult": "Đã xác minh {{total}} KOC: {{matched}} khớp, {{mismatched}} không khớp, {{noData}} không có dữ liệu, {{errors}} lỗi"
+  },
+  "progress": {
+    "taskStarted": "Tác vụ đã bắt đầu"
   }
 }
