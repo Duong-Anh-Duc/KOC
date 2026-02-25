@@ -264,7 +264,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       key: 'net_revenue',
       width: 140,
       align: 'right',
-      render: (val: number) => <strong>{formatUSD(val)}</strong>,
+      render: (val: number) => <strong>{formatUSD(Math.max(0, val))}</strong>,
     },
     {
       title: t('revenue.companyShare'),
@@ -296,7 +296,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       key: 'koc_receive_usd',
       width: 140,
       align: 'right',
-      render: (val: number) => <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(val)}</Text>,
+      render: (val: number) => <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(Math.max(0, val))}</Text>,
     },
     {
       title: t('revenue.kocReceiveVnd'),
@@ -304,7 +304,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       key: 'koc_receive_vnd',
       width: 160,
       align: 'right',
-      render: (val: number) => <Text strong style={{ color: '#52c41a', fontSize: 13 }}>{formatVND(val)}</Text>,
+      render: (val: number) => <Text strong style={{ color: '#52c41a', fontSize: 13 }}>{formatVND(Math.max(0, val))}</Text>,
     },
     {
       title: t('revenue.status'),

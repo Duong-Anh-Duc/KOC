@@ -1,21 +1,21 @@
 import {
-    BarChartOutlined,
-    CalendarOutlined,
-    DollarOutlined,
-    EyeOutlined,
-    UserOutlined,
+  BarChartOutlined,
+  CalendarOutlined,
+  DollarOutlined,
+  EyeOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import {
-    Card,
-    Col,
-    Descriptions,
-    Empty,
-    Row,
-    Spin,
-    Statistic,
-    Table,
-    Tag,
-    Typography,
+  Card,
+  Col,
+  Descriptions,
+  Empty,
+  Row,
+  Spin,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
@@ -38,8 +38,8 @@ const MyRevenuePage: React.FC = () => {
   const records = (revenueData?.records ?? []) as RecordWithCycle[];
   const monthlyAnalytics = statsData?.monthlyAnalytics ?? [];
 
-  const totalRevenueUSD = records.reduce((sum, r) => sum + Number(r.koc_receive_usd), 0);
-  const totalRevenueVND = records.reduce((sum, r) => sum + Number(r.koc_receive_vnd), 0);
+  const totalRevenueUSD = records.reduce((sum, r) => sum + Math.max(0, Number(r.koc_receive_usd)), 0);
+  const totalRevenueVND = records.reduce((sum, r) => sum + Math.max(0, Number(r.koc_receive_vnd)), 0);
 
   const revenueColumns: ColumnsType<RecordWithCycle> = [
     {
@@ -87,7 +87,7 @@ const MyRevenuePage: React.FC = () => {
       key: 'net_revenue',
       width: 120,
       align: 'right',
-      render: (val: number) => `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      render: (val: number) => `$${Math.max(0, Number(val)).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     },
     {
       title: t('revenue.kocReceiveUsd'),
@@ -97,7 +97,7 @@ const MyRevenuePage: React.FC = () => {
       align: 'right',
       render: (val: number) => (
         <Text strong style={{ color: '#52c41a' }}>
-          ${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          ${Math.max(0, Number(val)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </Text>
       ),
     },
@@ -109,7 +109,7 @@ const MyRevenuePage: React.FC = () => {
       align: 'right',
       render: (val: number) => (
         <Text strong style={{ color: '#1677ff' }}>
-          {Number(val).toLocaleString('vi-VN')}₫
+          {Math.max(0, Number(val)).toLocaleString('vi-VN')}₫
         </Text>
       ),
     },
