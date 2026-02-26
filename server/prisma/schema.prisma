@@ -52,8 +52,10 @@ model User {
   created_at    DateTime @default(now()) @db.Timestamptz()
   updated_at    DateTime @updatedAt @db.Timestamptz()
 
-  koc        KOC?       @relation(fields: [koc_id], references: [id], onDelete: SetNull)
-  audit_logs AuditLog[]
+  koc             KOC?             @relation("UserKocLink", fields: [koc_id], references: [id], onDelete: SetNull)
+  managed_kocs    KOC[]            @relation("AdminManagesKOC")
+  audit_logs      AuditLog[]
+  youtube_session YouTubeSession?
 
   @@map("users")
 }
@@ -72,16 +74,19 @@ model KOC {
   base_rate          Decimal   @default(0.8) @db.Decimal(5, 4)
   min_payment        Decimal   @default(100) @db.Decimal(14, 2) // Minimum payment threshold (USD)
   pub_code           String?   @db.VarChar(50) // AdSense publisher ID, e.g. "pub-7049604904015296"
+  admin_id           String?   @db.Uuid         // Admin user quản lý KOC này
   status             KOCStatus @default(ACTIVE)
   created_at         DateTime  @default(now()) @db.Timestamptz()
   updated_at         DateTime  @updatedAt @db.Timestamptz()
 
+  admin                  User?                     @relation("AdminManagesKOC", fields: [admin_id], references: [id], onDelete: SetNull)
   revenue_records        RevenueRecord[]
   channel_stats          ChannelStat[]
   youtube_scrape_results YouTubeScrapeResult[]
   monthly_revenue_analytics MonthlyRevenueAnalytics[]
-  user                   User?
+  user                   User?                     @relation("UserKocLink")
 
+  @@index([admin_id])
   @@map("kocs")
 }
 
@@ -227,4 +232,21 @@ model MonthlyRevenueAnalytics {
   @@index([koc_id, month_key])
   @@index([koc_id])
   @@map("monthly_revenue_analytics")
+}
+
+/// YouTube Session - Trạng thái kết nối YouTube Studio cho từng Admin
+model YouTubeSession {
+  id             String   @id @default(uuid()) @db.Uuid
+  admin_id       String   @unique @db.Uuid
+  is_logged_in   Boolean  @default(false)
+  account_email  String?  @db.VarChar(255)
+  account_name   String?  @db.VarChar(255)
+  chrome_profile String?  @db.VarChar(255) // Path suffix for per-admin Chrome data dir
+  verified_at    DateTime? @db.Timestamptz()
+  created_at     DateTime @default(now()) @db.Timestamptz()
+  updated_at     DateTime @updatedAt @db.Timestamptz()
+
+  admin User @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@map("youtube_sessions")
 }

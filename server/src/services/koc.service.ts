@@ -4,24 +4,35 @@ import { PAGINATION } from '../constants';
 import { ApiError } from '../middlewares';
 import { PaginationQuery } from '../types';
 
+interface KOCQuery extends PaginationQuery {
+  adminId?: string; // Filter KOCs managed by this admin
+}
+
 export class KOCService {
   /**
    * Get all KOCs with pagination & search
+   * If adminId is provided, only return KOCs managed by that admin
    */
-  static async getAll(query: PaginationQuery) {
+  static async getAll(query: KOCQuery) {
     const page = query.page || PAGINATION.DEFAULT_PAGE;
     const limit = Math.min(query.limit || PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
     const skip = (page - 1) * limit;
 
-    const where = query.search
-      ? {
-          OR: [
-            { full_name: { contains: query.search, mode: 'insensitive' as const } },
-            { channel_name: { contains: query.search, mode: 'insensitive' as const } },
-            { email: { contains: query.search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {};
+    const where: any = {};
+    
+    // Filter by admin
+    if (query.adminId) {
+      where.admin_id = query.adminId;
+    }
+
+    // Search filter
+    if (query.search) {
+      where.OR = [
+        { full_name: { contains: query.search, mode: 'insensitive' as const } },
+        { channel_name: { contains: query.search, mode: 'insensitive' as const } },
+        { email: { contains: query.search, mode: 'insensitive' as const } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       prisma.kOC.findMany({
@@ -82,6 +93,7 @@ export class KOCService {
     base_rate?: number;
     min_payment?: number;
     pub_code?: string;
+    admin_id?: string;
   }) {
     const koc = await prisma.kOC.create({
       data: {
@@ -96,6 +108,7 @@ export class KOCService {
         base_rate: data.base_rate ?? 0.8,
         min_payment: data.min_payment ?? 100,
         pub_code: data.pub_code || null,
+        admin_id: data.admin_id || null,
       },
     });
 
@@ -166,15 +179,21 @@ export class KOCService {
 
   /**
    * Get all active KOCs (for dropdowns/selects)
+   * If adminId is provided, only return KOCs managed by that admin
    */
-  static async getActiveKOCs() {
+  static async getActiveKOCs(adminId?: string) {
+    const where: any = { status: 'ACTIVE' as const };
+    if (adminId) {
+      where.admin_id = adminId;
+    }
     return prisma.kOC.findMany({
-      where: { status: 'ACTIVE' },
+      where,
       select: {
         id: true,
         full_name: true,
         channel_name: true,
         base_rate: true,
+        admin_id: true,
       },
       orderBy: { full_name: 'asc' },
     });

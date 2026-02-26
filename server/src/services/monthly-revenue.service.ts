@@ -2,11 +2,11 @@ import prisma from '../config/database';
 import logger from '../middlewares/logger.middleware';
 import type { MonthlyRevenueData, MonthlyRevenueRow } from '../types/stats.types';
 import {
-  parseDecimalValue,
-  parseIntegerValue,
-  parsePercentValue,
-  parseRevenueValue,
-  parseTimeValue,
+    parseDecimalValue,
+    parseIntegerValue,
+    parsePercentValue,
+    parseRevenueValue,
+    parseTimeValue,
 } from '../utils/parseHelpers';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
@@ -27,14 +27,14 @@ export class MonthlyRevenueService {
   /**
    * Scrape monthly revenue data for a channel using the existing browser session
    */
-  static async scrapeMonthlyRevenue(channelId: string): Promise<MonthlyRevenueData> {
+  static async scrapeMonthlyRevenue(channelId: string, adminId?: string): Promise<MonthlyRevenueData> {
     const url = this.buildMonthlyRevenueUrl(channelId);
     const cleanId = YouTubeScraperService.cleanChannelId(channelId);
     
     logger.info(`📊 Scraping monthly revenue for channel: ${cleanId}`);
 
     // Use the existing scraper's shared browser session
-    const browser = await YouTubeScraperService.getBrowser();
+    const browser = await YouTubeScraperService.getBrowser(true, 1, adminId);
     const page = await browser.newPage();
 
     try {
@@ -362,8 +362,8 @@ export class MonthlyRevenueService {
   /**
    * Scrape and save monthly revenue for a single KOC
    */
-  static async scrapeAndSave(kocId: string, channelId: string): Promise<MonthlyRevenueData> {
-    const data = await this.scrapeMonthlyRevenue(channelId);
+  static async scrapeAndSave(kocId: string, channelId: string, adminId?: string): Promise<MonthlyRevenueData> {
+    const data = await this.scrapeMonthlyRevenue(channelId, adminId);
     await this.saveMonthlyRevenue(kocId, channelId, data);
     return data;
   }
@@ -371,7 +371,7 @@ export class MonthlyRevenueService {
   /**
    * Scrape and save monthly revenue for all active KOCs
    */
-  static async scrapeAllKOCs(): Promise<{
+  static async scrapeAllKOCs(adminId?: string): Promise<{
     results: Array<{ kocId: string; channelName: string; monthCount: number }>;
     errors: Array<{ kocId: string; channelName: string; error: string }>;
   }> {
@@ -386,7 +386,7 @@ export class MonthlyRevenueService {
     for (const koc of kocs) {
       try {
         logger.info(`📊 Scraping monthly revenue for ${koc.channel_name} (${koc.youtube_channel_id})`);
-        const data = await this.scrapeAndSave(koc.id, koc.youtube_channel_id);
+        const data = await this.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId);
         results.push({
           kocId: koc.id,
           channelName: koc.channel_name,

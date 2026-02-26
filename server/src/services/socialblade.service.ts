@@ -3,30 +3,30 @@ import prisma from '../config/database';
 import { ApiError } from '../middlewares';
 import logger from '../middlewares/logger.middleware';
 import type {
-  ChannelStats28dData,
-  ColumnSpec,
-  CountryStatsRow,
-  CountryStatsTotals,
-  DayStatsRow,
-  DayStatsTotals,
+    ChannelStats28dData,
+    ColumnSpec,
+    CountryStatsRow,
+    CountryStatsTotals,
+    DayStatsRow,
+    DayStatsTotals,
 } from '../types/stats.types';
 import {
-  isCountryName,
-  isDateLine,
-  isValueLine,
-  parseDimensionRowValues,
-  parseTotalRow,
+    isCountryName,
+    isDateLine,
+    isValueLine,
+    parseDimensionRowValues,
+    parseTotalRow,
 } from '../utils/parseHelpers';
 import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 // Re-export types so existing imports from this file still work
 export type {
-  ChannelStats28dData,
-  CountryStatsRow,
-  CountryStatsTotals,
-  DayStatsRow,
-  DayStatsTotals
+    ChannelStats28dData,
+    CountryStatsRow,
+    CountryStatsTotals,
+    DayStatsRow,
+    DayStatsTotals
 } from '../types/stats.types';
 
 // ============================================================
@@ -337,8 +337,8 @@ export class SocialBladeService {
   /**
    * Scrape both explore tables (by country + by day) for a channel
    */
-  static async scrapeChannelStats(channelId: string): Promise<ChannelStats28dData> {
-    const browser = await YouTubeScraperService.getBrowser();
+  static async scrapeChannelStats(channelId: string, adminId?: string): Promise<ChannelStats28dData> {
+    const browser = await YouTubeScraperService.getBrowser(true, 1, adminId);
     const page = await browser.newPage();
 
     await page.evaluateOnNewDocument(`
@@ -376,11 +376,11 @@ export class SocialBladeService {
   /**
    * Fetch and save 28d stats for a single KOC
    */
-  static async recordStats(kocId: string) {
+  static async recordStats(kocId: string, adminId?: string) {
     const koc = await prisma.kOC.findUnique({ where: { id: kocId } });
     if (!koc) throw new ApiError(404, 'koc.notFound');
 
-    const stats = await this.scrapeChannelStats(koc.youtube_channel_id);
+    const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId);
 
     const record = await prisma.channelStat.create({
       data: {
@@ -397,7 +397,7 @@ export class SocialBladeService {
   /**
    * Fetch and save 28d stats for all active KOCs
    */
-  static async recordAllStats() {
+  static async recordAllStats(adminId?: string) {
     const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE' } });
     const results = [];
     const errors = [];
@@ -407,7 +407,7 @@ export class SocialBladeService {
     for (const koc of kocs) {
       try {
         logger.info(`🔄 Fetching stats for ${koc.channel_name}...`);
-        const stats = await this.scrapeChannelStats(koc.youtube_channel_id);
+        const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId);
 
         const record = await prisma.channelStat.create({
           data: {
@@ -436,7 +436,7 @@ export class SocialBladeService {
   /**
    * Same as recordAllStats but emits SSE progress events via ProgressService.
    */
-  static async recordAllStatsWithProgress(taskId: string) {
+  static async recordAllStatsWithProgress(taskId: string, adminId?: string) {
     const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE' } });
     const total = kocs.length;
     const results = [];
@@ -457,7 +457,7 @@ export class SocialBladeService {
       });
 
       try {
-        const stats = await this.scrapeChannelStats(koc.youtube_channel_id);
+        const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId);
 
         await prisma.channelStat.create({
           data: {

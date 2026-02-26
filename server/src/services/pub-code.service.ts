@@ -25,13 +25,13 @@ export class PubCodeService {
    * Scrape the pub code from YouTube Studio monetization page
    * Looks for pattern: "pub-XXXXXXXXXXXXX"
    */
-  static async scrapePubCode(channelId: string): Promise<string | null> {
+  static async scrapePubCode(channelId: string, adminId?: string): Promise<string | null> {
     const url = this.buildMonetizationUrl(channelId);
     const cleanId = YouTubeScraperService.cleanChannelId(channelId);
     
     logger.info(`🔍 Scraping pub code for channel: ${cleanId}`);
 
-    const browser = await YouTubeScraperService.getBrowser();
+    const browser = await YouTubeScraperService.getBrowser(true, 1, adminId);
     const page = await browser.newPage();
 
     try {
@@ -82,14 +82,14 @@ export class PubCodeService {
   /**
    * Verify pub code for a single KOC
    */
-  static async verifyKOCPubCode(kocId: string): Promise<PubCodeVerificationResult> {
+  static async verifyKOCPubCode(kocId: string, adminId?: string): Promise<PubCodeVerificationResult> {
     const koc = await prisma.kOC.findUnique({ where: { id: kocId } });
     if (!koc) throw new Error('KOC not found');
 
     const cleanChannelId = YouTubeScraperService.cleanChannelId(koc.youtube_channel_id);
 
     try {
-      const scrapedPubCode = await this.scrapePubCode(koc.youtube_channel_id);
+      const scrapedPubCode = await this.scrapePubCode(koc.youtube_channel_id, adminId);
 
       const matched = scrapedPubCode && koc.pub_code
         ? scrapedPubCode === koc.pub_code
@@ -119,7 +119,7 @@ export class PubCodeService {
   /**
    * Verify pub codes for all active KOCs
    */
-  static async verifyAllPubCodes(): Promise<{
+  static async verifyAllPubCodes(adminId?: string): Promise<{
     results: PubCodeVerificationResult[];
     summary: { total: number; matched: number; mismatched: number; noData: number; errors: number };
   }> {
@@ -133,7 +133,7 @@ export class PubCodeService {
 
     for (const koc of kocs) {
       try {
-        const result = await this.verifyKOCPubCode(koc.id);
+        const result = await this.verifyKOCPubCode(koc.id, adminId);
         results.push(result);
 
         if (result.error) {

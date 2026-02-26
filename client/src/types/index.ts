@@ -54,6 +54,7 @@ export interface KOC {
   min_payment: number;
   pub_code: string | null;
   status: 'ACTIVE' | 'INACTIVE';
+  admin_id: string | null; // Admin user quản lý KOC này
   created_at: string;
   updated_at: string;
   revenue_records?: RevenueRecord[];

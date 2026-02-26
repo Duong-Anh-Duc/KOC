@@ -295,7 +295,7 @@ export class CycleController {
             step: currentStep, total: totalSteps, percent,
             message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
           });
-        });
+        }, userId || undefined);
 
       // Save scrape results to DB
       for (const result of scrapeResults) {
@@ -342,10 +342,10 @@ export class CycleController {
           });
 
           if (existing) {
-            await RevenueService.updateRecord(existing.id, revenue, usTax);
+            await RevenueService.updateRecord(existing.id, revenue, usTax, userId || undefined);
             updated.push({ koc: koc.channel_name, revenue });
           } else {
-            await RevenueService.createRecord(koc.id, cycleId, revenue, usTax);
+            await RevenueService.createRecord(koc.id, cycleId, revenue, usTax, userId || undefined);
             created.push({ koc: koc.channel_name, revenue });
           }
         } catch (error: any) {

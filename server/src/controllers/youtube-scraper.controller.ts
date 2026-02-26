@@ -18,7 +18,8 @@ export class YouTubeScraperController {
    */
   static async openLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await YouTubeScraperService.openLoginBrowser();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const result = await YouTubeScraperService.openLoginBrowser(adminId);
       const t = (req as any).t;
       res.status(200).json({ success: true, message: result.message });
     } catch (error) {
@@ -30,9 +31,30 @@ export class YouTubeScraperController {
    * GET /api/yt-scraper/status
    * Check login status
    */
-  static async checkStatus(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async checkStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const status = await YouTubeScraperService.checkLoginStatus();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const status = await YouTubeScraperService.checkLoginStatus(adminId);
+      // Also sync to DB
+      if (adminId) {
+        await prisma.youTubeSession.upsert({
+          where: { admin_id: adminId },
+          create: {
+            admin_id: adminId,
+            is_logged_in: status.loggedIn,
+            account_email: status.email || null,
+            account_name: status.channelName || null,
+            chrome_profile: adminId,
+            verified_at: status.loggedIn ? new Date() : null,
+          },
+          update: {
+            is_logged_in: status.loggedIn,
+            account_email: status.email || null,
+            account_name: status.channelName || null,
+            ...(status.loggedIn ? { verified_at: new Date() } : {}),
+          },
+        }).catch(() => {}); // Don’t fail if DB not migrated yet
+      }
       res.status(200).json({ success: true, data: status });
     } catch (error) {
       next(error);
@@ -46,8 +68,14 @@ export class YouTubeScraperController {
   static async scrapeAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      // ADMIN chỉ scrape KOC của mình
+      const kocWhere = adminId
+        ? { status: 'ACTIVE' as const, admin_id: adminId }
+        : { status: 'ACTIVE' as const };
       const kocs = await prisma.kOC.findMany({
-        where: { status: 'ACTIVE' },
+        where: kocWhere,
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true },
       });
 
@@ -61,7 +89,7 @@ export class YouTubeScraperController {
       });
 
       // Run in background
-      YouTubeScraperController.runScrapeAll(kocs, channelIds, taskId).catch(err => {
+      YouTubeScraperController.runScrapeAll(kocs, channelIds, taskId, adminId).catch(err => {
         ProgressService.error(taskId, err.message);
       });
     } catch (error: any) {
@@ -84,6 +112,7 @@ export class YouTubeScraperController {
     kocs: Array<{ id: string; full_name: string; channel_name: string; youtube_channel_id: string }>,
     channelIds: string[],
     taskId: string,
+    adminId?: string,
   ): Promise<void> {
     try {
       const { results, errors } = await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, (channelId, idx, total) => {
@@ -93,7 +122,7 @@ export class YouTubeScraperController {
           step: idx + 1, total, percent,
           message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
         });
-      });
+      }, adminId);
 
       // Map results back to KOC info & save
       const enrichedResults = results.map(r => {
@@ -131,7 +160,8 @@ export class YouTubeScraperController {
   static async closeBrowser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      await YouTubeScraperService.closeBrowser();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      await YouTubeScraperService.closeBrowser(adminId);
       res.status(200).json({ success: true, message: t ? t('ytScraper.browserClosed') : 'Browser closed' });
     } catch (error) {
       next(error);
@@ -145,7 +175,8 @@ export class YouTubeScraperController {
   static async resetSession(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      await YouTubeScraperService.resetSession();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      await YouTubeScraperService.resetSession(adminId);
       res.status(200).json({ success: true, message: t ? t('ytScraper.sessionReset') : 'Session reset successfully. Please log in again.' });
     } catch (error) {
       next(error);
@@ -158,7 +189,8 @@ export class YouTubeScraperController {
    */
   static async refreshAccountInfo(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const info = await YouTubeScraperService.extractAndCacheAccountInfo();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const info = await YouTubeScraperService.extractAndCacheAccountInfo(adminId);
       res.status(200).json({ success: true, data: info });
     } catch (error) {
       next(error);
@@ -172,9 +204,15 @@ export class YouTubeScraperController {
   static async scrapeAllAsync(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      // ADMIN chỉ scrape KOC của mình
+      const kocWhere = adminId
+        ? { status: 'ACTIVE' as const, admin_id: adminId }
+        : { status: 'ACTIVE' as const };
       const kocs = await prisma.kOC.findMany({
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true },
-        where: { status: 'ACTIVE' },
+        where: kocWhere,
       });
 
       const channelIds = kocs
@@ -195,7 +233,8 @@ export class YouTubeScraperController {
 
       const { jobId, message } = await YouTubeScraperSchedulerService.startAsyncScrapeJob(
         channelIds,
-        channelToKocMap
+        channelToKocMap,
+        adminId
       );
       res.status(202).json({
         success: true,
@@ -235,7 +274,8 @@ export class YouTubeScraperController {
   static async autoConnect(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const hasSession = YouTubeScraperService.hasValidSession();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const hasSession = YouTubeScraperService.hasValidSession(adminId);
       if (hasSession) {
         res.status(200).json({
           success: true,
@@ -323,6 +363,7 @@ export class YouTubeScraperController {
   static async createRevenueRecords(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const adminId = req.user?.userId;
       const { cycleId } = req.body;
       if (!cycleId) {
         res.status(400).json({ success: false, message: t ? t('validation.cycleIdRequired') : 'cycleId is required' });
@@ -370,7 +411,7 @@ export class YouTubeScraperController {
             US_COUNTRY_NAMES.includes(c.country?.toLowerCase?.())
           );
           const usTax = usCountry?.estimatedRevenue ? usCountry.estimatedRevenue * US_TAX_RATE : 0;
-          await RevenueService.createRecord(result.koc_id, cycleId, revenue, usTax);
+          await RevenueService.createRecord(result.koc_id, cycleId, revenue, usTax, adminId);
           created.push({ koc: kocName, revenue });
         } catch (error: any) {
           skipped.push({ koc: kocName, reason: error.message });
@@ -403,10 +444,11 @@ export class YouTubeScraperController {
   static async testParse(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const adminId = (req as AuthenticatedRequest).user?.userId;
       const channelId = Array.isArray(req.params.channelId) ? req.params.channelId[0] : req.params.channelId;
       
       // Call the service method that returns analytics data
-      const analytics = await SocialBladeService.scrapeChannelStats(channelId);
+      const analytics = await SocialBladeService.scrapeChannelStats(channelId, adminId);
 
       // Save to file
       const outputPath = path.join(process.cwd(), 'test-parse-output.json');
@@ -442,6 +484,7 @@ export class YouTubeScraperController {
   static async scrapeMonthlyRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const adminId = (req as AuthenticatedRequest).user?.userId;
       const kocId = req.params.kocId as string;
       const koc = await prisma.kOC.findUnique({
         where: { id: kocId },
@@ -453,7 +496,7 @@ export class YouTubeScraperController {
         return;
       }
 
-      const data = await MonthlyRevenueService.scrapeAndSave(koc.id, koc.youtube_channel_id);
+      const data = await MonthlyRevenueService.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId);
 
       res.status(200).json({
         success: true,
@@ -477,7 +520,8 @@ export class YouTubeScraperController {
   static async scrapeAllMonthlyRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const { results, errors } = await MonthlyRevenueService.scrapeAllKOCs();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const { results, errors } = await MonthlyRevenueService.scrapeAllKOCs(adminId);
       res.status(200).json({
         success: true,
         data: { results, errors, total: results.length + errors.length },
@@ -513,8 +557,9 @@ export class YouTubeScraperController {
   static async verifyPubCode(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const adminId = (req as AuthenticatedRequest).user?.userId;
       const kocId = req.params.kocId as string;
-      const result = await PubCodeService.verifyKOCPubCode(kocId);
+      const result = await PubCodeService.verifyKOCPubCode(kocId, adminId);
 
       const success = result.matched !== false;
       res.status(200).json({
@@ -538,7 +583,8 @@ export class YouTubeScraperController {
   static async verifyAllPubCodes(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const { results, summary } = await PubCodeService.verifyAllPubCodes();
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const { results, summary } = await PubCodeService.verifyAllPubCodes(adminId);
       res.status(200).json({
         success: true,
         message: t

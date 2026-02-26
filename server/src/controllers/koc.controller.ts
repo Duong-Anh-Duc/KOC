@@ -7,10 +7,13 @@ import { AuthenticatedRequest } from '../types';
 export class KOCController {
   /**
    * GET /api/kocs
+   * Admin users only see their own KOCs
    */
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { page, limit, search, sortBy, sortOrder } = req.query;
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
 
       const result = await KOCService.getAll({
         page: page ? Number(page) : undefined,
@@ -18,6 +21,7 @@ export class KOCController {
         search: search as string,
         sortBy: sortBy as string,
         sortOrder: sortOrder as 'asc' | 'desc',
+        adminId,
       });
 
       const t = (req as any).t;
@@ -34,12 +38,15 @@ export class KOCController {
 
   /**
    * GET /api/kocs/active
+   * Admin users only see their own active KOCs
    */
-  static async getActive(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async getActive(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const kocs = await KOCService.getActiveKOCs();
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const kocs = await KOCService.getActiveKOCs(adminId);
 
-      const t = (_req as any).t;
+      const t = (req as any).t;
       res.status(200).json({
         success: true,
         message: t ? t('koc.activeRetrieved') : 'Active KOCs retrieved',
@@ -70,10 +77,12 @@ export class KOCController {
 
   /**
    * POST /api/kocs
+   * Automatically assigns the KOC to the creating admin
    */
   static async create(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const koc = await KOCService.create(req.body);
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const koc = await KOCService.create({ ...req.body, admin_id: adminId });
 
       // Audit log
       if (req.user) {
@@ -165,11 +174,26 @@ export class KOCController {
   /**
    * GET /api/kocs/accounts-status
    * Returns a map of koc_id → boolean indicating if they have a user account
+   * Admin only sees their own KOCs' account status
    */
-  static async getAccountsStatus(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async getAccountsStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+
+      // Get KOC IDs managed by this admin
+      let kocFilter: any = { koc_id: { not: null } };
+      if (adminId) {
+        const managedKocIds = await prisma.kOC.findMany({
+          where: { admin_id: adminId },
+          select: { id: true },
+        });
+        const ids = managedKocIds.map(k => k.id);
+        kocFilter = { koc_id: { in: ids } };
+      }
+
       const usersWithKoc = await prisma.user.findMany({
-        where: { koc_id: { not: null } },
+        where: kocFilter,
         select: { koc_id: true },
       });
 

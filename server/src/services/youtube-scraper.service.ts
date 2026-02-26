@@ -4,12 +4,26 @@ import puppeteer, { Browser, Page } from 'puppeteer';
 import logger from '../middlewares/logger.middleware';
 import { ExchangeRateService } from './exchange-rate.service';
 
-// Persistent Chrome profile directory for maintaining login session
-const CHROME_USER_DATA_DIR = path.join(process.cwd(), '.chrome-data');
-// Cached account info (stored inside the Chrome data dir so it's cleared on session reset)
-const ACCOUNT_INFO_FILE = path.join(CHROME_USER_DATA_DIR, 'account-info.json');
-// Sentinel file written ONLY after actual YouTube Studio login is verified
-const SESSION_VERIFIED_FILE = path.join(CHROME_USER_DATA_DIR, 'session-verified');
+// Base directory for Chrome profiles - each admin gets their own sub-directory
+const CHROME_DATA_BASE_DIR = path.join(process.cwd(), '.chrome-data');
+
+/** Get per-admin Chrome profile directory */
+function getChromeUserDataDir(adminId?: string): string {
+  if (adminId) {
+    return path.join(CHROME_DATA_BASE_DIR, adminId);
+  }
+  return CHROME_DATA_BASE_DIR;
+}
+
+/** Get per-admin account info file */
+function getAccountInfoFile(adminId?: string): string {
+  return path.join(getChromeUserDataDir(adminId), 'account-info.json');
+}
+
+/** Get per-admin session verified sentinel file */
+function getSessionVerifiedFile(adminId?: string): string {
+  return path.join(getChromeUserDataDir(adminId), 'session-verified');
+}
 
 /** Revenue by country row */
 export interface RevenueByCountry {
@@ -57,52 +71,66 @@ async function safeClosePage(page: Page | null): Promise<void> {
 }
 
 export class YouTubeScraperService {
+  /** Per-admin browser instances: adminId → Browser */
+  private static browsers: Map<string, Browser> = new Map();
+  /** Legacy single browser for backward compat */
   private static browser: Browser | null = null;
+  /** Per-admin login browser open flags */
+  private static loginBrowserOpenMap: Map<string, boolean> = new Map();
   /** True while a headful login browser is open — prevents headless operations from interfering */
   private static loginBrowserOpen: boolean = false;
   /** Timestamp when sentinel was last written — used to delay headless extract after fresh login */
   private static sessionVerifiedAt: number = 0;
+  /** Per-admin session verified timestamps */
+  private static sessionVerifiedAtMap: Map<string, number> = new Map();
   /** Flag to prevent multiple auto-close timers from framenavigated firing multiple times */
   private static closeScheduled: boolean = false;
 
   /**
    * Check if session exists without opening browser
+   * @param adminId - Optional admin ID for per-admin session check
    * @returns true if Chrome profile directory has valid session data
    */
-  static hasValidSession(): boolean {
+  static hasValidSession(adminId?: string): boolean {
+    const SESSION_VERIFIED_FILE = getSessionVerifiedFile(adminId);
+    const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
+
     // Primary check: sentinel file written after confirmed YouTube Studio login
     if (fs.existsSync(SESSION_VERIFIED_FILE)) {
-      logger.info('✅ Valid session found (sentinel file present)');
+      logger.info(`✅ Valid session found for admin ${adminId || 'default'} (sentinel file present)`);
       return true;
     }
     // Fallback check: Chrome profile + Cookies file exists
     if (!fs.existsSync(CHROME_USER_DATA_DIR)) {
-      logger.info('❌ No session: Chrome profile directory does not exist');
+      logger.info(`❌ No session for admin ${adminId || 'default'}: Chrome profile directory does not exist`);
       return false;
     }
     const defaultProfilePath = path.join(CHROME_USER_DATA_DIR, 'Default');
     if (!fs.existsSync(defaultProfilePath)) {
-      logger.info('❌ No session: Default profile not found');
+      logger.info(`❌ No session for admin ${adminId || 'default'}: Default profile not found`);
       return false;
     }
     const cookiesPath = path.join(defaultProfilePath, 'Cookies');
     if (!fs.existsSync(cookiesPath)) {
-      logger.info('❌ No session: Cookies file not found');
+      logger.info(`❌ No session for admin ${adminId || 'default'}: Cookies file not found`);
       return false;
     }
-    logger.info('✅ Valid session found (Cookies file present)');
+    logger.info(`✅ Valid session found for admin ${adminId || 'default'} (Cookies file present)`);
     return true;
   }
 
   /**
    * Write the session-verified sentinel file to mark a confirmed login
    */
-  private static markSessionVerified(): void {
+  private static markSessionVerified(adminId?: string): void {
     try {
-      fs.mkdirSync(CHROME_USER_DATA_DIR, { recursive: true });
-      fs.writeFileSync(SESSION_VERIFIED_FILE, new Date().toISOString());
+      const dir = getChromeUserDataDir(adminId);
+      const file = getSessionVerifiedFile(adminId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(file, new Date().toISOString());
       this.sessionVerifiedAt = Date.now();
-      logger.info('✅ Session marked as verified.');
+      if (adminId) this.sessionVerifiedAtMap.set(adminId, Date.now());
+      logger.info(`✅ Session marked as verified for admin ${adminId || 'default'}.`);
     } catch { /* ignore */ }
   }
 
@@ -110,25 +138,35 @@ export class YouTubeScraperService {
    * Get or create a Puppeteer browser with persistent profile
    * @param headless - true (invisible, default) | false (visible, only for manual login)
    * @param attemptNumber - Internal counter for retry logic
+   * @param adminId - Optional admin ID for per-admin Chrome profile
    */
-  static async getBrowser(headless: boolean = true, attemptNumber: number = 1): Promise<Browser> {
+  static async getBrowser(headless: boolean = true, attemptNumber: number = 1, adminId?: string): Promise<Browser> {
+    const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
+    
+    // Check existing browser for this admin
+    const existingBrowser = adminId ? this.browsers.get(adminId) : this.browser;
+    
     // If browser exists and connected, reuse it
-    if (this.browser && this.browser.connected) {
-      return this.browser;
+    if (existingBrowser && existingBrowser.connected) {
+      return existingBrowser;
     }
 
     // If browser exists but disconnected, clean up first
-    if (this.browser) {
+    if (existingBrowser) {
       try {
-        await this.browser.close();
+        await existingBrowser.close();
       } catch {
         // Ignore close errors
       }
-      this.browser = null;
+      if (adminId) {
+        this.browsers.delete(adminId);
+      } else {
+        this.browser = null;
+      }
     }
 
     try {
-      this.browser = await puppeteer.launch({
+      const browser = await puppeteer.launch({
         headless,
         userDataDir: CHROME_USER_DATA_DIR,
         timeout: 120000, // 2 minutes to launch browser
@@ -146,11 +184,22 @@ export class YouTubeScraperService {
       });
 
       // Auto-cleanup on disconnect
-      this.browser.on('disconnected', () => {
-        this.browser = null;
+      browser.on('disconnected', () => {
+        if (adminId) {
+          this.browsers.delete(adminId);
+        } else {
+          this.browser = null;
+        }
       });
 
-      return this.browser;
+      // Store the browser
+      if (adminId) {
+        this.browsers.set(adminId, browser);
+      } else {
+        this.browser = browser;
+      }
+
+      return browser;
     } catch (error: any) {
       // If launch failed due to existing Chrome instance, provide helpful message
       if (error.message?.includes('already running')) {
@@ -170,7 +219,7 @@ export class YouTubeScraperService {
             await new Promise(r => setTimeout(r, 1000));
             
             // Retry once
-            return this.getBrowser(headless, 2);
+            return this.getBrowser(headless, 2, adminId);
           } catch (killErr) {
             logger.warn(`⚠️ Failed to auto-kill Chrome: ${killErr}`);
           }
@@ -186,24 +235,32 @@ export class YouTubeScraperService {
 
   /**
    * Close the browser instance
+   * @param adminId - Optional admin ID. If provided, closes only that admin's browser.
    */
-  static async closeBrowser(): Promise<void> {
-    this.loginBrowserOpen = false;
-    if (this.browser) {
-      try {
-        await this.browser.close();
-      } catch {
-        // ignore
+  static async closeBrowser(adminId?: string): Promise<void> {
+    if (adminId) {
+      this.loginBrowserOpenMap.delete(adminId);
+      const browser = this.browsers.get(adminId);
+      if (browser) {
+        try { await browser.close(); } catch { /* ignore */ }
+        this.browsers.delete(adminId);
       }
-      this.browser = null;
+    } else {
+      this.loginBrowserOpen = false;
+      if (this.browser) {
+        try { await this.browser.close(); } catch { /* ignore */ }
+        this.browser = null;
+      }
     }
   }
 
   /**
    * Reset session: close browser and delete the saved Chrome profile/session data
+   * @param adminId - Optional admin ID for per-admin session reset
    */
-  static async resetSession(): Promise<void> {
-    await this.closeBrowser();
+  static async resetSession(adminId?: string): Promise<void> {
+    await this.closeBrowser(adminId);
+    const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
 
     if (!fs.existsSync(CHROME_USER_DATA_DIR)) return;
 
@@ -227,18 +284,27 @@ export class YouTubeScraperService {
   /**
    * Step 1: Open browser for manual Google login (headful - VISIBLE)
    * User logs in once, session is saved in chrome-data directory
+   * @param adminId - Optional admin ID for per-admin session
    */
-  static async openLoginBrowser(): Promise<{ message: string }> {
+  static async openLoginBrowser(adminId?: string): Promise<{ message: string }> {
     try {
       // Close any existing browser (headless) before opening headful login browser
-      await this.closeBrowser();
+      await this.closeBrowser(adminId);
 
-      this.loginBrowserOpen = true;
-      const browser = await this.getBrowser(false); // Explicitly headful for user to login
+      if (adminId) {
+        this.loginBrowserOpenMap.set(adminId, true);
+      } else {
+        this.loginBrowserOpen = true;
+      }
+      const browser = await this.getBrowser(false, 1, adminId); // Explicitly headful for user to login
 
       // Reset loginBrowserOpen when Chrome is closed by user
       browser.on('disconnected', () => {
-        this.loginBrowserOpen = false;
+        if (adminId) {
+          this.loginBrowserOpenMap.delete(adminId);
+        } else {
+          this.loginBrowserOpen = false;
+        }
       });
 
       const page = await browser.newPage();
@@ -254,25 +320,33 @@ export class YouTubeScraperService {
         if (frame !== page.mainFrame()) return;
         const url = frame.url();
         if (url.includes('studio.youtube.com') && !url.includes('accounts.google.com')) {
-          logger.info('✅ Headful browser navigated to YouTube Studio — login confirmed!');
-          this.markSessionVerified();
-          this.loginBrowserOpen = false;
+          logger.info(`✅ Headful browser navigated to YouTube Studio — login confirmed for admin ${adminId || 'default'}!`);
+          this.markSessionVerified(adminId);
+          if (adminId) {
+            this.loginBrowserOpenMap.delete(adminId);
+          } else {
+            this.loginBrowserOpen = false;
+          }
           // Guard: only schedule ONE close timer regardless of how many times framenavigated fires
           if (!this.closeScheduled) {
             this.closeScheduled = true;
             // Wait 8s to allow Chrome to fully flush cookies/session to disk before closing
             setTimeout(() => {
               this.closeScheduled = false;
-              this.closeBrowser().catch(() => {});
+              this.closeBrowser(adminId).catch(() => {});
             }, 8000);
           }
         }
       });
 
-      logger.info('🌐 Opened VISIBLE browser for YouTube Studio login. Please log in manually.');
+      logger.info(`🌐 Opened VISIBLE browser for YouTube Studio login (admin: ${adminId || 'default'}). Please log in manually.`);
       return { message: 'Browser opened. Please log in to YouTube Studio manually. After login, you can close this and use the scraper.' };
     } catch (error) {
-      this.loginBrowserOpen = false;
+      if (adminId) {
+        this.loginBrowserOpenMap.delete(adminId);
+      } else {
+        this.loginBrowserOpen = false;
+      }
       logger.error('Failed to open login browser:', error);
       throw error;
     }
@@ -281,16 +355,21 @@ export class YouTubeScraperService {
   /**
    * Extract account info from YouTube Studio page (headless) and cache to file.
    * Returns { channelName, email } - both may be undefined if extraction fails.
+   * @param adminId - Optional admin ID for per-admin session
    */
-  static async extractAndCacheAccountInfo(): Promise<{ channelName?: string; email?: string }> {
+  static async extractAndCacheAccountInfo(adminId?: string): Promise<{ channelName?: string; email?: string }> {
+    const ACCOUNT_INFO_FILE = getAccountInfoFile(adminId);
+    const SESSION_VERIFIED_FILE = getSessionVerifiedFile(adminId);
+    const isLoginOpen = adminId ? this.loginBrowserOpenMap.get(adminId) : this.loginBrowserOpen;
+    
     // Don't run headless operations while headful login browser is open
-    if (this.loginBrowserOpen) {
+    if (isLoginOpen) {
       logger.info('⏭️ Skipping extractAndCacheAccountInfo — login browser is open.');
       return {};
     }
     let page = null;
     try {
-      const browser = await this.getBrowser(true);
+      const browser = await this.getBrowser(true, 1, adminId);
       page = await browser.newPage();
 
       // Stealth
@@ -310,7 +389,7 @@ export class YouTubeScraperService {
       if (page.url().includes('accounts.google.com')) {
         logger.warn('⚠️ Not logged in (redirected to Google login)');
         await safeClosePage(page);
-        await this.closeBrowser();
+        await this.closeBrowser(adminId);
         try {
           if (fs.existsSync(SESSION_VERIFIED_FILE)) {
             fs.unlinkSync(SESSION_VERIFIED_FILE);
@@ -354,7 +433,7 @@ export class YouTubeScraperService {
       logger.info(`✅ Account info extracted: channel="${channelName}" email="${email || 'unknown'}"`);
 
       // Mark session as verified (headless could access YouTube Studio)
-      this.markSessionVerified();
+      this.markSessionVerified(adminId);
 
       const info = { channelName, email, extractedAt: new Date().toISOString() };
       try { fs.writeFileSync(ACCOUNT_INFO_FILE, JSON.stringify(info, null, 2)); } catch { /* ignore */ }
@@ -370,19 +449,28 @@ export class YouTubeScraperService {
 
   /**
    * Check if user is logged in to YouTube Studio
+   * @param adminId - Optional admin ID for per-admin session
    */
-  static async checkLoginStatus(): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+  static async checkLoginStatus(adminId?: string): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+    const SESSION_VERIFIED_FILE = getSessionVerifiedFile(adminId);
+    const ACCOUNT_INFO_FILE = getAccountInfoFile(adminId);
+    const isLoginOpen = adminId ? this.loginBrowserOpenMap.get(adminId) : this.loginBrowserOpen;
+    
     // While login browser is open, check sentinel for real-time login detection
-    if (this.loginBrowserOpen) {
+    if (isLoginOpen) {
       if (fs.existsSync(SESSION_VERIFIED_FILE)) {
         // Sentinel was just written by framenavigated — login confirmed
-        this.loginBrowserOpen = false;
+        if (adminId) {
+          this.loginBrowserOpenMap.delete(adminId);
+        } else {
+          this.loginBrowserOpen = false;
+        }
       } else {
         return { loggedIn: false };
       }
     }
 
-    const hasSession = this.hasValidSession();
+    const hasSession = this.hasValidSession(adminId);
     if (!hasSession) return { loggedIn: false };
 
     // Return cached account info if available
@@ -396,9 +484,10 @@ export class YouTubeScraperService {
 
     // No cache yet — extract in background (don't block the response)
     // Wait at least 10s after a fresh login so cookies are fully flushed to disk
-    const msSinceVerified = Date.now() - this.sessionVerifiedAt;
+    const verifiedAt = adminId ? (this.sessionVerifiedAtMap.get(adminId) || 0) : this.sessionVerifiedAt;
+    const msSinceVerified = Date.now() - verifiedAt;
     const delayMs = Math.max(0, 10000 - msSinceVerified);
-    setTimeout(() => this.extractAndCacheAccountInfo().catch(() => {}), delayMs);
+    setTimeout(() => this.extractAndCacheAccountInfo(adminId).catch(() => {}), delayMs);
     return { loggedIn: true };
   }
 
@@ -490,11 +579,12 @@ export class YouTubeScraperService {
   /**
    * Step 2: Scrape YouTube Studio revenue explore page for a channel
    * @param month - Optional month in "MM/YYYY" format
+   * @param adminId - Optional admin ID for per-admin session
    */
-  static async scrapeAnalytics(channelId: string, month?: string): Promise<YouTubeAnalyticsData> {
+  static async scrapeAnalytics(channelId: string, month?: string, adminId?: string): Promise<YouTubeAnalyticsData> {
     let page: Page | null = null;
     try {
-      const browser = await this.getBrowser();
+      const browser = await this.getBrowser(true, 1, adminId);
       page = await browser.newPage();
       logger.info(`🚀 Starting scrape for channel: ${channelId}${month ? ` (month: ${month})` : ''}`);
       
@@ -509,11 +599,13 @@ export class YouTubeScraperService {
    * Scrape multiple channels sequentially - REUSES same page for efficiency
    * Max time: ~10 minutes per channel
    * @param month - Optional month in "MM/YYYY" format
+   * @param adminId - Optional admin ID for per-admin session
    */
   static async scrapeMultipleChannels(
     channelIds: string[],
     month?: string,
-    onProgress?: (channelId: string, index: number, total: number) => void
+    onProgress?: (channelId: string, index: number, total: number) => void,
+    adminId?: string
   ): Promise<{
     results: YouTubeAnalyticsData[];
     errors: Array<{ channelId: string; error: string }>;
@@ -525,7 +617,7 @@ export class YouTubeScraperService {
     let browser: Browser | null = null;
 
     try {
-      browser = await this.getBrowser(); // Headless mode (invisible)
+      browser = await this.getBrowser(true, 1, adminId); // Headless mode (invisible)
       page = await browser.newPage();
       logger.info(`📋 Starting batch scrape for ${total} channels (using shared page)${month ? ` for month ${month}` : ''}`);
 

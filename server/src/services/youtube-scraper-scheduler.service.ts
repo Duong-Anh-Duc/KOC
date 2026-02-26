@@ -1,12 +1,13 @@
 import logger from '../middlewares/logger.middleware';
-import { YouTubeAnalyticsData, YouTubeScraperService } from './youtube-scraper.service';
 import { YouTubeScrapeResultService } from './youtube-scrape-result.service';
+import { YouTubeAnalyticsData, YouTubeScraperService } from './youtube-scraper.service';
 
 // Store for tracking ongoing scrape jobs
 interface ScrapeJob {
   id: string;
   channelIds: string[];
   channelToKocMap?: Map<string, string>;
+  adminId?: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   startedAt: Date;
   completedAt?: Date;
@@ -23,7 +24,8 @@ export class YouTubeScraperSchedulerService {
    */
   static async startAsyncScrapeJob(
     channelIds: string[],
-    channelToKocMap?: Map<string, string>
+    channelToKocMap?: Map<string, string>,
+    adminId?: string
   ): Promise<{
     jobId: string;
     message: string;
@@ -33,6 +35,7 @@ export class YouTubeScraperSchedulerService {
       id: jobId,
       channelIds,
       channelToKocMap,
+      adminId,
       status: 'pending',
       startedAt: new Date(),
       results: [],
@@ -69,7 +72,7 @@ export class YouTubeScraperSchedulerService {
       job.status = 'running';
       logger.info(`🚀 Running job ${jobId}`);
 
-      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannels(job.channelIds);
+      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannels(job.channelIds, undefined, undefined, job.adminId);
       job.results = results;
       job.errors = errors;
       job.status = 'completed';

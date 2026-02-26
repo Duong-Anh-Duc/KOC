@@ -19,9 +19,11 @@ RUN npm run build
 # ── Stage 2: Production runtime ───────────────────────────────
 FROM node:20-bullseye-slim AS runner
 
-# Install Chromium + required system libs for Puppeteer
+# Install Chromium + Xvfb (virtual display) + required system libs for Puppeteer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
+    xvfb \
+    xauth \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -46,6 +48,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# Set up virtual display
+ENV DISPLAY=:99
+
 # Tell Puppeteer to use the system Chromium
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
@@ -63,5 +68,5 @@ RUN mkdir -p .chrome-data
 
 EXPOSE 3001
 
-# Run migrations → seed default users → start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/index.js"]
+# Run migrations → seed default users → start the server with Xvfb for virtual display
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && xvfb-run -a node dist/index.js"]

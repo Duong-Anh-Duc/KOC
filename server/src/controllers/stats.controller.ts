@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { SocialBladeService } from '../services';
 import { ProgressService } from '../services/progress.service';
+import { AuthenticatedRequest } from '../types';
 
 export class StatsController {
   /**
@@ -29,7 +30,8 @@ export class StatsController {
   static async fetchStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const kocId = Array.isArray(req.params.kocId) ? req.params.kocId[0] : req.params.kocId;
-      const record = await SocialBladeService.recordStats(kocId);
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const record = await SocialBladeService.recordStats(kocId, adminId);
 
       const t = (req as any).t;
       res.status(201).json({
@@ -48,6 +50,7 @@ export class StatsController {
    */
   static async fetchAllStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const adminId = (_req as AuthenticatedRequest).user?.userId;
       const taskId = ProgressService.generateTaskId('stats');
 
       // Respond immediately with taskId
@@ -58,7 +61,7 @@ export class StatsController {
       });
 
       // Run in background
-      SocialBladeService.recordAllStatsWithProgress(taskId).catch(() => {
+      SocialBladeService.recordAllStatsWithProgress(taskId, adminId).catch(() => {
         // Error handled inside service
       });
     } catch (error) {

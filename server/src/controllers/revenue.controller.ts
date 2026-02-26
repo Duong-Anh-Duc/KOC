@@ -58,7 +58,8 @@ export class RevenueController {
         koc_id,
         cycle_id,
         original_revenue_usd,
-        us_tax_deduction
+        us_tax_deduction,
+        req.user?.userId
       );
 
       // Audit log
@@ -94,7 +95,8 @@ export class RevenueController {
       const { record, oldValue } = await RevenueService.updateRecord(
         req.params.id as string,
         original_revenue_usd,
-        us_tax_deduction
+        us_tax_deduction,
+        req.user?.userId
       );
 
       // Audit log
@@ -127,7 +129,7 @@ export class RevenueController {
     try {
       const { cycle_id, records } = req.body;
 
-      const result = await RevenueService.bulkCreateRecords(cycle_id, records);
+      const result = await RevenueService.bulkCreateRecords(cycle_id, records, req.user?.userId);
 
       // Audit log for each record
       if (req.user) {

@@ -62,7 +62,8 @@ export class RevenueService {
     kocId: string,
     cycleId: number,
     originalRevenueUsd: number,
-    usTaxDeduction: number
+    usTaxDeduction: number,
+    adminId?: string
   ) {
     // Get KOC base rate
     const koc = await prisma.kOC.findUnique({ where: { id: kocId } });
@@ -92,7 +93,7 @@ export class RevenueService {
     let pubCodeMatch: boolean | null = null;
 
     try {
-      scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id);
+      scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id, adminId);
       if (scrapedPubCode && koc.pub_code) {
         pubCodeMatch = scrapedPubCode === koc.pub_code;
       }
@@ -125,7 +126,8 @@ export class RevenueService {
   static async updateRecord(
     recordId: string,
     originalRevenueUsd?: number,
-    usTaxDeduction?: number
+    usTaxDeduction?: number,
+    adminId?: string
   ) {
     const record = await prisma.revenueRecord.findUnique({
       where: { id: recordId },
@@ -150,7 +152,7 @@ export class RevenueService {
     let pubCodeMatch: boolean | null = null;
 
     try {
-      scrapedPubCode = await PubCodeService.scrapePubCode(record.koc.youtube_channel_id);
+      scrapedPubCode = await PubCodeService.scrapePubCode(record.koc.youtube_channel_id, adminId);
       if (scrapedPubCode && record.koc.pub_code) {
         pubCodeMatch = scrapedPubCode === record.koc.pub_code;
       }
@@ -187,7 +189,8 @@ export class RevenueService {
    */
   static async bulkCreateRecords(
     cycleId: number,
-    records: Array<{ koc_id: string; original_revenue_usd: number; us_tax_deduction: number }>
+    records: Array<{ koc_id: string; original_revenue_usd: number; us_tax_deduction: number }>,
+    adminId?: string
   ) {
     const cycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
     if (!cycle) throw new ApiError(404, 'revenue.cycleNotFound');
@@ -216,7 +219,7 @@ export class RevenueService {
       let pubCodeMatch: boolean | null = null;
 
       try {
-        scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id);
+        scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id, adminId);
         if (scrapedPubCode && koc.pub_code) {
           pubCodeMatch = scrapedPubCode === koc.pub_code;
         }

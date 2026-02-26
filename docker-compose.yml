@@ -51,8 +51,8 @@ services:
     ports:
       - "3002:3002"   # System nginx sẽ proxy /api → port này
     volumes:
-      # Persist Chrome session data across container restarts
-      - chrome_data:/app/.chrome-data
+      # Persist Chrome session data across container restarts (bind mount for easy sync)
+      - ./server/.chrome-data:/app/.chrome-data
     depends_on:
       db:
         condition: service_healthy
@@ -74,4 +74,3 @@ services:
 
 volumes:
   postgres_data:
-  chrome_data:

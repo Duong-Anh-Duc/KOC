@@ -213,6 +213,25 @@ export class CronService {
             return { success: true, message: msg, cycleMonth: previousMonth };
           }
 
+          // Find an ADMIN with a valid YouTube session to use for scraping
+          const adminSession = await prisma.youTubeSession.findFirst({
+            where: { 
+              is_logged_in: true,
+              admin: { role: 'ADMIN', is_active: true }
+            },
+            select: { admin_id: true }
+          });
+
+          if (!adminSession) {
+            const msg = `No admin with valid YouTube session found. Please login to YouTube Studio first.`;
+            logger.warn(`[CronJob] ${msg}`);
+            await this.addRunHistory(false, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth);
+            return { success: false, message: msg, cycleMonth: previousMonth };
+          }
+
+          const adminId = adminSession.admin_id;
+          logger.info(`[CronJob] Using admin ${adminId} for scraping`);
+
           // Get active KOCs
           const kocs = await prisma.kOC.findMany({
             where: { status: 'ACTIVE' },
@@ -226,13 +245,13 @@ export class CronService {
             return { success: true, message: msg, cycleMonth: previousMonth };
           }
 
-          // Scrape all channels
+          // Scrape all channels (with admin's Chrome profile)
           const channelIds = kocs
             .map(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id))
             .filter(id => id && id.length > 0);
 
           const { results: scrapeResults, errors: scrapeErrors } =
-            await YouTubeScraperService.scrapeMultipleChannels(channelIds);
+            await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, undefined, adminId);
 
           // Map channels to KOCs
           const channelToKocMap = new Map<string, typeof kocs[0]>();
@@ -281,13 +300,13 @@ export class CronService {
                 const oldRevenue = Number(existing.original_revenue_usd);
                 const oldTax = Number(existing.us_tax_deduction);
                 if (Math.abs(oldRevenue - revenue) > 0.001 || Math.abs(oldTax - usTax) > 0.001) {
-                  await RevenueService.updateRecord(existing.id, revenue, usTax);
+                  await RevenueService.updateRecord(existing.id, revenue, usTax, adminId);
                   recordsCreated++;
                 } else {
                   recordsSkipped++;
                 }
               } else {
-                await RevenueService.createRecord(koc.id, cycleId, revenue, usTax);
+                await RevenueService.createRecord(koc.id, cycleId, revenue, usTax, adminId);
                 recordsCreated++;
               }
             } catch {
@@ -298,7 +317,7 @@ export class CronService {
           // Step 3: Also scrape monthly revenue analytics for cross-reference
           try {
             logger.info('[CronJob] Scraping monthly revenue analytics for cross-reference...');
-            await MonthlyRevenueService.scrapeAllKOCs();
+            await MonthlyRevenueService.scrapeAllKOCs(adminId);
             logger.info('[CronJob] Monthly revenue analytics scraping completed');
           } catch (monthlyErr: any) {
             logger.warn(`[CronJob] Monthly analytics scrape failed (non-fatal): ${monthlyErr.message}`);
