@@ -2,11 +2,11 @@ import prisma from '../config/database';
 import logger from '../middlewares/logger.middleware';
 import type { MonthlyRevenueData, MonthlyRevenueRow } from '../types/stats.types';
 import {
-    parseDecimalValue,
-    parseIntegerValue,
-    parsePercentValue,
-    parseRevenueValue,
-    parseTimeValue,
+  parseDecimalValue,
+  parseIntegerValue,
+  parsePercentValue,
+  parseRevenueValue,
+  parseTimeValue,
 } from '../utils/parseHelpers';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
@@ -175,7 +175,7 @@ export class MonthlyRevenueService {
               } else if (vidx <= 4 && /^\d{1,2}:\d{2}$/.test(val)) {
                 row.avgWatchTime = val;
                 vidx = 5;
-              } else if (vidx <= 5 && /\$/.test(val)) {
+              } else if (vidx <= 5 && /[$₫]/.test(val)) {
                 row.estimatedRevenue = parseRevenueValue(val);
                 vidx = 6;
               } else if (vidx === 6 && /%/.test(val)) {
@@ -266,7 +266,7 @@ export class MonthlyRevenueService {
       // Stop if we hit a month label or section header
       if (/^(Tháng|Month|Tổng|Total|Ngày|Day)/i.test(line)) break;
       // Value patterns  
-      if (/[\d$%:]/.test(line) && line.length < 30) {
+      if (/[\d$%:₫]/.test(line) && line.length < 30) {
         values.push(line);
         if (values.length >= maxValues) break;
       }
