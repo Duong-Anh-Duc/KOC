@@ -3,6 +3,7 @@ import { Button, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../stores';
 import type { KOC } from '../../types';
 import { getTableLocale } from '../../utils';
 
@@ -40,6 +41,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
   kocHasAccount,
 }) => {
   const { t } = useTranslation();
+  const darkMode = useAppStore((s) => s.darkMode);
 
   const columns: ColumnsType<KOC> = [
     {
@@ -82,7 +84,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       ellipsis: { showTitle: false },
       render: (val: string) => val ? (
         <Tooltip title={val} placement="topLeft">
-          <Text style={{ fontSize: 12, color: '#434343', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
+          <Text style={{ fontSize: 12, color: darkMode ? '#d9d9d9' : '#434343', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
         </Tooltip>
       ) : <Text type="secondary">-</Text>,
     },
@@ -225,14 +227,21 @@ const KOCTable: React.FC<KOCTableProps> = ({
       bordered
       locale={getTableLocale(t)}
       scroll={{ x: 1400 }}
-      onRow={(_, index) => ({
-        style: {
-          backgroundColor: (index ?? 0) % 2 === 0 ? '#ffffff' : '#f7f9ff',
-          transition: 'background-color 0.15s',
-        },
-        onMouseEnter: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#e6f4ff'; },
-        onMouseLeave: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = (index ?? 0) % 2 === 0 ? '#ffffff' : '#f7f9ff'; },
-      })}
+      onRow={(_, index) => {
+        const bgColor = darkMode
+          ? ((index ?? 0) % 2 === 0 ? '#141414' : '#1f1f1f')
+          : ((index ?? 0) % 2 === 0 ? '#ffffff' : '#f7f9ff');
+        const hoverBgColor = darkMode ? '#262626' : '#e6f4ff';
+
+        return {
+          style: {
+            backgroundColor: bgColor,
+            transition: 'background-color 0.15s',
+          },
+          onMouseEnter: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = hoverBgColor; },
+          onMouseLeave: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = bgColor; },
+        };
+      }}
       pagination={
         statusFilter
           ? {

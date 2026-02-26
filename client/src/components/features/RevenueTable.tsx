@@ -16,6 +16,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../stores';
 import { MonthlyRevenueModal } from '../revenue';
 
 const { Text } = Typography;
@@ -61,6 +62,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   paymentStatus,
 }) => {
   const { t } = useTranslation();
+  const darkMode = useAppStore((s) => s.darkMode);
   const [detailKocId, setDetailKocId] = useState<string | null>(null);
   const [monthlyKoc, setMonthlyKoc] = useState<{ id: string; name: string; channel: string } | null>(null);
 
@@ -456,26 +458,37 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       pagination={false}
       size="small"
       style={{ borderRadius: 8 }}
-      onRow={(record, index) => ({
-        style: {
-          backgroundColor:
-            record.status === 'APPROVED'
-              ? '#f6ffed'
-              : (index ?? 0) % 2 === 0 ? '#ffffff' : '#fffef0',
-          transition: 'background-color 0.15s',
-        },
-        onMouseEnter: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#e6f4ff'; },
-        onMouseLeave: (e) => {
-          (e.currentTarget as HTMLElement).style.backgroundColor =
-            record.status === 'APPROVED'
-              ? '#f6ffed'
-              : (index ?? 0) % 2 === 0 ? '#ffffff' : '#fffef0';
-        },
-      })}
+      onRow={(record, index) => {
+        const getRowBgColor = () => {
+          if (record.status === 'APPROVED') {
+            return darkMode ? '#1a4620' : '#f6ffed';
+          }
+          return (index ?? 0) % 2 === 0
+            ? (darkMode ? '#141414' : '#ffffff')
+            : (darkMode ? '#1a1a1a' : '#fffef0');
+        };
+        const bgColor = getRowBgColor();
+        const hoverBgColor = darkMode ? '#262626' : '#e6f4ff';
+        const alternateColor = darkMode ? '#1a1a1a' : '#fffef0';
+
+        return {
+          style: {
+            backgroundColor: bgColor,
+            transition: 'background-color 0.15s',
+          },
+          onMouseEnter: (e) => { (e.currentTarget as HTMLElement).style.backgroundColor = hoverBgColor; },
+          onMouseLeave: (e) => {
+            (e.currentTarget as HTMLElement).style.backgroundColor = bgColor;
+          },
+        };
+      }}
       summary={() =>
         totals ? (
           <Table.Summary fixed>
-            <Table.Summary.Row style={{ backgroundColor: '#e6f4ff', fontWeight: 700 }}>
+            <Table.Summary.Row style={{ 
+              backgroundColor: darkMode ? '#1f1f1f' : '#e6f4ff',
+              fontWeight: 700 
+            }}>
               <Table.Summary.Cell index={0} colSpan={3}>
                 <Text strong style={{ color: '#1677ff' }}>{t('revenue.total')}</Text>
               </Table.Summary.Cell>
