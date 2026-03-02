@@ -45,7 +45,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
 
   const columns: ColumnsType<KOC> = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       width: 55,
       align: 'center',

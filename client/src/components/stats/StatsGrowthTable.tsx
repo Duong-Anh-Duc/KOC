@@ -34,7 +34,7 @@ const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading
 
   const columns = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       width: 55,
       align: 'right' as const,

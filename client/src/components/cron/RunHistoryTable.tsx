@@ -13,7 +13,7 @@ const RunHistoryTable: React.FC<RunHistoryTableProps> = ({ runHistory }) => {
 
   const historyColumns = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       width: 55,
       align: 'center' as const,

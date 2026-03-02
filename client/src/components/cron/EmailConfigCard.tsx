@@ -1,14 +1,15 @@
 import { useProgress } from '@/hooks/useProgress';
-import { CheckCircleOutlined, MailOutlined, SafetyCertificateOutlined, SendOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, MailOutlined, SafetyCertificateOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Button,
   Card,
   Col,
-  Descriptions,
   Divider,
+  Form,
   Input,
+  InputNumber,
   Modal,
   Row,
   Select,
@@ -19,7 +20,7 @@ import {
   Tag,
   Typography
 } from 'antd';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emailApi } from '../../api';
 import { toastError, toastSuccess } from '../../utils';
@@ -38,6 +39,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [sendResultModal, setSendResultModal] = useState(false);
   const [sendResults, setSendResults] = useState<any>(null);
+  const [smtpForm] = Form.useForm();
 
   // Fetch email config
   const { data: configRes, isLoading: configLoading } = useQuery({
@@ -60,7 +62,43 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
   const emailConfig = configRes?.data;
   const cycles = cyclesRes?.data || [];
 
-  // Update auto-send config mutation
+  // Sync config into form when loaded
+  useEffect(() => {
+    if (emailConfig) {
+      smtpForm.setFieldsValue({
+        smtpHost: emailConfig.smtpHost || '',
+        smtpPort: emailConfig.smtpPort || 587,
+        smtpSecure: emailConfig.smtpSecure ?? false,
+        smtpUser: emailConfig.smtpUser || '',
+        smtpPass: emailConfig.smtpPass || '',
+        fromName: emailConfig.fromName || '',
+        fromEmail: emailConfig.fromEmail || '',
+      });
+    }
+  }, [emailConfig, smtpForm]);
+
+  // Save full SMTP config mutation
+  const saveSmtpMutation = useMutation({
+    mutationFn: (values: any) => {
+      const payload: Record<string, any> = {
+        smtpHost: values.smtpHost,
+        smtpPort: values.smtpPort,
+        smtpSecure: values.smtpSecure,
+        smtpUser: values.smtpUser,
+        fromName: values.fromName,
+        fromEmail: values.fromEmail,
+      };
+      if (values.smtpPass) payload.smtpPass = values.smtpPass;
+      return emailApi.updateConfig(payload);
+    },
+    onSuccess: () => {
+      toastSuccess('emailSmtpSaved', t('email.configSaved'));
+      queryClient.invalidateQueries({ queryKey: ['email-config'] });
+    },
+    onError: () => {
+      toastError('emailSmtpError', t('email.configSaveError'));
+    },
+  });
   const updateAutoSendMutation = useMutation({
     mutationFn: (autoSendAfterCron: boolean) => emailApi.updateConfig({ autoSendAfterCron }),
     onSuccess: () => {
@@ -137,44 +175,85 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
             style={{ marginBottom: 16 }}
           >
             <Spin spinning={configLoading}>
-              <Alert
-                type="info"
-                showIcon
-                message={t('email.configInBackend')}
-                description={t('email.configInBackendDesc')}
-                style={{ marginBottom: 16 }}
-              />
+              {/* Editable SMTP form */}
+              <Form
+                form={smtpForm}
+                layout="vertical"
+                onFinish={saveSmtpMutation.mutate}
+                initialValues={{ smtpPort: 587, smtpSecure: false }}
+              >
+                <Form.Item label={t('email.smtpHost')} name="smtpHost" rules={[{ required: true }]}>
+                  <Input placeholder={t('email.smtpHostPlaceholder')} />
+                </Form.Item>
 
-              <Descriptions column={1} bordered size="small" style={{ marginBottom: 16 }}>
-                <Descriptions.Item label={t('email.smtpHost')}>
-                  <Text code>{emailConfig?.smtpHost || '-'}</Text>
-                </Descriptions.Item>
-                <Descriptions.Item label={t('email.smtpPort')}>
-                  <Text code>{emailConfig?.smtpPort || '-'}</Text>
-                </Descriptions.Item>
-                <Descriptions.Item label={t('email.smtpSecure')}>
-                  {emailConfig?.smtpSecure ? (
-                    <Tag color="green">SSL/TLS</Tag>
-                  ) : (
-                    <Tag color="blue">STARTTLS</Tag>
-                  )}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('email.fromName')}>
-                  {emailConfig?.fromName || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('email.fromEmail')}>
-                  <Text code>{emailConfig?.fromEmail || '-'}</Text>
-                </Descriptions.Item>
-                <Descriptions.Item label={t('email.smtpStatus')}>
-                  {emailConfig?.smtpUser && emailConfig?.smtpPass ? (
-                    <Tag icon={<CheckCircleOutlined />} color="success">
-                      {t('email.configured')}
-                    </Tag>
-                  ) : (
-                    <Tag color="warning">{t('email.notConfigured')}</Tag>
-                  )}
-                </Descriptions.Item>
-              </Descriptions>
+                <Row gutter={12}>
+                  <Col xs={14} sm={14}>
+                    <Form.Item label={t('email.smtpPort')} name="smtpPort" rules={[{ required: true }]}>
+                      <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={10} sm={10}>
+                    <Form.Item label={t('email.smtpSecure')} name="smtpSecure" valuePropName="checked">
+                      <Switch checkedChildren="SSL" unCheckedChildren="STARTTLS" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Form.Item label={t('email.smtpUser')} name="smtpUser" rules={[{ required: true, type: 'email' }]}>
+                  <Input placeholder={t('email.smtpUserPlaceholder')} />
+                </Form.Item>
+
+                <Form.Item
+                  label={
+                    <Space size={4}>
+                      {t('email.smtpPass')}
+                      {emailConfig?.smtpPass && (
+                        <Tag color="success" style={{ fontSize: 11, marginLeft: 4 }}>{t('email.passSaved')}</Tag>
+                      )}
+                    </Space>
+                  }
+                  name="smtpPass"
+                  extra={
+                    <span style={{ fontSize: 11, color: '#999' }}>{t('email.smtpPassHint')}</span>
+                  }
+                >
+                  <Input.Password
+                    placeholder={emailConfig?.smtpPass ? t('email.passKeepCurrent') : t('email.smtpPassPlaceholder')}
+                    autoComplete="new-password"
+                  />
+                </Form.Item>
+
+                <Row gutter={12}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label={t('email.fromName')} name="fromName" rules={[{ required: true }]}>
+                      <Input placeholder={t('email.fromNamePlaceholder')} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label={t('email.fromEmail')} name="fromEmail" rules={[{ required: true, type: 'email' }]}>
+                      <Input placeholder={t('email.fromEmailPlaceholder')} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Space>
+                    {emailConfig?.smtpUser && emailConfig?.smtpPass ? (
+                      <Tag icon={<CheckCircleOutlined />} color="success">{t('email.configured')}</Tag>
+                    ) : (
+                      <Tag color="warning">{t('email.notConfigured')}</Tag>
+                    )}
+                  </Space>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<SaveOutlined />}
+                    loading={saveSmtpMutation.isPending}
+                  >
+                    {t('email.saveSmtp')}
+                  </Button>
+                </div>
+              </Form>
 
               <Divider />
 
@@ -393,7 +472,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
                   style={{ marginTop: 8, marginBottom: 16 }}
                   columns={[
                     { title: t('email.kocName'), dataIndex: 'kocName' },
-                    { title: 'Email', dataIndex: 'email' },
+                    { title: t('email.emailAddress'), dataIndex: 'email' },
                   ]}
                 />
               </>
@@ -410,7 +489,7 @@ const EmailConfigCard: React.FC<EmailConfigCardProps> = ({ onSendingChange }) =>
                   style={{ marginTop: 8, marginBottom: 16 }}
                   columns={[
                     { title: t('email.kocName'), dataIndex: 'kocName' },
-                    { title: 'Email', dataIndex: 'email' },
+                    { title: t('email.emailAddress'), dataIndex: 'email' },
                     { title: t('common.errors'), dataIndex: 'error' },
                   ]}
                 />

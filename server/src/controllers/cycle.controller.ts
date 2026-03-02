@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import prisma from '../config/database';
 import { AUDIT_ACTIONS, ENTITIES } from '../constants';
+import logger from '../middlewares/logger.middleware';
 import { AuditLogService, CycleService, ExchangeRateService, RevenueService } from '../services';
 import { ProgressService } from '../services/progress.service';
 import { YouTubeScrapeResultService } from '../services/youtube-scrape-result.service';
@@ -235,7 +236,9 @@ export class CycleController {
       });
 
       // Run scrape in background with progress reporting
+      logger.info(`🚀 Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId})`);
       CycleController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null).catch(err => {
+        logger.error(`❌ scrape-revenue task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
     } catch (error: any) {

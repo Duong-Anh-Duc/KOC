@@ -176,7 +176,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
 
   const columns: ColumnsType<RevenueRecord> = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       fixed: 'left',
       width: 55,

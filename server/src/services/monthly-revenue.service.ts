@@ -2,11 +2,11 @@ import prisma from '../config/database';
 import logger from '../middlewares/logger.middleware';
 import type { MonthlyRevenueData, MonthlyRevenueRow } from '../types/stats.types';
 import {
-    parseDecimalValue,
-    parseIntegerValue,
-    parsePercentValue,
-    parseRevenueValue,
-    parseTimeValue,
+  parseDecimalValue,
+  parseIntegerValue,
+  parsePercentValue,
+  parseRevenueValue,
+  parseTimeValue,
 } from '../utils/parseHelpers';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
@@ -34,7 +34,7 @@ export class MonthlyRevenueService {
     logger.info(`📊 Scraping monthly revenue for channel: ${cleanId}`);
 
     // Use the existing scraper's shared browser session
-    const browser = await YouTubeScraperService.getBrowser(true, 1, adminId);
+    const browser = await YouTubeScraperService.getBrowser(false, 1, adminId); // Headful mode to match login session
     const page = await browser.newPage();
 
     try {

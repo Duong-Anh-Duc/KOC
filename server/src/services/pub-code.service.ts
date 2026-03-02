@@ -31,7 +31,7 @@ export class PubCodeService {
     
     logger.info(`🔍 Scraping pub code for channel: ${cleanId}`);
 
-    const browser = await YouTubeScraperService.getBrowser(true, 1, adminId);
+    const browser = await YouTubeScraperService.getBrowser(false, 1, adminId); // Headful mode to match login session
     const page = await browser.newPage();
 
     try {

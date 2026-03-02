@@ -126,6 +126,8 @@
     "kocNotFound": "KOC not found",
     "scrapedMonthlyData": "Scraped {{count}} months of revenue data",
     "monthlyDataRetrieved": "Monthly revenue data retrieved",
+    "noRevenueData": "No revenue data",
+    "recordAlreadyExists": "Record already exists",
     "sessionReset": "Session reset successfully. Please log in again."
   },
   "pubCode": {

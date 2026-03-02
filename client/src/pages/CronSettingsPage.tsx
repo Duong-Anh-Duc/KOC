@@ -1,14 +1,15 @@
 import {
-    ClockCircleOutlined,
-    LoadingOutlined,
-    PlayCircleOutlined,
-    SettingOutlined,
-    SwapOutlined,
-    UserOutlined,
-    YoutubeOutlined,
+  ClockCircleOutlined,
+  LinkOutlined,
+  LoadingOutlined,
+  PlayCircleOutlined,
+  SettingOutlined,
+  SwapOutlined,
+  UserOutlined,
+  YoutubeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
+import { Button, Col, Form, notification, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cronApi, ytScraperApi } from '../api';
@@ -170,6 +171,7 @@ const CronSettingsPage: React.FC = () => {
       const data = res.data?.data;
       if (data?.loggedIn && waitingForLogin) {
         setWaitingForLogin(false);
+        notification.destroy('vnc-login');
         toastSuccess('ytLoginSuccess', t('ytScraper.loginSuccess'));
       }
       return data;
@@ -212,12 +214,30 @@ const CronSettingsPage: React.FC = () => {
   const changeAccountMutation = useMutation({
     mutationFn: async () => {
       await ytScraperApi.resetSession();
-      await ytScraperApi.openLogin();
+      const res = await ytScraperApi.openLogin();
+      return res;
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const url = (res.data?.data as any)?.vncUrl as string | undefined;
+      const vncLink = url || 'http://46.62.170.132:6080/vnc.html';
       toastSuccess('ytScraperChangeAccount', t('ytScraper.changeAccountSuccess'));
       queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
       setWaitingForLogin(true);
+      notification.open({
+        key: 'vnc-login',
+        message: t('ytScraper.vncBrowserOpened'),
+        description: t('ytScraper.vncLoginDescAuto'),
+        duration: 0,
+        btn: (
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={() => { window.open(vncLink, '_blank', 'noopener,noreferrer'); notification.destroy('vnc-login'); }}
+          >
+            {t('ytScraper.openLoginPage')}
+          </Button>
+        ),
+      });
     },
     onError: () => {
       toastError('ytScraperChangeError', t('ytScraper.resetSessionError'));
@@ -274,7 +294,7 @@ const CronSettingsPage: React.FC = () => {
                   <div style={{ lineHeight: 1.8 }}>
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('ytScraper.connected')}</div>
                     {refreshAccountInfoMutation.isPending ? (
-                      <div><LoadingOutlined style={{ marginRight: 6 }} />Đang tải thông tin...</div>
+                      <div><LoadingOutlined style={{ marginRight: 6 }} />{t('ytScraper.loadingAccountInfo')}</div>
                     ) : (
                       <>
                         {statusData?.channelName && (
@@ -284,7 +304,7 @@ const CronSettingsPage: React.FC = () => {
                           <div><UserOutlined style={{ marginRight: 6, color: '#69b1ff' }} />{statusData.email}</div>
                         )}
                         {!statusData?.channelName && !statusData?.email && (
-                          <div style={{ color: '#aaa', fontSize: 12 }}>Chưa có thông tin — nhấn Refresh</div>
+                          <div style={{ color: '#aaa', fontSize: 12 }}>{t('ytScraper.noAccountInfo')}</div>
                         )}
                       </>
                     )}

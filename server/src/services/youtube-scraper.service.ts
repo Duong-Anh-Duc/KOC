@@ -25,6 +25,11 @@ function getSessionVerifiedFile(adminId?: string): string {
   return path.join(getChromeUserDataDir(adminId), 'session-verified');
 }
 
+/** Get per-admin cookies JSON file */
+function getCookieFile(adminId?: string): string {
+  return path.join(getChromeUserDataDir(adminId), 'cookies.json');
+}
+
 /** Revenue by country row */
 export interface RevenueByCountry {
   country: string;
@@ -120,6 +125,55 @@ export class YouTubeScraperService {
   }
 
   /**
+   * Save all browser cookies to a JSON file via CDP (Chrome DevTools Protocol).
+   * This captures ALL cookies including httpOnly/secure ones that Chrome's profile
+   * storage may encrypt with a keyring unavailable in Docker.
+   */
+  private static async saveCookiesViaCDP(browser: Browser, adminId?: string): Promise<void> {
+    try {
+      const pages = await browser.pages();
+      const page = pages[0] || await browser.newPage();
+      const client = await page.createCDPSession();
+      const { cookies } = await client.send('Network.getAllCookies');
+      const cookieFile = getCookieFile(adminId);
+      const dir = getChromeUserDataDir(adminId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(cookieFile, JSON.stringify(cookies, null, 2));
+      logger.info(`🍪 Saved ${cookies.length} cookies to ${cookieFile}`);
+      await client.detach();
+    } catch (err: any) {
+      logger.warn(`⚠️ Failed to save cookies: ${err.message}`);
+    }
+  }
+
+  /**
+   * Load cookies from JSON file into a browser page via CDP.
+   * Used when launching a fresh browser to restore a previous login session.
+   */
+  private static async loadCookiesViaCDP(browser: Browser, adminId?: string): Promise<boolean> {
+    const cookieFile = getCookieFile(adminId);
+    if (!fs.existsSync(cookieFile)) {
+      logger.info(`🍪 No saved cookies file found for admin ${adminId || 'default'}`);
+      return false;
+    }
+    try {
+      const raw = fs.readFileSync(cookieFile, 'utf8');
+      const cookies = JSON.parse(raw);
+      if (!Array.isArray(cookies) || cookies.length === 0) return false;
+      const pages = await browser.pages();
+      const page = pages[0] || await browser.newPage();
+      const client = await page.createCDPSession();
+      await client.send('Network.setCookies', { cookies });
+      logger.info(`🍪 Loaded ${cookies.length} cookies from file for admin ${adminId || 'default'}`);
+      await client.detach();
+      return true;
+    } catch (err: any) {
+      logger.warn(`⚠️ Failed to load cookies: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
    * Write the session-verified sentinel file to mark a confirmed login
    */
   private static markSessionVerified(adminId?: string): void {
@@ -140,6 +194,31 @@ export class YouTubeScraperService {
    * @param attemptNumber - Internal counter for retry logic
    * @param adminId - Optional admin ID for per-admin Chrome profile
    */
+  /**
+   * Remove stale Chrome lock files (SingletonLock, SingletonCookie, SingletonSocket)
+   * These get left behind if Chrome crashes or was copied from another machine.
+   * NOTE: These are often symlinks, and broken symlinks are invisible to fs.existsSync(),
+   * so we must use fs.lstatSync() which detects the link itself.
+   */
+  private static cleanStaleLockFiles(userDataDir: string): void {
+    const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+    for (const file of lockFiles) {
+      const filePath = path.join(userDataDir, file);
+      try {
+        // Use lstat (not stat/existsSync) because these are symlinks — 
+        // if the symlink target doesn't exist, existsSync returns false!
+        fs.lstatSync(filePath);
+        fs.unlinkSync(filePath);
+        logger.info(`🧹 Removed stale lock file: ${file} from ${userDataDir}`);
+      } catch (err: any) {
+        // ENOENT = file truly doesn't exist, which is fine
+        if (err.code !== 'ENOENT') {
+          logger.warn(`⚠️ Failed to remove lock file ${file}: ${err.message}`);
+        }
+      }
+    }
+  }
+
   static async getBrowser(headless: boolean = true, attemptNumber: number = 1, adminId?: string): Promise<Browser> {
     const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
     
@@ -165,12 +244,13 @@ export class YouTubeScraperService {
       }
     }
 
+    // Clean stale lock files before launching (prevents hang from copied/crashed profiles)
+    this.cleanStaleLockFiles(CHROME_USER_DATA_DIR);
+
     try {
-      const browser = await puppeteer.launch({
-        headless,
-        userDataDir: CHROME_USER_DATA_DIR,
-        timeout: 120000, // 2 minutes to launch browser
-        args: [
+      logger.info(`🚀 Launching Chrome browser (headless=${headless}) for admin ${adminId || 'default'}...`);
+      
+      const launchArgs = [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-blink-features=AutomationControlled',
@@ -178,8 +258,21 @@ export class YouTubeScraperService {
           '--window-size=1400,900',
           '--disable-web-security',
           '--disable-features=IsolateOrigins,site-per-process',
+          '--password-store=basic',
+          '--use-mock-keychain',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        ],
+      ];
+      
+      // For headful (login) mode, enable remote debugging so user can connect from their browser
+      if (!headless) {
+        launchArgs.push('--remote-debugging-port=9222', '--remote-debugging-address=0.0.0.0');
+      }
+      
+      const browser = await puppeteer.launch({
+        headless,
+        userDataDir: CHROME_USER_DATA_DIR,
+        timeout: 120000, // 2 minutes to launch browser
+        args: launchArgs,
         defaultViewport: { width: 1400, height: 900 },
       });
 
@@ -197,6 +290,12 @@ export class YouTubeScraperService {
         this.browsers.set(adminId, browser);
       } else {
         this.browser = browser;
+      }
+
+      // Load saved cookies from file (restores login session after browser restart)
+      const cookiesLoaded = await this.loadCookiesViaCDP(browser, adminId);
+      if (cookiesLoaded) {
+        logger.info(`🍪 Restored login session from saved cookies for admin ${adminId || 'default'}`);
       }
 
       return browser;
@@ -238,6 +337,13 @@ export class YouTubeScraperService {
    * @param adminId - Optional admin ID. If provided, closes only that admin's browser.
    */
   static async closeBrowser(adminId?: string): Promise<void> {
+    // Kill VNC/noVNC processes if running
+    try {
+      const { execSync } = require('child_process');
+      execSync('pkill -f x11vnc; pkill -f websockify', { stdio: 'ignore' });
+      logger.info('🛑 VNC/noVNC processes stopped');
+    } catch { /* ignore - may not be running */ }
+    
     if (adminId) {
       this.loginBrowserOpenMap.delete(adminId);
       const browser = this.browsers.get(adminId);
@@ -286,7 +392,7 @@ export class YouTubeScraperService {
    * User logs in once, session is saved in chrome-data directory
    * @param adminId - Optional admin ID for per-admin session
    */
-  static async openLoginBrowser(adminId?: string): Promise<{ message: string }> {
+  static async openLoginBrowser(adminId?: string): Promise<{ message: string; vncUrl?: string }> {
     try {
       // Close any existing browser (headless) before opening headful login browser
       await this.closeBrowser(adminId);
@@ -327,20 +433,54 @@ export class YouTubeScraperService {
           } else {
             this.loginBrowserOpen = false;
           }
-          // Guard: only schedule ONE close timer regardless of how many times framenavigated fires
+          // Save cookies to file for persistence across browser restarts
+          // Guard: only save once regardless of how many times framenavigated fires
           if (!this.closeScheduled) {
             this.closeScheduled = true;
-            // Wait 8s to allow Chrome to fully flush cookies/session to disk before closing
-            setTimeout(() => {
+            // Wait 5s for cookies to stabilize, then save them
+            setTimeout(async () => {
               this.closeScheduled = false;
-              this.closeBrowser(adminId).catch(() => {});
-            }, 8000);
+              await this.saveCookiesViaCDP(browser, adminId);
+              logger.info(`✅ Login complete. Browser kept alive for scraping. Cookies saved to file.`);
+            }, 5000);
           }
         }
       });
 
-      logger.info(`🌐 Opened VISIBLE browser for YouTube Studio login (admin: ${adminId || 'default'}). Please log in manually.`);
-      return { message: 'Browser opened. Please log in to YouTube Studio manually. After login, you can close this and use the scraper.' };
+      logger.info(`🌐 Opened VISIBLE browser for YouTube Studio login (admin: ${adminId || 'default'}).`);
+      
+      // Start x11vnc + noVNC so user can see and control Chrome via web browser
+      try {
+        const { exec } = require('child_process');
+        // Kill any existing VNC/noVNC processes
+        exec('pkill -f x11vnc; pkill -f websockify', () => {
+          // Start x11vnc (VNC server sharing the Xvfb virtual display)
+          exec('x11vnc -display :99 -nopw -listen 0.0.0.0 -xkb -ncache 10 -forever -shared &', (err: any) => {
+            if (err) {
+              logger.warn(`⚠️ Failed to start x11vnc: ${err.message}`);
+            } else {
+              logger.info(`✅ x11vnc started on :5900 (sharing Xvfb display :99)`);
+            }
+          });
+          // Start noVNC websockify (web VNC client on port 6080)
+          setTimeout(() => {
+            exec('websockify --web /usr/share/novnc 6080 localhost:5900 &', (err: any) => {
+              if (err) {
+                logger.warn(`⚠️ Failed to start noVNC: ${err.message}`);
+              } else {
+                logger.info(`✅ noVNC started on port 6080 — open http://<VPS_IP>:6080/vnc.html to access Chrome`);
+              }
+            });
+          }, 1000);
+        });
+      } catch (err: any) {
+        logger.warn(`⚠️ noVNC not available: ${err.message}`);
+      }
+      
+      return { 
+        message: 'Browser đã mở. Truy cập http://46.62.170.132:6080/vnc.html để nhìn thấy và điều khiển Chrome đăng nhập YouTube Studio.',
+        vncUrl: 'http://46.62.170.132:6080/vnc.html',
+      };
     } catch (error) {
       if (adminId) {
         this.loginBrowserOpenMap.delete(adminId);
@@ -369,7 +509,7 @@ export class YouTubeScraperService {
     }
     let page = null;
     try {
-      const browser = await this.getBrowser(true, 1, adminId);
+      const browser = await this.getBrowser(false, 1, adminId); // Headful mode to match login session
       page = await browser.newPage();
 
       // Stealth
@@ -549,14 +689,16 @@ export class YouTubeScraperService {
     
     try {
       logger.info(`⏳ Navigating to revenue explore page...`);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-      logger.info(`✓ Page loaded`);
+      await page.goto(url, { waitUntil: 'networkidle0', timeout: 120000 });
+      logger.info(`✓ Page loaded, current URL: ${page.url()}`);
     } catch (err: any) {
-      logger.warn(`⚠️ Page load timeout/error, continuing anyway...`, err.message);
+      logger.warn(`⚠️ Page load timeout/error, continuing anyway... URL: ${page.url()}`, err.message);
     }
 
     // Check if redirected to login
-    if (page.url().includes('accounts.google.com')) {
+    const currentUrl = page.url();
+    if (currentUrl.includes('accounts.google.com')) {
+      logger.warn(`🔒 Redirected to login: ${currentUrl}`);
       throw new Error('NOT_LOGGED_IN');
     }
 
@@ -565,12 +707,19 @@ export class YouTubeScraperService {
     logger.info(`✓ Analytics loaded`);
 
     logger.info(`⏳ Extracting text...`);
-    const text = await Promise.race([
-      page.evaluate('document.body.innerText') as Promise<string>,
-      new Promise<string>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout extracting text (exceeded 120s)')), 120000)
-      ),
-    ]);
+    let text = '';
+    // Try up to 3 times with increasing waits if body text is empty
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      text = await Promise.race([
+        page.evaluate('document.body.innerText') as Promise<string>,
+        new Promise<string>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout extracting text (exceeded 120s)')), 120000)
+        ),
+      ]);
+      if (text && text.trim().length > 50) break;
+      logger.warn(`⚠️ Text extraction attempt ${attempt}: only ${text.length} chars, waiting ${attempt * 5}s more...`);
+      await new Promise(r => setTimeout(r, attempt * 5000));
+    }
 
     logger.info(`✓ Scraped revenue explore (${text.length} chars)`);
     return text;
@@ -584,7 +733,7 @@ export class YouTubeScraperService {
   static async scrapeAnalytics(channelId: string, month?: string, adminId?: string): Promise<YouTubeAnalyticsData> {
     let page: Page | null = null;
     try {
-      const browser = await this.getBrowser(true, 1, adminId);
+      const browser = await this.getBrowser(false, 1, adminId); // Headful mode to match login session
       page = await browser.newPage();
       logger.info(`🚀 Starting scrape for channel: ${channelId}${month ? ` (month: ${month})` : ''}`);
       
@@ -617,7 +766,7 @@ export class YouTubeScraperService {
     let browser: Browser | null = null;
 
     try {
-      browser = await this.getBrowser(true, 1, adminId); // Headless mode (invisible)
+      browser = await this.getBrowser(false, 1, adminId); // Headful mode via Xvfb (matches login session)
       page = await browser.newPage();
       logger.info(`📋 Starting batch scrape for ${total} channels (using shared page)${month ? ` for month ${month}` : ''}`);
 
@@ -648,15 +797,10 @@ export class YouTubeScraperService {
       return { results, errors };
     } finally {
       await safeClosePage(page);
-      // Close browser to prevent "Chrome already running" errors
-      if (browser) {
-        try {
-          await browser.close();
-          logger.debug('✅ Browser closed after batch scrape');
-        } catch (err) {
-          logger.warn(`⚠️ Error closing browser: ${err}`);
-        }
-      }
+      // NOTE: Do NOT close the browser here — keep it alive so the Google session stays valid.
+      // Closing and reopening Chrome forces Google to re-validate the session (often fails).
+      // The browser stays in the browsers map and is reused on the next scrape call.
+      logger.debug('✅ Batch scrape complete. Browser kept alive for next scrape.');
     }
   }
 
@@ -719,7 +863,20 @@ export class YouTubeScraperService {
    * Wait for YouTube Studio analytics page to fully render
    */
   private static async waitForAnalytics(page: Page): Promise<void> {
-    logger.info(`⏳ Waiting for page to render (5s)...`);
+    // First wait for the SPA to initialize
+    logger.info(`⏳ Waiting for initial render (3s)...`);
+    await new Promise(r => setTimeout(r, 3000));
+    
+    // Try to wait for actual analytics table content
+    try {
+      await page.waitForSelector('ytcp-table, .data-table, .entity-row, td', { timeout: 30000 });
+      logger.info(`✓ Found table/data element`);
+    } catch {
+      logger.warn(`⚠️ Table selector not found after 30s, trying longer wait...`);
+    }
+    
+    // Additional wait for data to populate
+    logger.info(`⏳ Waiting for data to populate (5s)...`);
     await new Promise(r => setTimeout(r, 5000));
   }
 

@@ -338,7 +338,7 @@ export class SocialBladeService {
    * Scrape both explore tables (by country + by day) for a channel
    */
   static async scrapeChannelStats(channelId: string, adminId?: string): Promise<ChannelStats28dData> {
-    const browser = await YouTubeScraperService.getBrowser(true, 1, adminId);
+    const browser = await YouTubeScraperService.getBrowser(false, 1, adminId); // Headful mode to match login session
     const page = await browser.newPage();
 
     await page.evaluateOnNewDocument(`

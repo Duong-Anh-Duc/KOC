@@ -43,7 +43,7 @@ const MyRevenuePage: React.FC = () => {
 
   const revenueColumns: ColumnsType<RecordWithCycle> = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       width: 55,
       align: 'center',
@@ -129,7 +129,7 @@ const MyRevenuePage: React.FC = () => {
 
   const monthlyColumns: ColumnsType<MonthlyRevenueAnalytics> = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       width: 55,
       align: 'center',

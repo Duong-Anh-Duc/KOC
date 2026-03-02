@@ -1,5 +1,6 @@
 import {
   ChromeOutlined,
+  LinkOutlined,
   LoadingOutlined,
   ReloadOutlined,
   SwapOutlined,
@@ -16,6 +17,8 @@ interface LoginStatusCardProps {
   statusData: any;
   statusLoading: boolean;
   isLoggedIn: boolean;
+  waitingForLogin?: boolean;
+  vncUrl?: string | null;
   onOpenLogin: () => void;
   openLoginLoading: boolean;
   onChangeAccount: () => void;
@@ -28,6 +31,8 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
   statusData,
   statusLoading,
   isLoggedIn,
+  waitingForLogin,
+  vncUrl,
   onOpenLogin,
   openLoginLoading,
   onChangeAccount,
@@ -113,7 +118,30 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
           </Space>
         </Col>
       </Row>
-      {!isLoggedIn && (
+      {/* Waiting for login: show noVNC link prominently */}
+      {waitingForLogin && vncUrl && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<LoadingOutlined />}
+          style={{ marginTop: 12 }}
+          message={
+            <Space>
+              <span>{t('ytScraper.vncAlertMessage')}</span>
+              <Button
+                type="primary"
+                size="small"
+                icon={<LinkOutlined />}
+                onClick={() => window.open(vncUrl, '_blank', 'noopener,noreferrer')}
+              >
+                {t('ytScraper.openLoginPage')}
+              </Button>
+            </Space>
+          }
+          description={t('ytScraper.vncAlertDesc')}
+        />
+      )}
+      {!isLoggedIn && !waitingForLogin && (
         <Alert
           type="info"
           showIcon

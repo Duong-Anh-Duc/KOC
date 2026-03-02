@@ -16,14 +16,21 @@ RUN npx prisma generate
 # Compile TypeScript
 RUN npm run build
 
+# Copy static assets (images etc.) that tsc doesn't include
+RUN cp -r src/assets dist/assets 2>/dev/null || true
+
 # ── Stage 2: Production runtime ───────────────────────────────
 FROM node:20-bullseye-slim AS runner
 
-# Install Chromium + Xvfb (virtual display) + required system libs for Puppeteer
+# Install Chromium + Xvfb (virtual display) + noVNC (visual remote access) + required system libs for Puppeteer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     xvfb \
     xauth \
+    x11vnc \
+    novnc \
+    websockify \
+    socat \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \

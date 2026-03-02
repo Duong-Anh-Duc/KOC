@@ -40,7 +40,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
 
   const columns: ColumnsType<AuditLog> = [
     {
-      title: 'STT',
+      title: t('common.stt'),
       key: 'stt',
       width: 55,
       align: 'center',

@@ -1,9 +1,10 @@
 import {
   LineChartOutlined,
+  LinkOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Space, Spin, Tooltip, Typography, message } from 'antd';
+import { Button, message, notification, Space, Spin, Tooltip, Typography } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
@@ -24,6 +25,7 @@ const YouTubeScraperPage: React.FC = () => {
 
   const [asyncJobId, setAsyncJobId] = useState<string | null>(null);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
+  const [vncUrl, setVncUrl] = useState<string | null>(null);
   const [asyncJobStatus, setAsyncJobStatus] = useState<'pending' | 'running' | 'completed' | 'failed' | null>(null);
 
   // Revenue records creation state
@@ -48,10 +50,13 @@ const YouTubeScraperPage: React.FC = () => {
   } = useQuery({
     queryKey: ['yt-scraper-status'],
     queryFn: async () => {
+      // Extra: when login is confirmed, clear vncUrl and stop waiting
       const res = await ytScraperApi.checkStatus();
       const data = res.data?.data;
       if (data?.loggedIn && waitingForLogin) {
         setWaitingForLogin(false);
+        setVncUrl(null);
+        notification.destroy('vnc-login');
         message.success(t('ytScraper.loginSuccess'));
       }
       return data;
@@ -103,9 +108,26 @@ const YouTubeScraperPage: React.FC = () => {
   // Open login browser — then poll status until logged in
   const openLoginMutation = useMutation({
     mutationFn: () => ytScraperApi.openLogin(),
-    onSuccess: () => {
-      message.success(t('ytScraper.loginBrowserOpened'));
+    onSuccess: (res) => {
+      const url = (res.data?.data as any)?.vncUrl as string | undefined;
+      const vncLink = url || 'http://46.62.170.132:6080/vnc.html';
+      setVncUrl(vncLink);
       setWaitingForLogin(true);
+      notification.open({
+        key: 'vnc-login',
+        message: t('ytScraper.vncBrowserOpened'),
+        description: t('ytScraper.vncLoginDesc'),
+        duration: 0,
+        btn: (
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={() => { window.open(vncLink, '_blank', 'noopener,noreferrer'); notification.destroy('vnc-login'); }}
+          >
+            {t('ytScraper.openLoginPage')}
+          </Button>
+        ),
+      });
     },
     onError: () => {
       message.error(t('ytScraper.loginBrowserError'));
@@ -117,12 +139,30 @@ const YouTubeScraperPage: React.FC = () => {
   const changeAccountMutation = useMutation({
     mutationFn: async () => {
       await ytScraperApi.resetSession();
-      await ytScraperApi.openLogin();
+      const res = await ytScraperApi.openLogin();
+      return res;
     },
-    onSuccess: () => {
-      message.success(t('ytScraper.changeAccountSuccess'));
+    onSuccess: (res) => {
+      const url = (res.data?.data as any)?.vncUrl as string | undefined;
+      const vncLink = url || 'http://46.62.170.132:6080/vnc.html';
+      setVncUrl(vncLink);
       queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
       setWaitingForLogin(true);
+      notification.open({
+        key: 'vnc-login',
+        message: t('ytScraper.vncBrowserOpened'),
+        description: t('ytScraper.vncLoginDesc'),
+        duration: 0,
+        btn: (
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={() => { window.open(vncLink, '_blank', 'noopener,noreferrer'); notification.destroy('vnc-login'); }}
+          >
+            {t('ytScraper.openLoginPage')}
+          </Button>
+        ),
+      });
     },
     onError: () => {
       message.error(t('ytScraper.resetSessionError'));
@@ -219,6 +259,8 @@ const YouTubeScraperPage: React.FC = () => {
           statusData={statusData}
           statusLoading={statusLoading}
           isLoggedIn={isLoggedIn}
+          waitingForLogin={waitingForLogin}
+          vncUrl={vncUrl}
           onOpenLogin={() => openLoginMutation.mutate()}
           openLoginLoading={openLoginMutation.isPending}
           onChangeAccount={() => changeAccountMutation.mutate()}

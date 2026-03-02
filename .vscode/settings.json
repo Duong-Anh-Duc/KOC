@@ -1,5 +1,9 @@
 {
     "chat.tools.terminal.autoApprove": {
-        "npx tsc": true
+        "npx tsc": true,
+        "/^sshpass -p 'techla1@' ssh -o StrictHostKeyChecking=no root@46\\.62\\.170\\.132 'cd koc && docker-compose stop server && docker-compose rm -f server && docker-compose build --no-cache server 2>&1 \\| tail -10'$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

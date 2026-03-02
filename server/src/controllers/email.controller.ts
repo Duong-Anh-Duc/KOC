@@ -14,16 +14,10 @@ export class EmailController {
       const emailConfig = await EmailService.getConfig();
       const t = (_req as any).t;
 
-      // Don't expose SMTP password
-      const safeConfig = {
-        ...emailConfig,
-        smtpPass: emailConfig.smtpPass ? '********' : '',
-      };
-
       res.status(200).json({
         success: true,
         message: t ? t('email.configRetrieved') : 'Email configuration retrieved',
-        data: safeConfig,
+        data: emailConfig,
       });
     } catch (error) {
       next(error);
@@ -69,7 +63,7 @@ export class EmailController {
       res.status(200).json({
         success: true,
         message: t ? t('email.configUpdated') : 'Email configuration updated',
-        data: { ...newConfig, smtpPass: newConfig.smtpPass ? '********' : '' },
+        data: newConfig,
       });
     } catch (error) {
       next(error);

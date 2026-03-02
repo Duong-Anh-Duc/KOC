@@ -50,6 +50,7 @@ services:
       - ./server/.env.production
     ports:
       - "3002:3002"   # System nginx sẽ proxy /api → port này
+      - "6080:6080"   # noVNC web interface (đăng nhập YouTube Studio qua trình duyệt)
     volumes:
       # Persist Chrome session data across container restarts (bind mount for easy sync)
       - ./server/.chrome-data:/app/.chrome-data

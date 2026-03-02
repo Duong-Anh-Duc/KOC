@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import prisma from '../config/database';
+import logger from '../middlewares/logger.middleware';
 import { CycleService, RevenueService, SocialBladeService } from '../services';
 import { MonthlyRevenueService } from '../services/monthly-revenue.service';
 import { ProgressService } from '../services/progress.service';
@@ -21,7 +22,7 @@ export class YouTubeScraperController {
       const adminId = (req as AuthenticatedRequest).user?.userId;
       const result = await YouTubeScraperService.openLoginBrowser(adminId);
       const t = (req as any).t;
-      res.status(200).json({ success: true, message: result.message });
+      res.status(200).json({ success: true, message: result.message, data: { vncUrl: result.vncUrl } });
     } catch (error) {
       next(error);
     }
@@ -89,7 +90,9 @@ export class YouTubeScraperController {
       });
 
       // Run in background
+      logger.info(`🚀 Starting scrape-all task ${taskId} for ${channelIds.length} channels (admin: ${adminId})`);
       YouTubeScraperController.runScrapeAll(kocs, channelIds, taskId, adminId).catch(err => {
+        logger.error(`❌ scrape-all task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
     } catch (error: any) {
