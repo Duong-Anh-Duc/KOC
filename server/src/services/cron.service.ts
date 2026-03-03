@@ -30,7 +30,11 @@ export interface CronConfig {
   }>;
 }
 
-const CRON_CONFIG_KEY = 'cron_auto_cycle';
+const CRON_CONFIG_KEY_PREFIX = 'cron_auto_cycle';
+
+function getConfigKey(adminId?: string): string {
+  return adminId ? `${CRON_CONFIG_KEY_PREFIX}_${adminId}` : CRON_CONFIG_KEY_PREFIX;
+}
 
 const DEFAULT_CONFIG: CronConfig = {
   enabled: false,
@@ -40,15 +44,15 @@ const DEFAULT_CONFIG: CronConfig = {
   runHistory: [],
 };
 
-let scheduledTask: cron.ScheduledTask | null = null;
+const scheduledTasks = new Map<string, cron.ScheduledTask>();
 
 export class CronService {
   /**
    * Get current cron configuration
    */
-  static async getConfig(): Promise<CronConfig> {
+  static async getConfig(adminId?: string): Promise<CronConfig> {
     const config = await prisma.systemConfig.findUnique({
-      where: { key: CRON_CONFIG_KEY },
+      where: { key: getConfigKey(adminId) },
     });
 
     if (!config) {
@@ -61,18 +65,19 @@ export class CronService {
   /**
    * Update cron configuration
    */
-  static async updateConfig(newConfig: Partial<CronConfig>): Promise<CronConfig> {
-    const current = await this.getConfig();
+  static async updateConfig(newConfig: Partial<CronConfig>, adminId?: string): Promise<CronConfig> {
+    const current = await this.getConfig(adminId);
     const merged: CronConfig = { ...current, ...newConfig };
+    const key = getConfigKey(adminId);
 
     await prisma.systemConfig.upsert({
-      where: { key: CRON_CONFIG_KEY },
+      where: { key },
       update: { value: merged as any },
-      create: { key: CRON_CONFIG_KEY, value: merged as any },
+      create: { key, value: merged as any },
     });
 
-    // Restart scheduler with new config
-    await this.restartScheduler();
+    // Restart this admin's scheduler with new config
+    await this.restartScheduler(adminId);
 
     return merged;
   }
@@ -148,8 +153,8 @@ export class CronService {
    * 3. Scrape YouTube revenue and create records
    * 4. Scrape monthly revenue analytics for cross-reference
    */
-  static async runJob(): Promise<{ success: boolean; message: string; cycleMonth?: string }> {
-    const config = await this.getConfig();
+  static async runJob(adminId?: string): Promise<{ success: boolean; message: string; cycleMonth?: string }> {
+    const config = await this.getConfig(adminId);
 
     // Calculate the actual next cycle month
     const { targetMonth: nextMonth, canRun, reason } = await this.getNextCycleMonth();
@@ -159,7 +164,7 @@ export class CronService {
         ? `Cannot create cycle for ${nextMonth}: the month has not ended yet`
         : `Cannot create cycle for ${nextMonth}: the month is in the future`;
       logger.warn(`[CronJob] ${msg}`);
-      await this.addRunHistory(false, msg, nextMonth);
+      await this.addRunHistory(false, msg, nextMonth, adminId);
       return { success: false, message: msg, cycleMonth: nextMonth };
     }
 
@@ -198,7 +203,7 @@ export class CronService {
       } else {
         const msg = `Cycle for ${previousMonth} does not exist and autoCreateCycle is disabled`;
         logger.warn(`[CronJob] ${msg}`);
-        await this.addRunHistory(false, msg, previousMonth);
+        await this.addRunHistory(false, msg, previousMonth, adminId);
         return { success: false, message: msg, cycleMonth: previousMonth };
       }
 
@@ -209,39 +214,39 @@ export class CronService {
           if (cycle.status !== 'OPEN') {
             const msg = `Cycle ${previousMonth} is not OPEN (status: ${cycle.status}), skipping scrape`;
             logger.warn(`[CronJob] ${msg}`);
-            await this.addRunHistory(true, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth);
+            await this.addRunHistory(true, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth, adminId);
             return { success: true, message: msg, cycleMonth: previousMonth };
           }
 
-          // Find an ADMIN with a valid YouTube session to use for scraping
+          // Find a valid YouTube session — prefer the current admin's session
+          const sessionWhere = adminId
+            ? { admin_id: adminId, is_logged_in: true }
+            : { is_logged_in: true, admin: { role: 'ADMIN' as const, is_active: true } };
           const adminSession = await prisma.youTubeSession.findFirst({
-            where: { 
-              is_logged_in: true,
-              admin: { role: 'ADMIN', is_active: true }
-            },
+            where: sessionWhere,
             select: { admin_id: true }
           });
 
           if (!adminSession) {
             const msg = `No admin with valid YouTube session found. Please login to YouTube Studio first.`;
             logger.warn(`[CronJob] ${msg}`);
-            await this.addRunHistory(false, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth);
+            await this.addRunHistory(false, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth, adminId);
             return { success: false, message: msg, cycleMonth: previousMonth };
           }
 
-          const adminId = adminSession.admin_id;
-          logger.info(`[CronJob] Using admin ${adminId} for scraping`);
+          const effectiveAdminId = adminSession.admin_id;
+          logger.info(`[CronJob] Using admin ${effectiveAdminId} for scraping`);
 
-          // Get active KOCs
+          // Get active KOCs scoped to this admin
           const kocs = await prisma.kOC.findMany({
-            where: { status: 'ACTIVE' },
+            where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) },
             select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, base_rate: true },
           });
 
           if (kocs.length === 0) {
             const msg = `No active KOCs found for scraping`;
             logger.warn(`[CronJob] ${msg}`);
-            await this.addRunHistory(true, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth);
+            await this.addRunHistory(true, cycleCreated ? `Cycle created. ${msg}` : msg, previousMonth, adminId);
             return { success: true, message: msg, cycleMonth: previousMonth };
           }
 
@@ -251,7 +256,7 @@ export class CronService {
             .filter(id => id && id.length > 0);
 
           const { results: scrapeResults, errors: scrapeErrors } =
-            await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, undefined, adminId);
+            await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, undefined, effectiveAdminId);
 
           // Map channels to KOCs
           const channelToKocMap = new Map<string, typeof kocs[0]>();
@@ -300,13 +305,13 @@ export class CronService {
                 const oldRevenue = Number(existing.original_revenue_usd);
                 const oldTax = Number(existing.us_tax_deduction);
                 if (Math.abs(oldRevenue - revenue) > 0.001 || Math.abs(oldTax - usTax) > 0.001) {
-                  await RevenueService.updateRecord(existing.id, revenue, usTax, adminId);
+                  await RevenueService.updateRecord(existing.id, revenue, usTax, effectiveAdminId);
                   recordsCreated++;
                 } else {
                   recordsSkipped++;
                 }
               } else {
-                await RevenueService.createRecord(koc.id, cycleId, revenue, usTax, adminId);
+                await RevenueService.createRecord(koc.id, cycleId, revenue, usTax, effectiveAdminId);
                 recordsCreated++;
               }
             } catch {
@@ -317,7 +322,7 @@ export class CronService {
           // Step 3: Also scrape monthly revenue analytics for cross-reference
           try {
             logger.info('[CronJob] Scraping monthly revenue analytics for cross-reference...');
-            await MonthlyRevenueService.scrapeAllKOCs(adminId);
+            await MonthlyRevenueService.scrapeAllKOCs(effectiveAdminId);
             logger.info('[CronJob] Monthly revenue analytics scraping completed');
           } catch (monthlyErr: any) {
             logger.warn(`[CronJob] Monthly analytics scrape failed (non-fatal): ${monthlyErr.message}`);
@@ -325,24 +330,24 @@ export class CronService {
 
           const msg = `${cycleCreated ? 'Cycle created. ' : ''}Scraped ${scrapeResults.length} channels: ${recordsCreated} records created/updated, ${recordsSkipped} skipped, ${scrapeErrors.length} errors`;
           logger.info(`[CronJob] ${msg}`);
-          await this.addRunHistory(true, msg, previousMonth);
+          await this.addRunHistory(true, msg, previousMonth, adminId);
           return { success: true, message: msg, cycleMonth: previousMonth };
         } catch (scrapeError: any) {
           const msg = `${cycleCreated ? 'Cycle created but ' : ''}scrape failed: ${scrapeError.message}`;
           logger.error(`[CronJob] ${msg}`);
-          await this.addRunHistory(false, msg, previousMonth);
+          await this.addRunHistory(false, msg, previousMonth, adminId);
           return { success: false, message: msg, cycleMonth: previousMonth };
         }
       }
 
       const msg = `Cycle ${cycleCreated ? 'created' : 'already exists'} for ${previousMonth}. Auto-scrape disabled.`;
       logger.info(`[CronJob] ${msg}`);
-      await this.addRunHistory(true, msg, previousMonth);
+      await this.addRunHistory(true, msg, previousMonth, adminId);
       return { success: true, message: msg, cycleMonth: previousMonth };
     } catch (error: any) {
       const msg = `Job failed: ${error.message}`;
       logger.error(`[CronJob] ${msg}`);
-      await this.addRunHistory(false, msg, previousMonth);
+      await this.addRunHistory(false, msg, previousMonth, adminId);
       return { success: false, message: msg, cycleMonth: previousMonth };
     }
   }
@@ -350,8 +355,9 @@ export class CronService {
   /**
    * Add a run to the history (keep last 20)
    */
-  private static async addRunHistory(success: boolean, message: string, cycleMonth?: string) {
-    const config = await this.getConfig();
+  private static async addRunHistory(success: boolean, message: string, cycleMonth?: string, adminId?: string) {
+    const key = getConfigKey(adminId);
+    const config = await this.getConfig(adminId);
     const history = config.runHistory || [];
     history.unshift({
       runAt: new Date().toISOString(),
@@ -366,7 +372,7 @@ export class CronService {
     }
 
     await prisma.systemConfig.upsert({
-      where: { key: CRON_CONFIG_KEY },
+      where: { key },
       update: {
         value: {
           ...config,
@@ -376,7 +382,7 @@ export class CronService {
         } as any,
       },
       create: {
-        key: CRON_CONFIG_KEY,
+        key,
         value: {
           ...config,
           lastRunAt: new Date().toISOString(),
@@ -390,27 +396,30 @@ export class CronService {
   /**
    * Start the cron scheduler
    */
-  static async startScheduler() {
-    const config = await this.getConfig();
+  static async startScheduler(adminId?: string) {
+    const taskKey = adminId || '__default__';
+    const config = await this.getConfig(adminId);
 
-    if (scheduledTask) {
-      scheduledTask.stop();
-      scheduledTask = null;
+    // Stop existing task for this admin
+    const existing = scheduledTasks.get(taskKey);
+    if (existing) {
+      existing.stop();
+      scheduledTasks.delete(taskKey);
     }
 
     if (!config.enabled) {
-      logger.info('[CronJob] Scheduler is disabled');
+      logger.info(`[CronJob] Scheduler disabled for ${taskKey}`);
       return;
     }
 
     if (!cron.validate(config.schedule)) {
-      logger.error(`[CronJob] Invalid cron schedule: ${config.schedule}`);
+      logger.error(`[CronJob] Invalid cron schedule for ${taskKey}: ${config.schedule}`);
       return;
     }
 
-    scheduledTask = cron.schedule(config.schedule, async () => {
-      logger.info('[CronJob] Scheduled job triggered');
-      const result = await this.runJob();
+    const task = cron.schedule(config.schedule, async () => {
+      logger.info(`[CronJob] Scheduled job triggered for admin: ${taskKey}`);
+      const result = await this.runJob(adminId);
 
       // Auto-send revenue emails if configured and job succeeded
       if (result.success && result.cycleMonth) {
@@ -427,32 +436,58 @@ export class CronService {
       }
     });
 
-    logger.info(`[CronJob] Scheduler started with schedule: ${config.schedule}`);
+    scheduledTasks.set(taskKey, task);
+    logger.info(`[CronJob] Scheduler started for ${taskKey} with schedule: ${config.schedule}`);
   }
 
   /**
-   * Stop the cron scheduler
+   * Start schedulers for all admins that have a saved cron config
    */
-  static stopScheduler() {
-    if (scheduledTask) {
-      scheduledTask.stop();
-      scheduledTask = null;
-      logger.info('[CronJob] Scheduler stopped');
+  static async startAllSchedulers() {
+    const configs = await prisma.systemConfig.findMany({
+      where: { key: { startsWith: CRON_CONFIG_KEY_PREFIX } },
+    });
+
+    if (configs.length === 0) {
+      // Fallback: start single default scheduler
+      await this.startScheduler();
+      return;
+    }
+
+    for (const cfg of configs) {
+      const adminId = cfg.key === CRON_CONFIG_KEY_PREFIX
+        ? undefined
+        : cfg.key.replace(`${CRON_CONFIG_KEY_PREFIX}_`, '');
+      await this.startScheduler(adminId);
+    }
+  }
+
+  /**
+   * Stop the cron scheduler for a specific admin (or all)
+   */
+  static stopScheduler(adminId?: string) {
+    const taskKey = adminId || '__default__';
+    const task = scheduledTasks.get(taskKey);
+    if (task) {
+      task.stop();
+      scheduledTasks.delete(taskKey);
+      logger.info(`[CronJob] Scheduler stopped for ${taskKey}`);
     }
   }
 
   /**
    * Restart the scheduler (e.g., after config change)
    */
-  static async restartScheduler() {
-    this.stopScheduler();
-    await this.startScheduler();
+  static async restartScheduler(adminId?: string) {
+    this.stopScheduler(adminId);
+    await this.startScheduler(adminId);
   }
 
   /**
-   * Get scheduler status
+   * Get scheduler status for a specific admin
    */
-  static getSchedulerStatus(): { running: boolean } {
-    return { running: scheduledTask !== null };
+  static getSchedulerStatus(adminId?: string): { running: boolean } {
+    const taskKey = adminId || '__default__';
+    return { running: scheduledTasks.has(taskKey) };
   }
 }

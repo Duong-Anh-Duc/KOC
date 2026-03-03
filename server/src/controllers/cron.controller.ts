@@ -10,8 +10,10 @@ export class CronController {
    */
   static async getConfig(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const config = await CronService.getConfig();
-      const status = CronService.getSchedulerStatus();
+      const authReq = _req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const config = await CronService.getConfig(adminId);
+      const status = CronService.getSchedulerStatus(adminId);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -35,13 +37,14 @@ export class CronController {
     try {
       const { enabled, schedule, autoCreateCycle, autoScrapeRevenue } = req.body;
 
-      const oldConfig = await CronService.getConfig();
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const oldConfig = await CronService.getConfig(adminId);
       const newConfig = await CronService.updateConfig({
         ...(enabled !== undefined && { enabled }),
         ...(schedule !== undefined && { schedule }),
         ...(autoCreateCycle !== undefined && { autoCreateCycle }),
         ...(autoScrapeRevenue !== undefined && { autoScrapeRevenue }),
-      });
+      }, adminId);
 
       // Audit log (non-blocking)
       try {
@@ -57,7 +60,7 @@ export class CronController {
         console.error('Failed to create audit log:', auditError);
       }
 
-      const status = CronService.getSchedulerStatus();
+      const status = CronService.getSchedulerStatus(adminId);
       const t = (req as any).t;
 
       res.status(200).json({
@@ -80,8 +83,9 @@ export class CronController {
   static async runNow(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
 
-      const result = await CronService.runJob();
+      const result = await CronService.runJob(adminId);
 
       // Audit log (non-blocking)
       try {
@@ -113,7 +117,9 @@ export class CronController {
    */
   static async getHistory(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const config = await CronService.getConfig();
+      const authReq = _req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const config = await CronService.getConfig(adminId);
       const t = (_req as any).t;
 
       res.status(200).json({
@@ -137,7 +143,9 @@ export class CronController {
   static async previewNextRun(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { targetMonth, canRun, reason } = await CronService.getNextCycleMonth();
-      const config = await CronService.getConfig();
+      const authReq = _req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const config = await CronService.getConfig(adminId);
       const t = (_req as any).t;
 
       res.status(200).json({

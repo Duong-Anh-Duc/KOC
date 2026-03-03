@@ -28,7 +28,8 @@
     "notFound": "Không tìm thấy KOC",
     "listRetrieved": "Đã lấy danh sách KOC",
     "activeRetrieved": "Đã lấy danh sách KOC đang hoạt động",
-    "retrieved": "Đã lấy thông tin KOC"
+    "retrieved": "Đã lấy thông tin KOC",
+    "notYours": "KOC này không thuộc quyền quản lý của bạn"
   },
   "revenue": {
     "recordCreated": "Tạo bản ghi doanh thu thành công",
@@ -54,6 +55,7 @@
     "completed": "Hoàn tất kỳ đối soát thành công",
     "deleted": "Xóa kỳ đối soát thành công",
     "notFound": "Không tìm thấy kỳ đối soát",
+    "notYours": "Kỳ đối soát này không thuộc về bạn",
     "alreadyExists": "Kỳ đối soát cho tháng {{month}} đã tồn tại",
     "retrieved": "Đã lấy thông tin kỳ đối soát",
     "listRetrieved": "Đã lấy danh sách kỳ đối soát",

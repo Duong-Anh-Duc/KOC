@@ -62,7 +62,9 @@ export class KOCController {
    */
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const koc = await KOCService.getById(req.params.id as string);
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const koc = await KOCService.getById(req.params.id as string, adminId);
 
       const t = (req as any).t;
       res.status(200).json({
@@ -114,6 +116,12 @@ export class KOCController {
     try {
       console.log('🔧 KOC UPDATE - Raw request body:', JSON.stringify(req.body, null, 2));
       console.log('🔧 KOC UPDATE - min_payment type:', typeof req.body.min_payment, 'value:', req.body.min_payment);
+
+      // Check ownership before update
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      if (adminId) {
+        await KOCService.getById(req.params.id as string, adminId); // throws 403 if not owner
+      }
       
       const { koc, oldValue } = await KOCService.update(req.params.id as string, req.body);
       
@@ -147,7 +155,8 @@ export class KOCController {
    */
   static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const koc = await KOCService.delete(req.params.id as string);
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const koc = await KOCService.delete(req.params.id as string, adminId);
 
       // Audit log
       if (req.user) {

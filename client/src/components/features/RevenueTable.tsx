@@ -1,15 +1,15 @@
 import type { PaymentStatusMap, RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
 import { formatUSD, formatVND, getTableLocale } from '@/utils';
 import {
-  BarChartOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  EyeOutlined,
-  HistoryOutlined,
-  QuestionCircleOutlined,
-  WarningOutlined,
+    BarChartOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    EyeOutlined,
+    HistoryOutlined,
+    QuestionCircleOutlined,
+    WarningOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -212,7 +212,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       title: t('revenue.originalRevenue'),
       dataIndex: 'original_revenue_usd',
       key: 'original_revenue_usd',
-      width: 140,
+      width: 130,
       align: 'right',
       render: (val: number, record: RevenueRecord) => {
         const status = paymentStatus?.[record.koc_id];
@@ -241,6 +241,31 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
               </Tooltip>
             )}
           </span>
+        );
+      },
+    },
+    {
+      title: t('revenue.accumulated'),
+      dataIndex: 'accumulated_revenue_usd',
+      key: 'accumulated_revenue_usd',
+      width: 130,
+      align: 'right',
+      render: (val: number, record: RevenueRecord) => {
+        // Intermediate months that were absorbed into a later cycle's payment → show "-"
+        const isIntermediate = record.paid_in_cycle_id != null && record.paid_in_cycle_id !== record.cycle_id;
+        if (isIntermediate) {
+          return <Text type="secondary">-</Text>;
+        }
+        const acc = Number(val || 0);
+        const monthly = Number(record.original_revenue_usd || 0);
+        // No prior accumulation — don't show duplicate value
+        if (acc <= monthly + 0.001) {
+          return <Text type="secondary">-</Text>;
+        }
+        return (
+          <Tooltip title={paymentStatus?.[record.koc_id]?.accumulatedMonths?.map(m => `${m.month}: $${m.revenue.toFixed(2)}`).join(' + ') || ''}>
+            <Text strong style={{ color: '#722ed1' }}>{formatUSD(acc)}</Text>
+          </Tooltip>
         );
       },
     },
@@ -296,9 +321,24 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       title: t('revenue.kocReceiveUsd'),
       dataIndex: 'koc_receive_usd',
       key: 'koc_receive_usd',
+      width: 130,
+      align: 'right',
+      render: (val: number) => <Text style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(Math.max(0, val))}</Text>,
+    },
+    {
+      title: t('revenue.accumulatedKocUsd'),
+      dataIndex: 'accumulated_koc_usd',
+      key: 'accumulated_koc_usd',
       width: 140,
       align: 'right',
-      render: (val: number) => <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(Math.max(0, val))}</Text>,
+      render: (val: number, record: RevenueRecord) => {
+        const isIntermediate = record.paid_in_cycle_id != null && record.paid_in_cycle_id !== record.cycle_id;
+        if (isIntermediate) return <Text type="secondary">-</Text>;
+        const acc = Number(val || 0);
+        const monthly = Number(record.koc_receive_usd || 0);
+        if (acc <= monthly + 0.001) return <Text type="secondary">-</Text>;
+        return <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(acc)}</Text>;
+      },
     },
     {
       title: t('revenue.kocReceiveVnd'),
@@ -495,21 +535,27 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
               <Table.Summary.Cell index={3} align="right">
                 <Text strong>{formatUSD(totals.totalOriginal)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={4} colSpan={2} />
-              <Table.Summary.Cell index={6} align="right">
+              <Table.Summary.Cell index={4} /> {/* accumulated_revenue */}
+              <Table.Summary.Cell index={5} colSpan={2} /> {/* usTax + bankFee */}
+              <Table.Summary.Cell index={7} align="right">
                 <Text strong>{formatUSD(totals.totalNetRevenue)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={7} align="right">
+              <Table.Summary.Cell index={8} align="right">
                 <Text strong>{formatUSD(totals.totalCompanyShare)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={8} colSpan={2} />
-              <Table.Summary.Cell index={10} align="right">
+              <Table.Summary.Cell index={9} colSpan={2} /> {/* kocShareGross + kocTax */}
+              <Table.Summary.Cell index={11} align="right">
                 <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(totals.totalKocReceiveUsd)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={11} align="right">
+              <Table.Summary.Cell index={12} align="right">
+                {totals.totalAccumulatedKocUsd > totals.totalKocReceiveUsd + 0.001 ? (
+                  <Text strong style={{ color: '#722ed1', fontSize: 13 }}>{formatUSD(totals.totalAccumulatedKocUsd)}</Text>
+                ) : null}
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={13} align="right">
                 <Text strong style={{ color: '#52c41a', fontSize: 13 }}>{formatVND(totals.totalKocReceiveVnd)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={12} colSpan={3} />
+              <Table.Summary.Cell index={14} colSpan={3} />
             </Table.Summary.Row>
           </Table.Summary>
         ) : null

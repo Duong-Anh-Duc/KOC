@@ -74,7 +74,8 @@ export class StatsController {
    */
   static async getLatest(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const stats = await SocialBladeService.getLatestStats();
+      const adminId = (_req as AuthenticatedRequest).user?.role === 'ADMIN' ? (_req as AuthenticatedRequest).user?.userId : undefined;
+      const stats = await SocialBladeService.getLatestStats(adminId);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -113,7 +114,8 @@ export class StatsController {
    */
   static async getAllGrowth(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const growthData = await SocialBladeService.getAllKocsGrowth();
+      const adminId = (_req as AuthenticatedRequest).user?.role === 'ADMIN' ? (_req as AuthenticatedRequest).user?.userId : undefined;
+      const growthData = await SocialBladeService.getAllKocsGrowth(adminId);
 
       const t = (_req as any).t;
       res.status(200).json({

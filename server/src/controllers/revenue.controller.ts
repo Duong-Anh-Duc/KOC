@@ -16,7 +16,9 @@ export class RevenueController {
         return;
       }
 
-      const result = await RevenueService.getRecordsByCycle(cycleId);
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const result = await RevenueService.getRecordsByCycle(cycleId, undefined, adminId);
 
       res.status(200).json({
         success: true,
@@ -270,7 +272,9 @@ export class RevenueController {
         return;
       }
 
-      const paymentStatus = await RevenueService.getPaymentStatus(cycleId);
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const paymentStatus = await RevenueService.getPaymentStatus(cycleId, adminId);
 
       res.status(200).json({
         success: true,

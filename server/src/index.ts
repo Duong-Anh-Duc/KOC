@@ -33,8 +33,8 @@ const startServer = async () => {
       logger.info(`🌐 Network API: http://${localIP}:${config.port}/api`);
       logger.info(`❤️  Health: http://localhost:${config.port}/api/health`);
 
-      // Start cron scheduler
-      CronService.startScheduler().catch(err => {
+      // Start cron scheduler for all admins
+      CronService.startAllSchedulers().catch(err => {
         logger.warn('⚠️ Failed to start cron scheduler:', err.message);
       });
 

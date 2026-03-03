@@ -10,6 +10,9 @@ import routes from './routes';
 
 const app = express();
 
+// Trust nginx reverse proxy — reads real client IP from X-Forwarded-For
+app.set('trust proxy', 1);
+
 // ============================================================
 // SECURITY MIDDLEWARES
 // ============================================================
@@ -21,10 +24,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
 }));
 
-// Rate limiting
+// Rate limiting (per real client IP)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 2000, // limit each IP to 2000 requests per 15 minutes
   message: { success: false, message: 'general.tooManyRequests' },
 });
 app.use('/api/', limiter);

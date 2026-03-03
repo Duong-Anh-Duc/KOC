@@ -122,16 +122,23 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
             },
             {
               title: t('revenue.kocReceiveUsd'),
-              value: totals.totalKocUsd || 0,
+              value: totals.totalKocReceiveUsd || 0,
               precision: 2,
-              valueStyle: { color: '#52c41a' },
+              valueStyle: { color: '#1677ff' },
+              formatter: (val) => formatUSD(Number(val)),
+            },
+            {
+              title: t('revenue.accumulatedKocUsd'),
+              value: totals.totalAccumulatedKocUsd || 0,
+              precision: 2,
+              valueStyle: { color: '#722ed1' },
               formatter: (val) => formatUSD(Number(val)),
             },
             {
               title: t('revenue.kocReceiveVnd'),
-              value: totals.totalKocVnd || 0,
+              value: totals.totalKocReceiveVnd || 0,
               precision: 0,
-              valueStyle: { color: '#722ed1' },
+              valueStyle: { color: '#52c41a' },
               formatter: (val) => formatVND(Number(val)),
             },
           ]}

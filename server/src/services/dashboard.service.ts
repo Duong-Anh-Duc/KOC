@@ -4,8 +4,18 @@ import { RevenueService } from './revenue.service';
 export class DashboardService {
   /**
    * Get dashboard overview data (includes workflow info + growth summary)
+   * If adminId is provided, scope all data to that admin's KOCs
    */
-  static async getOverview() {
+  static async getOverview(adminId?: string) {
+    const kocFilter = adminId ? { admin_id: adminId } : {};
+    const kocActiveFilter = { status: 'ACTIVE' as const, ...kocFilter };
+
+    // Get admin's KOC IDs for filtering revenue records
+    const adminKocIds = adminId
+      ? (await prisma.kOC.findMany({ where: kocFilter, select: { id: true } })).map(k => k.id)
+      : null;
+    const recordFilter = adminKocIds ? { koc_id: { in: adminKocIds } } : {};
+
     const [
       totalKOCs,
       activeKOCs,
@@ -17,14 +27,15 @@ export class DashboardService {
       pubCodeMatched,
       pubCodeMismatched,
     ] = await Promise.all([
-      prisma.kOC.count(),
-      prisma.kOC.count({ where: { status: 'ACTIVE' } }),
+      prisma.kOC.count({ where: kocFilter }),
+      prisma.kOC.count({ where: kocActiveFilter }),
       prisma.revenueCycle.count(),
       prisma.revenueCycle.findFirst({
         orderBy: { created_at: 'desc' },
-        include: { _count: { select: { revenue_records: true } } },
+        include: { _count: { select: { revenue_records: adminKocIds ? { where: { koc_id: { in: adminKocIds } } } : true } } },
       }),
       prisma.revenueRecord.findMany({
+        where: recordFilter,
         take: 5,
         orderBy: { created_at: 'desc' },
         include: {
@@ -32,20 +43,16 @@ export class DashboardService {
           cycle: { select: { month: true } },
         },
       }),
-      // Cycle status breakdown
       prisma.revenueCycle.groupBy({
         by: ['status'],
         _count: true,
       }),
-      // Total revenue records
-      prisma.revenueRecord.count(),
-      // Pub code matched
+      prisma.revenueRecord.count({ where: recordFilter }),
       prisma.revenueRecord.count({
-        where: { pub_code_match: true },
+        where: { ...recordFilter, pub_code_match: true },
       }),
-      // Pub code mismatched
       prisma.revenueRecord.count({
-        where: { pub_code_match: false },
+        where: { ...recordFilter, pub_code_match: false },
       }),
     ]);
 
@@ -54,8 +61,8 @@ export class DashboardService {
     let cycleSummary = null;
     if (latestCycle) {
       const [allRecords, approvedRecords] = await Promise.all([
-        RevenueService.getRecordsByCycle(latestCycle.id),
-        RevenueService.getRecordsByCycle(latestCycle.id, 'APPROVED'),
+        RevenueService.getRecordsByCycle(latestCycle.id, undefined, adminId),
+        RevenueService.getRecordsByCycle(latestCycle.id, 'APPROVED', adminId),
       ]);
       cycleSummary = {
         cycle: latestCycle,
@@ -79,7 +86,7 @@ export class DashboardService {
     }> = [];
     try {
       const activeKocList = await prisma.kOC.findMany({
-        where: { status: 'ACTIVE' },
+        where: kocActiveFilter,
         include: {
           channel_stats: {
             orderBy: { recorded_at: 'desc' },
@@ -168,12 +175,18 @@ export class DashboardService {
   /**
    * Get revenue trend data (last N cycles)
    */
-  static async getRevenueTrend(limit: number = 12) {
+  static async getRevenueTrend(limit: number = 12, adminId?: string) {
+    // Get admin's KOC IDs for filtering
+    const adminKocIds = adminId
+      ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
+      : null;
+
     const cycles = await prisma.revenueCycle.findMany({
       take: limit,
       orderBy: { created_at: 'desc' },
       include: {
         revenue_records: {
+          where: adminKocIds ? { koc_id: { in: adminKocIds } } : undefined,
           select: {
             status: true,
             original_revenue_usd: true,

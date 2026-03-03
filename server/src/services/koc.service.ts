@@ -56,9 +56,9 @@ export class KOCService {
   }
 
   /**
-   * Get KOC by ID
+   * Get KOC by ID (scoped to admin if adminId provided)
    */
-  static async getById(id: string) {
+  static async getById(id: string, adminId?: string) {
     const koc = await prisma.kOC.findUnique({
       where: { id },
       include: {
@@ -75,6 +75,7 @@ export class KOCService {
     });
 
     if (!koc) throw new ApiError(404, 'koc.notFound');
+    if (adminId && koc.admin_id !== adminId) throw new ApiError(403, 'koc.notYours');
     return koc;
   }
 
@@ -121,6 +122,7 @@ export class KOCService {
   static async update(
     id: string,
     data: Partial<{
+      admin_id: string;
       full_name: string;
       channel_name: string;
       youtube_channel_id: string;
@@ -142,6 +144,7 @@ export class KOCService {
     if (!existing) throw new ApiError(404, 'koc.notFound');
 
     const oldValue = { ...existing };
+    // Note: admin ownership is checked at controller level
     console.log('💾 KOCService.update - Old min_payment:', oldValue.min_payment);
 
     const updated = await prisma.kOC.update({
@@ -157,9 +160,10 @@ export class KOCService {
   /**
    * Delete a KOC (soft delete by setting INACTIVE, or hard delete)
    */
-  static async delete(id: string) {
+  static async delete(id: string, adminId?: string) {
     const koc = await prisma.kOC.findUnique({ where: { id } });
     if (!koc) throw new ApiError(404, 'koc.notFound');
+    if (adminId && koc.admin_id !== adminId) throw new ApiError(403, 'koc.notYours');
 
     // Check if KOC has any revenue records
     const recordCount = await prisma.revenueRecord.count({ where: { koc_id: id } });

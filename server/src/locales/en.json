@@ -28,7 +28,8 @@
     "notFound": "KOC not found",
     "listRetrieved": "KOCs retrieved",
     "activeRetrieved": "Active KOCs retrieved",
-    "retrieved": "KOC retrieved"
+    "retrieved": "KOC retrieved",
+    "notYours": "This KOC does not belong to you"
   },
   "revenue": {
     "recordCreated": "Revenue record created",
@@ -54,6 +55,7 @@
     "completed": "Revenue cycle completed",
     "deleted": "Revenue cycle deleted",
     "notFound": "Revenue cycle not found",
+    "notYours": "This revenue cycle does not belong to you",
     "alreadyExists": "Revenue cycle for {{month}} already exists",
     "retrieved": "Cycle retrieved",
     "listRetrieved": "Cycles retrieved",

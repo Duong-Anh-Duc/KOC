@@ -43,16 +43,22 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
                 <Title level={4} style={{ margin: 0, color: '#faad14' }}>{data.summary?.recordsSkipped || 0}</Title>
               </Card>
             </Col>
-            <Col span={12}>
+            <Col span={8}>
               <Card size="small">
                 <Text type="secondary">{t('cycle.recordsCreated')}</Text>
                 <Title level={4} style={{ margin: 0, color: '#52c41a' }}>{data.summary?.recordsCreated || 0}</Title>
               </Card>
             </Col>
-            <Col span={12}>
+            <Col span={8}>
               <Card size="small">
                 <Text type="secondary">{t('cycle.recordsUpdated')}</Text>
                 <Title level={4} style={{ margin: 0, color: '#1890ff' }}>{data.summary?.recordsUpdated || 0}</Title>
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Text type="secondary">{t('cycle.autoApproved')}</Text>
+                <Title level={4} style={{ margin: 0, color: '#722ed1' }}>{data.summary?.autoApproved || 0}</Title>
               </Card>
             </Col>
           </Row>
@@ -82,6 +88,16 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
               {data.skipped.map((item: any, i: number) => (
                 <Tag key={i} color="orange" style={{ marginBottom: 4 }}>
                   {item.koc}: {item.reason}
+                </Tag>
+              ))}
+            </Card>
+          )}
+
+          {data.autoApproved?.length > 0 && (
+            <Card size="small" title={`${t('cycle.autoApproved')} (${data.autoApproved.length})`} style={{ marginBottom: 12 }}>
+              {data.autoApproved.map((item: any, i: number) => (
+                <Tag key={i} color="purple" style={{ marginBottom: 4 }}>
+                  {item.koc}: {formatUSD(item.accumulated)}
                 </Tag>
               ))}
             </Card>

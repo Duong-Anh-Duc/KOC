@@ -124,7 +124,9 @@
     "companyShare": "Company Share",
     "kocShareGross": "KOC Share (Gross)",
     "kocTax": "KOC Tax (10%)",
-    "kocReceiveUsd": "KOC Receive (USD)",
+    "kocReceiveUsd": "KOC Receive (USD/month)",
+    "accumulatedKocUsd": "Total Payout (USD)",
+    "accumulated": "Accumulated (USD)",
     "kocReceiveVnd": "KOC Receive (VND)",
     "total": "Total",
     "approve": "Approve",
@@ -168,6 +170,7 @@
     "scraped": "Scraped",
     "recordsCreated": "Records Created",
     "recordsUpdated": "Records Updated",
+    "autoApproved": "Auto Approved",
     "recordsSkipped": "Records Skipped"
   },
   "dashboard": {

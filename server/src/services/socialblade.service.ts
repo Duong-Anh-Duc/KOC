@@ -3,30 +3,30 @@ import prisma from '../config/database';
 import { ApiError } from '../middlewares';
 import logger from '../middlewares/logger.middleware';
 import type {
-    ChannelStats28dData,
-    ColumnSpec,
-    CountryStatsRow,
-    CountryStatsTotals,
-    DayStatsRow,
-    DayStatsTotals,
+  ChannelStats28dData,
+  ColumnSpec,
+  CountryStatsRow,
+  CountryStatsTotals,
+  DayStatsRow,
+  DayStatsTotals,
 } from '../types/stats.types';
 import {
-    isCountryName,
-    isDateLine,
-    isValueLine,
-    parseDimensionRowValues,
-    parseTotalRow,
+  isCountryName,
+  isDateLine,
+  isValueLine,
+  parseDimensionRowValues,
+  parseTotalRow,
 } from '../utils/parseHelpers';
 import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 // Re-export types so existing imports from this file still work
 export type {
-    ChannelStats28dData,
-    CountryStatsRow,
-    CountryStatsTotals,
-    DayStatsRow,
-    DayStatsTotals
+  ChannelStats28dData,
+  CountryStatsRow,
+  CountryStatsTotals,
+  DayStatsRow,
+  DayStatsTotals
 } from '../types/stats.types';
 
 // ============================================================
@@ -515,9 +515,12 @@ export class SocialBladeService {
   /**
    * Get latest stats for all KOCs
    */
-  static async getLatestStats() {
+  static async getLatestStats(adminId?: string) {
+    const where: any = { status: 'ACTIVE' as const };
+    if (adminId) where.admin_id = adminId;
+
     const kocs = await prisma.kOC.findMany({
-      where: { status: 'ACTIVE' },
+      where,
       include: {
         channel_stats: {
           orderBy: { recorded_at: 'desc' },
@@ -538,9 +541,12 @@ export class SocialBladeService {
    * Get 28d growth summary for all KOCs
    * Supports both new (byCountry/byDay) and old (overview/content/audience) formats
    */
-  static async getAllKocsGrowth() {
+  static async getAllKocsGrowth(adminId?: string) {
+    const where: any = { status: 'ACTIVE' as const };
+    if (adminId) where.admin_id = adminId;
+
     const kocs = await prisma.kOC.findMany({
-      where: { status: 'ACTIVE' },
+      where,
       include: {
         channel_stats: {
           orderBy: { recorded_at: 'desc' },

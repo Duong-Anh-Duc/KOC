@@ -90,6 +90,10 @@ export class YouTubeScraperService {
   private static sessionVerifiedAtMap: Map<string, number> = new Map();
   /** Flag to prevent multiple auto-close timers from framenavigated firing multiple times */
   private static closeScheduled: boolean = false;
+  /** Per-admin keep-alive interval timers */
+  private static keepAliveTimers: Map<string, NodeJS.Timeout> = new Map();
+  /** Per-admin last real session verification timestamp */
+  private static lastRealVerifyMap: Map<string, number> = new Map();
 
   /**
    * Check if session exists without opening browser
@@ -183,9 +187,79 @@ export class YouTubeScraperService {
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(file, new Date().toISOString());
       this.sessionVerifiedAt = Date.now();
-      if (adminId) this.sessionVerifiedAtMap.set(adminId, Date.now());
+      if (adminId) {
+        this.sessionVerifiedAtMap.set(adminId, Date.now());
+        this.lastRealVerifyMap.set(adminId, Date.now());
+      }
       logger.info(`✅ Session marked as verified for admin ${adminId || 'default'}.`);
     } catch { /* ignore */ }
+  }
+
+  /**
+   * Start a periodic keep-alive for an admin's session.
+   * Every 20 minutes, navigates to YouTube Studio main page to keep Google session cookies fresh.
+   * Also saves cookies to file after each keep-alive.
+   */
+  private static startKeepAlive(adminId?: string): void {
+    const key = adminId || '__default__';
+    // Clear existing timer
+    const existing = this.keepAliveTimers.get(key);
+    if (existing) clearInterval(existing);
+
+    const KEEP_ALIVE_INTERVAL = 20 * 60 * 1000; // 20 minutes
+
+    const timer = setInterval(async () => {
+      try {
+        const isLoginOpen = adminId ? this.loginBrowserOpenMap.get(adminId) : this.loginBrowserOpen;
+        if (isLoginOpen) return; // Don't interfere with login
+
+        const browser = adminId ? this.browsers.get(adminId) : this.browser;
+        if (!browser || !browser.connected) {
+          logger.debug(`[KeepAlive] No active browser for ${key}, skipping`);
+          return;
+        }
+
+        logger.info(`[KeepAlive] Refreshing session for ${key}...`);
+        let page: Page | null = null;
+        try {
+          page = await browser.newPage();
+          await page.goto('https://studio.youtube.com', {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000,
+          });
+
+          const url = page.url();
+          if (url.includes('accounts.google.com')) {
+            logger.warn(`[KeepAlive] Session expired for ${key} — redirected to login`);
+            // Don't delete sentinel here — let checkLoginStatus handle it
+          } else {
+            logger.info(`[KeepAlive] Session still valid for ${key}`);
+            this.markSessionVerified(adminId);
+            // Save fresh cookies
+            await this.saveCookiesViaCDP(browser, adminId);
+          }
+        } finally {
+          if (page) await safeClosePage(page);
+        }
+      } catch (err: any) {
+        logger.warn(`[KeepAlive] Error for ${key}: ${err.message}`);
+      }
+    }, KEEP_ALIVE_INTERVAL);
+
+    this.keepAliveTimers.set(key, timer);
+    logger.info(`[KeepAlive] Timer started for ${key} (every ${KEEP_ALIVE_INTERVAL / 60000} min)`);
+  }
+
+  /**
+   * Stop keep-alive timer for an admin
+   */
+  private static stopKeepAlive(adminId?: string): void {
+    const key = adminId || '__default__';
+    const timer = this.keepAliveTimers.get(key);
+    if (timer) {
+      clearInterval(timer);
+      this.keepAliveTimers.delete(key);
+    }
   }
 
   /**
@@ -280,8 +354,10 @@ export class YouTubeScraperService {
       browser.on('disconnected', () => {
         if (adminId) {
           this.browsers.delete(adminId);
+          this.stopKeepAlive(adminId);
         } else {
           this.browser = null;
+          this.stopKeepAlive();
         }
       });
 
@@ -297,6 +373,9 @@ export class YouTubeScraperService {
       if (cookiesLoaded) {
         logger.info(`🍪 Restored login session from saved cookies for admin ${adminId || 'default'}`);
       }
+
+      // Start session keep-alive timer
+      this.startKeepAlive(adminId);
 
       return browser;
     } catch (error: any) {
@@ -346,6 +425,7 @@ export class YouTubeScraperService {
     
     if (adminId) {
       this.loginBrowserOpenMap.delete(adminId);
+      this.stopKeepAlive(adminId);
       const browser = this.browsers.get(adminId);
       if (browser) {
         try { await browser.close(); } catch { /* ignore */ }
@@ -353,6 +433,7 @@ export class YouTubeScraperService {
       }
     } else {
       this.loginBrowserOpen = false;
+      this.stopKeepAlive();
       if (this.browser) {
         try { await this.browser.close(); } catch { /* ignore */ }
         this.browser = null;
@@ -575,6 +656,12 @@ export class YouTubeScraperService {
       // Mark session as verified (headless could access YouTube Studio)
       this.markSessionVerified(adminId);
 
+      // Save fresh cookies on every successful verification
+      const activeBrowser = adminId ? this.browsers.get(adminId) : this.browser;
+      if (activeBrowser && activeBrowser.connected) {
+        await this.saveCookiesViaCDP(activeBrowser, adminId);
+      }
+
       const info = { channelName, email, extractedAt: new Date().toISOString() };
       try { fs.writeFileSync(ACCOUNT_INFO_FILE, JSON.stringify(info, null, 2)); } catch { /* ignore */ }
 
@@ -618,6 +705,16 @@ export class YouTubeScraperService {
       try {
         const raw = fs.readFileSync(ACCOUNT_INFO_FILE, 'utf-8');
         const info = JSON.parse(raw);
+
+        // Periodically re-verify session is actually still valid (every 15 min)
+        const REAL_VERIFY_INTERVAL = 15 * 60 * 1000; // 15 minutes
+        const lastVerify = this.lastRealVerifyMap.get(adminId || '__default__') || 0;
+        if (Date.now() - lastVerify > REAL_VERIFY_INTERVAL) {
+          this.lastRealVerifyMap.set(adminId || '__default__', Date.now());
+          // Trigger real verification in background (navigates to YT Studio)
+          setTimeout(() => this.extractAndCacheAccountInfo(adminId).catch(() => {}), 0);
+        }
+
         return { loggedIn: true, channelName: info.channelName, email: info.email };
       } catch { /* ignore */ }
     }
@@ -652,20 +749,48 @@ export class YouTubeScraperService {
    * Build the revenue explore URL for a channel
    * @param channelId - YouTube channel ID
    * @param month - Optional month in "MM/YYYY" format. If omitted, uses previous month.
+   * 
+   * YouTube Studio natively supports:
+   *   time_period=minus_1_month  → previous month
+   *   time_period=minus_2_month  → 2 months ago
+   * For other months, falls back to custom date range.
    */
   private static buildRevenueExploreUrl(channelId: string, month?: string): string {
     const cleanId = this.cleanChannelId(channelId);
     let timePeriodParam = 'time_period=minus_1_month';
 
     if (month) {
-      // Convert "01/2026" → start_date=2026-01-01&end_date=2026-01-31
       const [mm, yyyy] = month.split('/');
       const year = parseInt(yyyy, 10);
       const mon = parseInt(mm, 10);
-      const startDate = `${yyyy}-${mm}-01`;
-      const lastDay = new Date(year, mon, 0).getDate();
-      const endDate = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
-      timePeriodParam = `time_period=custom&start_date=${startDate}&end_date=${endDate}`;
+
+      // Determine which native time_period matches this month
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-based
+
+      // minus_1_month = previous month, minus_2_month = 2 months ago
+      const minus1 = currentMonth - 1 <= 0
+        ? { m: currentMonth - 1 + 12, y: currentYear - 1 }
+        : { m: currentMonth - 1, y: currentYear };
+      const minus2 = currentMonth - 2 <= 0
+        ? { m: currentMonth - 2 + 12, y: currentYear - 1 }
+        : { m: currentMonth - 2, y: currentYear };
+
+      if (mon === minus1.m && year === minus1.y) {
+        timePeriodParam = 'time_period=minus_1_month';
+        logger.info(`📅 Month ${month} matches minus_1_month — using native time period`);
+      } else if (mon === minus2.m && year === minus2.y) {
+        timePeriodParam = 'time_period=minus_2_month';
+        logger.info(`📅 Month ${month} matches minus_2_month — using native time period`);
+      } else {
+        // Fallback to custom date range for other months
+        const startDate = `${yyyy}-${mm}-01`;
+        const lastDay = new Date(year, mon, 0).getDate();
+        const endDate = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
+        timePeriodParam = `time_period=custom&start_date=${startDate}&end_date=${endDate}`;
+        logger.info(`📅 Month ${month} doesn't match recent months — using custom date range`);
+      }
     }
 
     return `https://studio.youtube.com/channel/${cleanId}/analytics/tab-earn_revenue/period-default/explore?entity_type=CHANNEL&entity_id=${cleanId}&${timePeriodParam}&explore_type=TABLE_AND_CHART&metric=TOTAL_ESTIMATED_EARNINGS&granularity=DAY&t_metrics=TOTAL_ESTIMATED_EARNINGS&t_metrics=EXTERNAL_VIEWS&t_metrics=EXTERNAL_WATCH_TIME&t_metrics=AVERAGE_WATCH_TIME&dimension=COUNTRY&o_column=TOTAL_ESTIMATED_EARNINGS&o_direction=ANALYTICS_ORDER_DIRECTION_DESC`;
@@ -794,6 +919,14 @@ export class YouTubeScraperService {
       }
 
       logger.info(`📊 Batch complete: ${results.length} success, ${errors.length} failed`);
+
+      // Save cookies after successful scraping to keep session fresh
+      if (browser && browser.connected && results.length > 0) {
+        await this.saveCookiesViaCDP(browser, adminId);
+        this.markSessionVerified(adminId);
+        logger.info(`🍪 Cookies saved after batch scrape for admin ${adminId || 'default'}`);
+      }
+
       return { results, errors };
     } finally {
       await safeClosePage(page);

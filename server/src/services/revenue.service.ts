@@ -250,11 +250,15 @@ export class RevenueService {
    * Get all records for a specific cycle
    * @param statusFilter - Optional filter: 'APPROVED' | 'PENDING' to get only records with that status
    */
-  static async getRecordsByCycle(cycleId: number, statusFilter?: 'APPROVED' | 'PENDING') {
+  static async getRecordsByCycle(cycleId: number, statusFilter?: 'APPROVED' | 'PENDING', adminId?: string) {
+    // Build KOC filter for admin scoping
+    const kocFilter = adminId ? { koc: { admin_id: adminId } } : {};
+
     const records = await prisma.revenueRecord.findMany({
       where: {
         cycle_id: cycleId,
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...kocFilter,
       },
       include: {
         koc: {
@@ -274,19 +278,28 @@ export class RevenueService {
 
     // Calculate totals
     const totals = records.reduce(
-      (acc, r) => ({
-        totalOriginal: acc.totalOriginal + Number(r.original_revenue_usd),
-        totalNetRevenue: acc.totalNetRevenue + Number(r.net_revenue),
-        totalCompanyShare: acc.totalCompanyShare + Number(r.company_share),
-        totalKocReceiveUsd: acc.totalKocReceiveUsd + Number(r.koc_receive_usd),
-        totalKocReceiveVnd: acc.totalKocReceiveVnd + Number(r.koc_receive_vnd),
-      }),
+      (acc, r) => {
+        const monthly = Number(r.koc_receive_usd);
+        const accumulated = Number((r as any).accumulated_koc_usd ?? 0);
+        // For payment total: use accumulated_koc_usd when > monthly (has prior months),
+        // otherwise use monthly. This represents the actual payout for this entry.
+        const kocPayout = accumulated > monthly + 0.001 ? accumulated : monthly;
+        return {
+          totalOriginal: acc.totalOriginal + Number(r.original_revenue_usd),
+          totalNetRevenue: acc.totalNetRevenue + Number(r.net_revenue),
+          totalCompanyShare: acc.totalCompanyShare + Number(r.company_share),
+          totalKocReceiveUsd: acc.totalKocReceiveUsd + monthly,
+          totalKocReceiveVnd: acc.totalKocReceiveVnd + Number(r.koc_receive_vnd),
+          totalAccumulatedKocUsd: acc.totalAccumulatedKocUsd + kocPayout,
+        };
+      },
       {
         totalOriginal: 0,
         totalNetRevenue: 0,
         totalCompanyShare: 0,
         totalKocReceiveUsd: 0,
         totalKocReceiveVnd: 0,
+        totalAccumulatedKocUsd: 0,
       }
     );
 
@@ -327,7 +340,9 @@ export class RevenueService {
 
   /**
    * Approve a revenue record.
-   * Only allows approval if accumulated revenue >= $100 threshold.
+   * Approves this record AND all previous PENDING records for the same KOC
+   * (since threshold was accumulated across months). paid_in_cycle_id is set
+   * to the current record's cycle_id to mark where payment was finalized.
    */
   static async approveRecord(recordId: string) {
     const record = await prisma.revenueRecord.findUnique({
@@ -336,17 +351,21 @@ export class RevenueService {
     });
     if (!record) throw new ApiError(404, 'revenue.recordNotFound');
 
-    // Check $100 threshold
+    // Check threshold
     const paymentStatus = await RevenueService.getPaymentStatus(record.cycle_id);
     const kocStatus = paymentStatus[record.koc_id];
     if (kocStatus?.belowThreshold) {
       throw new ApiError(400, 'revenue.belowThreshold');
     }
 
-    return prisma.revenueRecord.update({
-      where: { id: recordId },
-      data: { status: 'APPROVED' },
+    // Approve ALL pending records for this KOC (current + previous cycles)
+    await (prisma as any).revenueRecord.updateMany({
+      where: { koc_id: record.koc_id, status: 'PENDING' },
+      data: { status: 'APPROVED', paid_in_cycle_id: record.cycle_id },
     });
+
+    // Return the now-approved current record
+    return { ...record, status: 'APPROVED' as const, paid_in_cycle_id: record.cycle_id };
   }
 
   /**
@@ -355,7 +374,7 @@ export class RevenueService {
    * When a cycle is PAYMENT_COMPLETED, records in that cycle are considered paid → reset accumulation.
    * Returns map of koc_id -> { accumulated, belowThreshold, accumulatedMonths, threshold }
    */
-  static async getPaymentStatus(cycleId: number) {
+  static async getPaymentStatus(cycleId: number, adminId?: string) {
     const cycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
     if (!cycle) throw new ApiError(404, 'cycle.notFound');
 
@@ -368,9 +387,10 @@ export class RevenueService {
     const currentIdx = allCycles.findIndex(c => c.id === cycleId);
     const relevantCycles = allCycles.slice(0, currentIdx + 1);
 
-    // Get all records for relevant cycles
+    // Get all records for relevant cycles (scoped to admin's KOCs)
+    const kocFilter = adminId ? { koc: { admin_id: adminId } } : {};
     const records = await prisma.revenueRecord.findMany({
-      where: { cycle_id: { in: relevantCycles.map(c => c.id) } },
+      where: { cycle_id: { in: relevantCycles.map(c => c.id) }, ...kocFilter },
       include: { cycle: true },
       orderBy: { cycle: { month: 'asc' } },
     });
@@ -415,10 +435,19 @@ export class RevenueService {
       const accumulatedMonths: Array<{ month: string; revenue: number }> = [];
 
       for (const entry of entries) {
-        // If the cycle was PAYMENT_COMPLETED, that means payment was made → reset
+        // If the cycle was PAYMENT_COMPLETED:
+        //   - APPROVED records were paid → reset their contribution
+        //   - PENDING records were NOT paid → keep accumulating
         if (entry.cycleStatus === 'PAYMENT_COMPLETED') {
-          accumulated = 0;
-          accumulatedMonths.length = 0;
+          if (entry.status === 'APPROVED') {
+            // This KOC was paid in this cycle → reset accumulation
+            accumulated = 0;
+            accumulatedMonths.length = 0;
+          } else {
+            // PENDING in a completed cycle → not paid, keep accumulating
+            accumulated += entry.revenue;
+            accumulatedMonths.push({ month: entry.month, revenue: entry.revenue });
+          }
           continue;
         }
 

@@ -124,7 +124,9 @@
     "companyShare": "Phần công ty",
     "kocShareGross": "Phần KOC (Gross)",
     "kocTax": "Thuế KOC (10%)",
-    "kocReceiveUsd": "KOC nhận (USD)",
+    "kocReceiveUsd": "KOC nhận (USD/tháng)",
+    "accumulatedKocUsd": "Tổng nhận (USD)",
+    "accumulated": "Cộng dồn (USD)",
     "kocReceiveVnd": "KOC nhận (VND)",
     "total": "Tổng cộng",
     "approve": "Duyệt",
@@ -168,6 +170,7 @@
     "scraped": "Đã cào",
     "recordsCreated": "Bản ghi tạo mới",
     "recordsUpdated": "Bản ghi cập nhật",
+    "autoApproved": "Tự động duyệt",
     "recordsSkipped": "Bản ghi bỏ qua"
   },
   "dashboard": {

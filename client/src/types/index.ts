@@ -121,6 +121,11 @@ export interface RevenueRecord {
   koc_tax_deduction: number;
   koc_receive_usd: number;
   koc_receive_vnd: number;
+  // Accumulated totals (sum of all unpaid previous months + this month)
+  accumulated_revenue_usd: number;
+  accumulated_koc_usd: number;
+  // Which cycle finalized this payment (null = unpaid, own = paid here, other = absorbed into later cycle)
+  paid_in_cycle_id: number | null;
   scraped_pub_code: string | null;
   pub_code_match: boolean | null;
   status: 'PENDING' | 'APPROVED';

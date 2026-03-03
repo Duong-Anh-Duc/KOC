@@ -14,7 +14,9 @@ export class CycleController {
    */
   static async getAll(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const cycles = await CycleService.getAll();
+      const authReq = _req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const cycles = await CycleService.getAll(adminId);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -32,7 +34,9 @@ export class CycleController {
    */
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const cycle = await CycleService.getById(Number(req.params.id));
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const cycle = await CycleService.getById(Number(req.params.id), adminId);
 
       const t = (req as any).t;
       res.status(200).json({
@@ -50,8 +54,9 @@ export class CycleController {
    */
   static async create(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
       const { month, exchange_rate } = req.body;
-      const cycle = await CycleService.create(month, exchange_rate);
+      const cycle = await CycleService.create(month, exchange_rate, adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -80,7 +85,8 @@ export class CycleController {
    */
   static async update(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const cycle = await CycleService.update(Number(req.params.id), req.body);
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const cycle = await CycleService.update(Number(req.params.id), req.body, adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -109,7 +115,8 @@ export class CycleController {
    */
   static async lock(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const cycle = await CycleService.lock(Number(req.params.id));
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const cycle = await CycleService.lock(Number(req.params.id), adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -138,7 +145,8 @@ export class CycleController {
    */
   static async complete(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const cycle = await CycleService.complete(Number(req.params.id));
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const cycle = await CycleService.complete(Number(req.params.id), adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -167,7 +175,8 @@ export class CycleController {
    */
   static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const cycle = await CycleService.delete(Number(req.params.id));
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const cycle = await CycleService.delete(Number(req.params.id), adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -217,8 +226,9 @@ export class CycleController {
   static async scrapeRevenue(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
       const cycleId = Number(req.params.id);
-      const cycle = await CycleService.getById(cycleId);
+      const cycle = await CycleService.getById(cycleId, adminId);
 
       if (cycle.status !== 'OPEN') {
         res.status(400).json({ success: false, message: t ? t('ytScraper.cycleNotOpen') : 'Cycle is not OPEN' });
@@ -260,7 +270,7 @@ export class CycleController {
   private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null): Promise<void> {
     try {
       const kocs = await prisma.kOC.findMany({
-        where: { status: 'ACTIVE' },
+        where: { status: 'ACTIVE', ...(userId ? { admin_id: userId } : {}) },
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, base_rate: true },
       });
 
@@ -288,9 +298,9 @@ export class CycleController {
         }
       }
 
-      // Scrape channels with progress callback
+      // Scrape channels with progress callback — pass the cycle month so correct period is scraped
       const { results: scrapeResults, errors: scrapeErrors } =
-        await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, (channelId, idx, total) => {
+        await YouTubeScraperService.scrapeMultipleChannels(channelIds, month, (channelId, idx, total) => {
           currentStep = idx + 1;
           const koc = channelToKocMap.get(channelId);
           const percent = Math.round((currentStep / totalSteps) * 100);
@@ -351,6 +361,27 @@ export class CycleController {
             await RevenueService.createRecord(koc.id, cycleId, revenue, usTax, userId || undefined);
             created.push({ koc: koc.channel_name, revenue });
           }
+
+          // ── Compute accumulated amounts for this KOC ──
+          // Previous PENDING months (other cycles) + this cycle's record
+          try {
+            const currentRecord = await prisma.revenueRecord.findUnique({
+              where: { koc_id_cycle_id: { koc_id: koc.id, cycle_id: cycleId } },
+            });
+            if (currentRecord) {
+              const prevPending = await prisma.revenueRecord.findMany({
+                where: { koc_id: koc.id, status: 'PENDING', cycle_id: { not: cycleId } },
+              });
+              const accRevenue = prevPending.reduce((s, r) => s + Number(r.original_revenue_usd), 0) + Number(currentRecord.original_revenue_usd);
+              const accKoc = prevPending.reduce((s, r) => s + Number(r.koc_receive_usd), 0) + Number(currentRecord.koc_receive_usd);
+              await (prisma as any).revenueRecord.update({
+                where: { id: currentRecord.id },
+                data: { accumulated_revenue_usd: Math.round(accRevenue * 100) / 100, accumulated_koc_usd: Math.round(accKoc * 100) / 100 },
+              });
+            }
+          } catch (accErr: any) {
+            logger.warn(`⚠️ Failed to compute accumulated for ${koc.channel_name}: ${accErr.message}`);
+          }
         } catch (error: any) {
           skipped.push({ koc: koc.channel_name, reason: error.message });
         }
@@ -368,6 +399,43 @@ export class CycleController {
         );
       }
 
+      // ── Auto-approve records that meet the min_payment threshold ──
+      const autoApproved: Array<{ koc: string; accumulated: number }> = [];
+      try {
+        const paymentStatus = await RevenueService.getPaymentStatus(cycleId, userId || undefined);
+        // Get all PENDING records in this cycle for this admin's KOCs
+        const pendingRecords = await prisma.revenueRecord.findMany({
+          where: {
+            cycle_id: cycleId,
+            status: 'PENDING',
+            ...(userId ? { koc: { admin_id: userId } } : {}),
+          },
+          include: { koc: { select: { full_name: true, channel_name: true } } },
+        });
+
+        for (const record of pendingRecords) {
+          const status = paymentStatus[record.koc_id];
+          if (status && !status.belowThreshold) {
+            // Accumulated revenue >= threshold → approve this record AND all previous PENDING records
+            await (prisma as any).revenueRecord.updateMany({
+              where: { koc_id: record.koc_id, status: 'PENDING' },
+              data: { status: 'APPROVED', paid_in_cycle_id: cycleId },
+            });
+            autoApproved.push({
+              koc: record.koc.channel_name || record.koc.full_name,
+              accumulated: status.accumulated,
+            });
+            logger.info(`✅ Auto-approved ${record.koc.channel_name} (accumulated: $${status.accumulated} >= $${status.threshold})`);
+          }
+        }
+
+        if (autoApproved.length > 0) {
+          logger.info(`✅ Auto-approved ${autoApproved.length} KOCs for cycle ${cycleId}`);
+        }
+      } catch (err: any) {
+        logger.warn(`⚠️ Auto-approve check failed: ${err.message}`);
+      }
+
       // Send final result via SSE
       ProgressService.complete(taskId, {
         month,
@@ -375,6 +443,7 @@ export class CycleController {
         updated,
         skipped,
         scrapeErrors,
+        autoApproved,
         summary: {
           totalKOCs: kocs.length,
           scraped: scrapeResults.length,
@@ -382,6 +451,7 @@ export class CycleController {
           recordsUpdated: updated.length,
           recordsSkipped: skipped.length,
           scrapeFailed: scrapeErrors.length,
+          autoApproved: autoApproved.length,
         },
       });
     } catch (error: any) {

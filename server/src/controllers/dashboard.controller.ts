@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { DashboardService } from '../services';
+import { AuthenticatedRequest } from '../types';
 
 export class DashboardController {
   /**
@@ -7,7 +8,9 @@ export class DashboardController {
    */
   static async getOverview(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const overview = await DashboardService.getOverview();
+      const authReq = _req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const overview = await DashboardService.getOverview(adminId);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -26,7 +29,9 @@ export class DashboardController {
   static async getRevenueTrend(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : 12;
-      const trend = await DashboardService.getRevenueTrend(limit);
+      const authReq = req as AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const trend = await DashboardService.getRevenueTrend(limit, adminId);
 
       const t = (req as any).t;
       res.status(200).json({
