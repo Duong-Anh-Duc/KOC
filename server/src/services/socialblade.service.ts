@@ -18,6 +18,7 @@ import {
   parseTotalRow,
 } from '../utils/parseHelpers';
 import { ProgressService } from './progress.service';
+import { ExchangeRateService } from './exchange-rate.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 // Re-export types so existing imports from this file still work
@@ -398,7 +399,7 @@ export class SocialBladeService {
    * Fetch and save 28d stats for all active KOCs
    */
   static async recordAllStats(adminId?: string) {
-    const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE' } });
+    const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) } });
     const results = [];
     const errors = [];
 
@@ -437,7 +438,7 @@ export class SocialBladeService {
    * Same as recordAllStats but emits SSE progress events via ProgressService.
    */
   static async recordAllStatsWithProgress(taskId: string, adminId?: string) {
-    const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE' } });
+    const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) } });
     const total = kocs.length;
     const results = [];
     const errors = [];
@@ -572,7 +573,7 @@ export class SocialBladeService {
           subs_gained_28d_num: ct?.subscribersGained || 0,
           subs_lost_28d_num: ct?.subscribersLost || 0,
           subs_net_28d_num: ct?.subscribersNet || 0,
-          estimated_revenue_28d_num: ct?.estimatedRevenue || 0,
+          estimated_revenue_28d_num: ExchangeRateService.convertVndToUsd(ct?.estimatedRevenue || 0) || 0,
           likes_28d_num: ct?.likes || 0,
           shares_28d_num: ct?.shares || 0,
           has_data: true,
@@ -590,7 +591,7 @@ export class SocialBladeService {
           subs_gained_28d_num: yt.overview.subscribers28d_num || 0,
           subs_lost_28d_num: 0,
           subs_net_28d_num: yt.overview.subscribers28d_num || 0,
-          estimated_revenue_28d_num: yt.overview.estimatedRevenue28d_num || 0,
+          estimated_revenue_28d_num: ExchangeRateService.convertVndToUsd(yt.overview.estimatedRevenue28d_num || 0) || 0,
           likes_28d_num: yt.content?.likes28d_num || 0,
           shares_28d_num: 0,
           has_data: true,
