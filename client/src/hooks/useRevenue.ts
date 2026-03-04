@@ -119,7 +119,7 @@ export const useScrapeRevenue = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (cycleId: number) => cycleApi.scrapeRevenue(cycleId),
+    mutationFn: ({ cycleId, kocIds }: { cycleId: number; kocIds?: string[] }) => cycleApi.scrapeRevenue(cycleId, kocIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
       queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });

@@ -435,24 +435,16 @@ export class RevenueService {
       const accumulatedMonths: Array<{ month: string; revenue: number }> = [];
 
       for (const entry of entries) {
-        // If the cycle was PAYMENT_COMPLETED:
-        //   - APPROVED records were paid → reset their contribution
-        //   - PENDING records were NOT paid → keep accumulating
-        if (entry.cycleStatus === 'PAYMENT_COMPLETED') {
-          if (entry.status === 'APPROVED') {
-            // This KOC was paid in this cycle → reset accumulation
-            accumulated = 0;
-            accumulatedMonths.length = 0;
-          } else {
-            // PENDING in a completed cycle → not paid, keep accumulating
-            accumulated += entry.revenue;
-            accumulatedMonths.push({ month: entry.month, revenue: entry.revenue });
-          }
-          continue;
+        if (entry.status === 'APPROVED') {
+          // APPROVED means this KOC's revenue was settled up to this point → reset running total.
+          // This covers both: manual approval (cycle still OPEN/LOCKED) and payment completion.
+          accumulated = 0;
+          accumulatedMonths.length = 0;
+        } else {
+          // PENDING → keep accumulating into the unpaid balance
+          accumulated += entry.revenue;
+          accumulatedMonths.push({ month: entry.month, revenue: entry.revenue });
         }
-
-        accumulated += entry.revenue;
-        accumulatedMonths.push({ month: entry.month, revenue: entry.revenue });
       }
 
       result[kocId] = {

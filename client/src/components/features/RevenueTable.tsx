@@ -1,15 +1,15 @@
 import type { PaymentStatusMap, RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
 import { formatUSD, formatVND, getTableLocale } from '@/utils';
 import {
-    BarChartOutlined,
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    DeleteOutlined,
-    EditOutlined,
-    EyeOutlined,
-    HistoryOutlined,
-    QuestionCircleOutlined,
-    WarningOutlined,
+  BarChartOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  HistoryOutlined,
+  QuestionCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -335,9 +335,9 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
         const isIntermediate = record.paid_in_cycle_id != null && record.paid_in_cycle_id !== record.cycle_id;
         if (isIntermediate) return <Text type="secondary">-</Text>;
         const acc = Number(val || 0);
-        const monthly = Number(record.koc_receive_usd || 0);
-        if (acc <= monthly + 0.001) return <Text type="secondary">-</Text>;
-        return <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(acc)}</Text>;
+        if (acc === 0) return <Text type="secondary">-</Text>;
+        const color = acc < 0 ? '#ff4d4f' : '#1677ff';
+        return <Text strong style={{ color, fontSize: 13 }}>{formatUSD(acc)}</Text>;
       },
     },
     {

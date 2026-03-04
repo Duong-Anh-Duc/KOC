@@ -62,7 +62,7 @@ const CycleSummaryCard: React.FC<CycleSummaryCardProps> = ({ cycleSummary, reven
         </Col>
         <Col xs={12} lg={4}>
           <div>
-            <span style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>{t('dashboard.revenueGrowth')}</span>
+            <span style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14, whiteSpace: 'nowrap' }}>{t('dashboard.revenueGrowth')}</span>
             <div style={{ marginTop: 8 }}>
               {revenueGrowth != null && revenueGrowth !== 0 ? (
                 <Tag

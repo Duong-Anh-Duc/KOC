@@ -63,6 +63,95 @@ export class YouTubeScraperController {
   }
 
   /**
+   * POST /api/yt-scraper/verify-session
+   * Close login browser and verify session with headless Playwright
+   */
+  static async verifySession(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const result = await YouTubeScraperService.closeLoginAndVerify(adminId);
+      // Sync to DB
+      if (adminId) {
+        await prisma.youTubeSession.upsert({
+          where: { admin_id: adminId },
+          create: {
+            admin_id: adminId,
+            is_logged_in: result.loggedIn,
+            account_email: result.email || null,
+            account_name: result.channelName || null,
+            chrome_profile: adminId,
+            verified_at: result.loggedIn ? new Date() : null,
+          },
+          update: {
+            is_logged_in: result.loggedIn,
+            account_email: result.email || null,
+            account_name: result.channelName || null,
+            ...(result.loggedIn ? { verified_at: new Date() } : {}),
+          },
+        }).catch(() => {});
+      }
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/yt-scraper/import-cookies
+   * Import cookies from user's local browser to establish YouTube session (alternative to VNC)
+   */
+  static async importCookies(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const { cookies } = req.body;
+
+      if (!cookies || !Array.isArray(cookies) || cookies.length === 0) {
+        res.status(400).json({ success: false, message: 'Cookies array is required' });
+        return;
+      }
+
+      const result = await YouTubeScraperService.importCookies(cookies, adminId);
+
+      // Sync to DB
+      if (adminId) {
+        await prisma.youTubeSession.upsert({
+          where: { admin_id: adminId },
+          create: {
+            admin_id: adminId,
+            is_logged_in: result.loggedIn,
+            account_email: result.email || null,
+            account_name: result.channelName || null,
+            chrome_profile: adminId,
+            verified_at: result.loggedIn ? new Date() : null,
+          },
+          update: {
+            is_logged_in: result.loggedIn,
+            account_email: result.email || null,
+            account_name: result.channelName || null,
+            ...(result.loggedIn ? { verified_at: new Date() } : {}),
+          },
+        }).catch(() => {});
+      }
+
+      if (result.loggedIn) {
+        res.status(200).json({
+          success: true,
+          message: 'Import cookie thành công! Đã kết nối YouTube.',
+          data: result,
+        });
+      } else {
+        res.status(200).json({
+          success: false,
+          message: 'Cookie không hợp lệ hoặc đã hết hạn. Vui lòng export lại cookie mới từ trình duyệt.',
+          data: result,
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /api/yt-scraper/scrape-all
    * Scrape analytics for all active KOCs
    */

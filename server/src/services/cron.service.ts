@@ -427,7 +427,7 @@ export class CronService {
           const emailConfig = await EmailService.getConfig();
           if (emailConfig.autoSendAfterCron) {
             logger.info(`[CronJob] Auto-sending revenue emails for month ${result.cycleMonth}...`);
-            const emailResults = await EmailService.sendAllRevenueEmails(result.cycleMonth);
+            const emailResults = await EmailService.sendAllRevenueEmails(result.cycleMonth, adminId || undefined);
             logger.info(`[CronJob] Auto-email results: ${emailResults.sent.length} sent, ${emailResults.failed.length} failed, ${emailResults.skipped.length} skipped`);
           }
         } catch (emailErr: any) {

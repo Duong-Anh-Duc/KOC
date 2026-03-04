@@ -33,55 +33,92 @@ export class MonthlyRevenueService {
     
     logger.info(`📊 Scraping monthly revenue for channel: ${cleanId}`);
 
-    // Use the existing scraper's shared browser session
-    const browser = await YouTubeScraperService.getBrowser(false, 1, adminId); // Headful mode to match login session
-    const page = await browser.newPage();
+    const MAX_ATTEMPTS = 2;
+    let lastError: Error = new Error('Unknown error');
 
-    try {
-      // Apply stealth
-      await page.evaluateOnNewDocument(`
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        window.chrome = { runtime: {} };
-        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-      `);
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const context = await YouTubeScraperService.getContext(false, adminId);
+      const page = await context.newPage();
 
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        // Block heavy resources (images, fonts, media) to save RAM on VPS
+        await page.route('**/*', (route) => {
+          const type = route.request().resourceType();
+          if (['image', 'font', 'media', 'stylesheet'].includes(type)) {
+            return route.abort();
+          }
+          return route.continue();
+        });
+
+        // Navigate to blank first to initialize page cleanly and reduce memory pressure
+        try { await page.goto('about:blank', { waitUntil: 'commit', timeout: 5000 }); } catch { /* ignore */ }
+        await new Promise(r => setTimeout(r, 500));
+
+        try {
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        } catch (err: any) {
+          logger.warn(`⚠️ Page load timeout (attempt ${attempt}), continuing...`, err.message);
+        }
+
+        // Check login
+        if (page.url().includes('accounts.google.com')) {
+          throw new Error('NOT_LOGGED_IN');
+        }
+
+        // Wait for analytics to render
+        await new Promise(r => setTimeout(r, 6000));
+
+        // Extract text
+        const text = await Promise.race([
+          page.evaluate('document.body.innerText') as Promise<string>,
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout extracting text')), 120000)
+          ),
+        ]);
+
+        logger.info(`✓ Scraped monthly revenue page (${text.length} chars)`);
+
+        // Navigate away to free memory
+        try { await page.goto('about:blank', { waitUntil: 'commit', timeout: 5000 }); } catch { /* ignore */ }
+
+        // Parse the monthly revenue data
+        const parsed = this.parseMonthlyRevenueText(text);
+
+        return {
+          channelId: cleanId,
+          totals: parsed.totals,
+          months: parsed.months,
+          scrapedAt: new Date().toISOString(),
+        };
       } catch (err: any) {
-        logger.warn(`⚠️ Page load timeout, continuing...`, err.message);
+        lastError = err;
+        const isCrash = err.message?.includes('Target crashed') ||
+                        err.message?.includes('Target closed') ||
+                        err.message?.includes('Session closed') ||
+                        err.message?.includes('existing browser session') ||
+                        err.message?.includes('Opening in existing');
+
+        if (err.message === 'NOT_LOGGED_IN') throw err; // no retry for auth errors
+
+        if (isCrash && attempt < MAX_ATTEMPTS) {
+          logger.warn(`📊 Monthly scrape attempt ${attempt} crashed — clearing context and retrying in 5s...`);
+          try { await page.close(); } catch { /* already dead */ }
+          // Invalidate the corrupt context so getContext() creates a fresh one
+          try {
+            const ctx = await YouTubeScraperService.getContext(false, adminId).catch(() => null);
+            if (ctx) await ctx.close();
+          } catch { /* ignore */ }
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+
+        throw err;
+      } finally {
+        try { await page.close(); } catch { /* ignore */ }
       }
-
-      // Check login
-      if (page.url().includes('accounts.google.com')) {
-        throw new Error('NOT_LOGGED_IN');
-      }
-
-      // Wait for analytics to render
-      await new Promise(r => setTimeout(r, 6000));
-
-      // Extract text
-      const text = await Promise.race([
-        page.evaluate('document.body.innerText') as Promise<string>,
-        new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout extracting text')), 120000)
-        ),
-      ]);
-
-      logger.info(`✓ Scraped monthly revenue page (${text.length} chars)`);
-
-      // Parse the monthly revenue data
-      const parsed = this.parseMonthlyRevenueText(text);
-
-      return {
-        channelId: cleanId,
-        totals: parsed.totals,
-        months: parsed.months,
-        scrapedAt: new Date().toISOString(),
-      };
-    } finally {
-      try { await page.close(); } catch { /* ignore */ }
     }
+
+    throw lastError;
   }
 
   /**

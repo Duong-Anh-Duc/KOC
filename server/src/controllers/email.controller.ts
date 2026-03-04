@@ -120,8 +120,10 @@ export class EmailController {
         data: { taskId },
       });
 
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+
       // Run in background
-      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null).catch(err => {
+      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, adminId).catch(err => {
         ProgressService.error(taskId, err.message);
       });
     } catch (error) {
@@ -132,9 +134,9 @@ export class EmailController {
   /**
    * Background method to send revenue emails with progress
    */
-  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null): Promise<void> {
+  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null, adminId?: string): Promise<void> {
     try {
-      const results = await EmailService.sendAllRevenueEmails(month, (step, total, kocName) => {
+      const results = await EmailService.sendAllRevenueEmails(month, adminId, (step, total, kocName) => {
         const percent = Math.round((step / total) * 100);
         ProgressService.emit(taskId, {
           step, total, percent,
@@ -188,7 +190,11 @@ export class EmailController {
       const t = (_req as any).t;
       const { default: prisma } = await import('../config/database');
 
-      const cycles = await prisma.revenueCycle.findMany({
+      const authReq = _req as import('../types').AuthenticatedRequest;
+      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+
+      const cycles = await (prisma as any).revenueCycle.findMany({
+        where: adminId ? { admin_id: adminId } : {},
         orderBy: { month: 'desc' },
         select: {
           id: true,
@@ -203,7 +209,7 @@ export class EmailController {
       res.status(200).json({
         success: true,
         message: t ? t('email.cyclesRetrieved') : 'Cycles retrieved',
-        data: cycles.map(c => ({
+        data: cycles.map((c: any) => ({
           id: c.id,
           month: c.month,
           status: c.status,

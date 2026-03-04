@@ -89,9 +89,9 @@ export const cycleApi = {
   getExchangeRate: () =>
     apiClient.get<ApiResponse<{ averageRate: number; source: string; fetchedAt: string }>>('/cycles/exchange-rate'),
 
-  /** Scrape YouTube revenue for all KOCs in this cycle's month and auto-create records (returns taskId for SSE progress) */
-  scrapeRevenue: (id: number) =>
-    apiClient.post<ApiResponse<{ taskId: string }>>(`/cycles/${id}/scrape-revenue`),
+  /** Scrape YouTube revenue for KOCs in this cycle's month and auto-create records (returns taskId for SSE progress) */
+  scrapeRevenue: (id: number, kocIds?: string[]) =>
+    apiClient.post<ApiResponse<{ taskId: string }>>(`/cycles/${id}/scrape-revenue`, kocIds ? { kocIds } : undefined),
 };
 
 // ============================================================
@@ -199,7 +199,7 @@ export const ytScraperApi = {
 
   /** Check YouTube Studio login status */
   checkStatus: () =>
-    apiClient.get<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/status'),
+    apiClient.get<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string; loginBrowserOpen?: boolean }>>('/yt-scraper/status'),
 
   /** Try to auto-connect using existing session */
   autoConnect: () =>
@@ -221,9 +221,17 @@ export const ytScraperApi = {
   closeBrowser: () =>
     apiClient.post<ApiResponse>('/yt-scraper/close'),
 
+  /** Close login browser and verify session with Playwright */
+  verifySession: () =>
+    apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/verify-session'),
+
   /** Reset saved Chrome session (allows login with a different account) */
   resetSession: () =>
     apiClient.post<ApiResponse>('/yt-scraper/reset-session'),
+
+  /** Import cookies from local browser (alternative to VNC login) */
+  importCookies: (cookies: Array<Record<string, unknown>>) =>
+    apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/import-cookies', { cookies }),
 
   /** Extract & refresh connected account info (channel name, email) */
   refreshAccountInfo: () =>

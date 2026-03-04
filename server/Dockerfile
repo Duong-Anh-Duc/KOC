@@ -1,28 +1,7 @@
-# ── Stage 1: Build ──────────────────────────────────────────
-FROM node:20-bullseye-slim AS builder
+# ── Single-stage build: pre-built on host ─────────────────────
+FROM node:20-bullseye-slim
 
-WORKDIR /app
-
-# Install deps first (layer cache)
-COPY package*.json ./
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-RUN npm ci
-
-COPY . .
-
-# Generate Prisma client BEFORE compiling TypeScript (types must exist for tsc)
-RUN npx prisma generate
-
-# Compile TypeScript
-RUN npm run build
-
-# Copy static assets (images etc.) that tsc doesn't include
-RUN cp -r src/assets dist/assets 2>/dev/null || true
-
-# ── Stage 2: Production runtime ───────────────────────────────
-FROM node:20-bullseye-slim AS runner
-
-# Install Chromium + Xvfb (virtual display) + noVNC (visual remote access) + required system libs for Puppeteer
+# Install Chromium + Xvfb (virtual display) + noVNC (visual remote access) + system libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     xvfb \
@@ -58,22 +37,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set up virtual display
 ENV DISPLAY=:99
 
-# Tell Puppeteer to use the system Chromium
+# Tell Puppeteer to use the system Chromium (for exchange-rate.service.ts)
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
+# Tell Playwright to use the system Chromium (skip bundled browser download)
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium
+
 WORKDIR /app
 
-# Copy built artifacts from builder
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
+# Copy pre-built artifacts from host
+COPY dist ./dist
+COPY node_modules ./node_modules
+COPY prisma ./prisma
 COPY package*.json ./
+
+# Prisma Client is pre-generated on host (includes linux-arm64-openssl-1.1.x binary target)
 
 # Create chrome-data directory (will be mounted as a volume)
 RUN mkdir -p .chrome-data
 
+# Copy entrypoint script
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 EXPOSE 3001
 
-# Run migrations → seed default users → start the server with Xvfb for virtual display
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && xvfb-run -a node dist/index.js"]
+# Use entrypoint script that properly manages Xvfb lifecycle
+CMD ["./entrypoint.sh"]

@@ -1,33 +1,33 @@
-import { Page } from 'puppeteer';
+import { Page } from 'playwright';
 import prisma from '../config/database';
 import { ApiError } from '../middlewares';
 import logger from '../middlewares/logger.middleware';
 import type {
-  ChannelStats28dData,
-  ColumnSpec,
-  CountryStatsRow,
-  CountryStatsTotals,
-  DayStatsRow,
-  DayStatsTotals,
+    ChannelStats28dData,
+    ColumnSpec,
+    CountryStatsRow,
+    CountryStatsTotals,
+    DayStatsRow,
+    DayStatsTotals,
 } from '../types/stats.types';
 import {
-  isCountryName,
-  isDateLine,
-  isValueLine,
-  parseDimensionRowValues,
-  parseTotalRow,
+    isCountryName,
+    isDateLine,
+    isValueLine,
+    parseDimensionRowValues,
+    parseTotalRow,
 } from '../utils/parseHelpers';
-import { ProgressService } from './progress.service';
 import { ExchangeRateService } from './exchange-rate.service';
+import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 // Re-export types so existing imports from this file still work
 export type {
-  ChannelStats28dData,
-  CountryStatsRow,
-  CountryStatsTotals,
-  DayStatsRow,
-  DayStatsTotals
+    ChannelStats28dData,
+    CountryStatsRow,
+    CountryStatsTotals,
+    DayStatsRow,
+    DayStatsTotals
 } from '../types/stats.types';
 
 // ============================================================
@@ -107,10 +107,10 @@ export class SocialBladeService {
     logger.info(`📊 Scraping ${label}...`);
 
     try {
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
     } catch (err: any) {
       logger.warn(`⚠️ Page load warning for ${label}: ${err.message}`);
-      // Try with domcontentloaded if networkidle2 fails
+      // Try with domcontentloaded if networkidle fails
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       } catch (retryErr: any) {
@@ -339,15 +339,9 @@ export class SocialBladeService {
    * Scrape both explore tables (by country + by day) for a channel
    */
   static async scrapeChannelStats(channelId: string, adminId?: string): Promise<ChannelStats28dData> {
-    const browser = await YouTubeScraperService.getBrowser(false, 1, adminId); // Headful mode to match login session
-    const page = await browser.newPage();
-
-    await page.evaluateOnNewDocument(`
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      window.chrome = { runtime: {} };
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-    `);
+    const context = await YouTubeScraperService.getContext(false, adminId);
+    const page = await context.newPage();
+    // Stealth scripts already injected at context level via addInitScript
 
     try {
       // 1. Scrape country table
@@ -542,6 +536,19 @@ export class SocialBladeService {
    * Get 28d growth summary for all KOCs
    * Supports both new (byCountry/byDay) and old (overview/content/audience) formats
    */
+  private static normalizeRevenueToUsd(val: number | null | undefined): number {
+    if (!val) return 0;
+    // If value exceeds realistic USD threshold (5000), assume it's raw VND and convert
+    if (val > 5000) {
+      return ExchangeRateService.convertVndToUsd(val) || 0;
+    }
+    return val; // Already in USD
+  }
+
+  /**
+   * Get 28d growth summary for all KOCs
+   * Supports both new (byCountry/byDay) and old (overview/content/audience) formats
+   */
   static async getAllKocsGrowth(adminId?: string) {
     const where: any = { status: 'ACTIVE' as const };
     if (adminId) where.admin_id = adminId;
@@ -573,7 +580,7 @@ export class SocialBladeService {
           subs_gained_28d_num: ct?.subscribersGained || 0,
           subs_lost_28d_num: ct?.subscribersLost || 0,
           subs_net_28d_num: ct?.subscribersNet || 0,
-          estimated_revenue_28d_num: ExchangeRateService.convertVndToUsd(ct?.estimatedRevenue || 0) || 0,
+          estimated_revenue_28d_num: this.normalizeRevenueToUsd(ct?.estimatedRevenue),
           likes_28d_num: ct?.likes || 0,
           shares_28d_num: ct?.shares || 0,
           has_data: true,
@@ -591,7 +598,7 @@ export class SocialBladeService {
           subs_gained_28d_num: yt.overview.subscribers28d_num || 0,
           subs_lost_28d_num: 0,
           subs_net_28d_num: yt.overview.subscribers28d_num || 0,
-          estimated_revenue_28d_num: ExchangeRateService.convertVndToUsd(yt.overview.estimatedRevenue28d_num || 0) || 0,
+          estimated_revenue_28d_num: this.normalizeRevenueToUsd(yt.overview.estimatedRevenue28d_num),
           likes_28d_num: yt.content?.likes28d_num || 0,
           shares_28d_num: 0,
           has_data: true,

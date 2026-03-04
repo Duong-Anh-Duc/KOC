@@ -72,7 +72,8 @@
     "viewDetails": "Xem chi tiết",
     "details": "Chi tiết",
     "stt": "STT",
-    "formatMMYYYY": "Định dạng: MM/YYYY"
+    "formatMMYYYY": "Định dạng: MM/YYYY",
+    "selectAll": "Chọn tất cả"
   },
   "koc": {
     "title": "Quản lý Creator",
@@ -141,6 +142,9 @@
     "createRecord": "Tạo bản ghi",
     "updateRevenue": "Cập nhật doanh thu",
     "updateRevenueHint": "Cào dữ liệu YouTube và cập nhật bản ghi doanh thu",
+    "scrapeAll": "Cào tất cả KOC",
+    "scrapeSelected": "Chọn KOC để cào",
+    "startScrape": "Bắt đầu cào",
     "belowThreshold": "Dưới ngưỡng thanh toán! Tích lũy: {{accumulated}} ({{months}})",
     "belowThresholdTitle": "Dưới ngưỡng thanh toán {{threshold}}",
     "accumulatedTotal": "Tổng tích lũy",
@@ -189,7 +193,7 @@
     "kocPayUSD": "Trả KOC (USD)",
     "kocPayVND": "Trả KOC (VND)",
     "revenueTrend": "Xu hướng Doanh thu",
-    "revenueGrowth": "Tăng trưởng DT",
+    "revenueGrowth": "Tăng trưởng",
     "totalOriginal": "Tổng DT gốc",
     "totalNet": "Tổng DT ròng",
     "totalKOCPay": "Tổng trả KOC",
@@ -551,6 +555,8 @@
     "accountInfoUnknown": "Chưa có thông tin tài khoản — nhấn làm mới",
     "refreshAccountInfo": "Làm mới thông tin tài khoản (tên kênh, email)",
     "loginSuccess": "Đã kết nối YouTube thành công!",
+    "verifyLogin": "Xác nhận đăng nhập",
+    "verifyFailed": "Chưa đăng nhập thành công. Vui lòng thử lại qua VNC.",
     "autoConnectSuccess": "Kết nối ẩn thành công - Sẵn sàng cào dữ liệu",
     "autoConnectFailed": "Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google",
     "vncBrowserOpened": "Trình duyệt Chrome đã mở trên VPS",
@@ -560,7 +566,18 @@
     "vncAlertMessage": "Trình duyệt Chrome đã mở trên VPS — đăng nhập YouTube Studio tại đây:",
     "vncAlertDesc": "Sau khi đăng nhập xong, trang này sẽ tự động cập nhật trạng thái kết nối.",
     "loadingAccountInfo": "Đang tải thông tin...",
-    "noAccountInfo": "Chưa có thông tin — nhấn Refresh"
+    "noAccountInfo": "Chưa có thông tin — nhấn Refresh",
+    "importCookies": "Nhập Cookie",
+    "importCookiesDesc": "Nhập cookie từ trình duyệt cá nhân để kết nối YouTube mà không cần VNC:",
+    "importCookiesStep1": "Cài extension \"Cookie-Editor\" trên Chrome/Edge",
+    "importCookiesStep2": "Đăng nhập YouTube Studio (studio.youtube.com) trên trình duyệt cá nhân",
+    "importCookiesStep3": "Bấm icon Cookie-Editor → Export → Export as JSON",
+    "importCookiesStep4": "Dán nội dung JSON vào ô bên dưới",
+    "importCookiesSubmit": "Nhập cookie",
+    "importCookiesSuccess": "Import cookie thành công! Đã kết nối YouTube.",
+    "importCookiesFailed": "Cookie không hợp lệ hoặc đã hết hạn. Vui lòng export lại.",
+    "importCookiesEmpty": "Vui lòng dán cookie JSON vào ô nhập.",
+    "importCookiesInvalidJson": "JSON không hợp lệ. Vui lòng kiểm tra lại định dạng."
   },
   "cron": {
     "configTitle": "Cấu hình Cronjob",

@@ -5,6 +5,7 @@ import prisma from './config/database';
 import logger from './middlewares/logger.middleware';
 import { CronService } from './services/cron.service';
 import { ExchangeRateService } from './services/exchange-rate.service';
+import { YouTubeScraperService } from './services/youtube-scraper.service';
 
 // Get local IP address
 const getLocalIP = (): string => {
@@ -40,6 +41,11 @@ const startServer = async () => {
 
       // Start exchange rate auto-refresher (every 10 minutes)
       ExchangeRateService.startRateRefresher();
+
+      // Restore YouTube Studio sessions (launches headless browsers with keep-alive)
+      YouTubeScraperService.initializePersistentSessions().catch(err => {
+        logger.warn('⚠️ Failed to initialize YouTube sessions:', err.message);
+      });
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error);

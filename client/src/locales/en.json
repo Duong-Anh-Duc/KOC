@@ -72,7 +72,8 @@
     "viewDetails": "View Details",
     "details": "Details",
     "stt": "No.",
-    "formatMMYYYY": "Format: MM/YYYY"
+    "formatMMYYYY": "Format: MM/YYYY",
+    "selectAll": "Select All"
   },
   "koc": {
     "title": "Creator Management",
@@ -141,6 +142,9 @@
     "createRecord": "Create Record",
     "updateRevenue": "Update Revenue",
     "updateRevenueHint": "Scrape YouTube data and update revenue records",
+    "scrapeAll": "Scrape All KOCs",
+    "scrapeSelected": "Select KOCs to Scrape",
+    "startScrape": "Start Scrape",
     "belowThreshold": "Below payment threshold! Accumulated: {{accumulated}} ({{months}})",
     "belowThresholdTitle": "Below payment threshold {{threshold}}",
     "accumulatedTotal": "Accumulated total",
@@ -551,6 +555,8 @@
     "accountInfoUnknown": "Account info not yet fetched — click refresh",
     "refreshAccountInfo": "Refresh account info (channel name, email)",
     "loginSuccess": "YouTube connected successfully!",
+    "verifyLogin": "Verify Login",
+    "verifyFailed": "Login not detected. Please try again via VNC.",
     "autoConnectSuccess": "Auto-connected successfully - Ready to scrape",
     "autoConnectFailed": "No session found. Please open browser to login to Google",
     "vncBrowserOpened": "Chrome browser opened on VPS",
@@ -560,7 +566,18 @@
     "vncAlertMessage": "Chrome browser opened on VPS — log in to YouTube Studio here:",
     "vncAlertDesc": "After logging in, this page will automatically update the connection status.",
     "loadingAccountInfo": "Loading account info...",
-    "noAccountInfo": "No account info — click Refresh"
+    "noAccountInfo": "No account info — click Refresh",
+    "importCookies": "Import Cookies",
+    "importCookiesDesc": "Import cookies from your local browser to connect YouTube without VNC:",
+    "importCookiesStep1": "Install the \"Cookie-Editor\" extension on Chrome/Edge",
+    "importCookiesStep2": "Log in to YouTube Studio (studio.youtube.com) on your local browser",
+    "importCookiesStep3": "Click Cookie-Editor icon → Export → Export as JSON",
+    "importCookiesStep4": "Paste the JSON content into the text area below",
+    "importCookiesSubmit": "Import Cookies",
+    "importCookiesSuccess": "Cookies imported successfully! YouTube connected.",
+    "importCookiesFailed": "Cookies are invalid or expired. Please export fresh cookies.",
+    "importCookiesEmpty": "Please paste cookie JSON into the input field.",
+    "importCookiesInvalidJson": "Invalid JSON format. Please check and try again."
   },
   "cron": {
     "configTitle": "Cron Job Configuration",

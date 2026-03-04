@@ -17,28 +17,18 @@ interface SummaryBarProps {
 }
 
 const SummaryBar: React.FC<SummaryBarProps> = ({ items, loading = false }) => {
-  const getColSpan = (itemCount: number) => {
-    if (itemCount === 1) return 24;
-    if (itemCount === 2) return 12;
-    if (itemCount === 3) return 8;
-    if (itemCount === 4) return 6;
-    return 24 / itemCount;
-  };
-
-  const span = getColSpan(items.length);
-
   return (
-    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+    <Row gutter={[12, 12]} style={{ marginBottom: 16 }} wrap={false}>
       {items.map((item, index) => (
-        <Col xs={24} sm={12} lg={span} key={index}>
-          <Card loading={loading}>
+        <Col flex="1" key={index} style={{ minWidth: 0 }}>
+          <Card loading={loading} size="small" styles={{ body: { padding: '10px 14px' } }}>
             <Statistic
-              title={item.title}
+              title={<span style={{ fontSize: 12 }}>{item.title}</span>}
               value={item.value}
               prefix={item.prefix}
               suffix={item.suffix}
               precision={item.precision}
-              valueStyle={item.valueStyle}
+              valueStyle={{ ...item.valueStyle, fontSize: 18 }}
               formatter={item.formatter}
             />
           </Card>

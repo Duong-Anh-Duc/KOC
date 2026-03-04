@@ -16,6 +16,18 @@ export class DashboardService {
       : null;
     const recordFilter = adminKocIds ? { koc_id: { in: adminKocIds } } : {};
 
+    // If admin, find only cycles that contain their KOCs' records
+    let adminCycleIds: number[] | null = null;
+    if (adminKocIds && adminKocIds.length > 0) {
+      const adminRecordCycles = await prisma.revenueRecord.findMany({
+        where: { koc_id: { in: adminKocIds } },
+        select: { cycle_id: true },
+        distinct: ['cycle_id'],
+      });
+      adminCycleIds = adminRecordCycles.map(r => r.cycle_id);
+    }
+    const cycleFilter = adminCycleIds ? { id: { in: adminCycleIds } } : {};
+
     const [
       totalKOCs,
       activeKOCs,
@@ -29,8 +41,9 @@ export class DashboardService {
     ] = await Promise.all([
       prisma.kOC.count({ where: kocFilter }),
       prisma.kOC.count({ where: kocActiveFilter }),
-      prisma.revenueCycle.count(),
+      prisma.revenueCycle.count({ where: cycleFilter }),
       prisma.revenueCycle.findFirst({
+        where: cycleFilter,
         orderBy: { created_at: 'desc' },
         include: { _count: { select: { revenue_records: adminKocIds ? { where: { koc_id: { in: adminKocIds } } } : true } } },
       }),
@@ -46,6 +59,7 @@ export class DashboardService {
       prisma.revenueCycle.groupBy({
         by: ['status'],
         _count: true,
+        ...(adminCycleIds ? { where: { id: { in: adminCycleIds } } } : {} as any),
       }),
       prisma.revenueRecord.count({ where: recordFilter }),
       prisma.revenueRecord.count({
@@ -56,21 +70,18 @@ export class DashboardService {
       }),
     ]);
 
-    // Revenue summary for latest cycle
-    // totalOriginal uses ALL records; company share & KOC pay use only APPROVED
+    // Revenue summary for latest cycle — show totals from ALL records (not just APPROVED)
+    // so admin can see full picture before approving
     let cycleSummary = null;
     if (latestCycle) {
-      const [allRecords, approvedRecords] = await Promise.all([
-        RevenueService.getRecordsByCycle(latestCycle.id, undefined, adminId),
-        RevenueService.getRecordsByCycle(latestCycle.id, 'APPROVED', adminId),
-      ]);
+      const allRecords = await RevenueService.getRecordsByCycle(latestCycle.id, undefined, adminId);
       cycleSummary = {
         cycle: latestCycle,
         totalOriginal: allRecords.totals.totalOriginal,
-        totalNetRevenue: approvedRecords.totals.totalNetRevenue,
-        totalCompanyShare: approvedRecords.totals.totalCompanyShare,
-        totalKocReceiveUsd: approvedRecords.totals.totalKocReceiveUsd,
-        totalKocReceiveVnd: approvedRecords.totals.totalKocReceiveVnd,
+        totalNetRevenue: allRecords.totals.totalNetRevenue,
+        totalCompanyShare: allRecords.totals.totalCompanyShare,
+        totalKocReceiveUsd: allRecords.totals.totalKocReceiveUsd,
+        totalKocReceiveVnd: allRecords.totals.totalKocReceiveVnd,
       };
     }
 
@@ -158,7 +169,7 @@ export class DashboardService {
       latestCycleSummary: cycleSummary,
       recentRecords,
       growthSummary,
-      cyclesByStatus: cyclesByStatus.reduce((acc, item) => {
+      cyclesByStatus: cyclesByStatus.reduce((acc, item: any) => {
         acc[item.status] = item._count;
         return acc;
       }, {} as Record<string, number>),
@@ -181,7 +192,19 @@ export class DashboardService {
       ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
       : null;
 
+    // Only show cycles that contain this admin's records
+    let cycleFilter: any = {};
+    if (adminKocIds && adminKocIds.length > 0) {
+      const adminRecordCycles = await prisma.revenueRecord.findMany({
+        where: { koc_id: { in: adminKocIds } },
+        select: { cycle_id: true },
+        distinct: ['cycle_id'],
+      });
+      cycleFilter = { id: { in: adminRecordCycles.map(r => r.cycle_id) } };
+    }
+
     const cycles = await prisma.revenueCycle.findMany({
+      where: cycleFilter,
       take: limit,
       orderBy: { created_at: 'desc' },
       include: {
@@ -198,18 +221,16 @@ export class DashboardService {
     });
 
     const mapped = cycles.reverse().map((cycle) => {
-      // totalRevenue uses ALL records
+      // Use ALL records (not just APPROVED) for dashboard totals
       const totalRevenue = cycle.revenue_records.reduce(
         (sum, r) => sum + Number(r.original_revenue_usd),
         0
       );
-      // KOC pay and company share only from APPROVED records
-      const approvedRecords = cycle.revenue_records.filter((r) => r.status === 'APPROVED');
-      const totalKocPay = approvedRecords.reduce(
+      const totalKocPay = cycle.revenue_records.reduce(
         (sum, r) => sum + Number(r.koc_receive_usd),
         0
       );
-      const totalCompanyShare = approvedRecords.reduce(
+      const totalCompanyShare = cycle.revenue_records.reduce(
         (sum, r) => sum + Number(r.company_share),
         0
       );

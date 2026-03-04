@@ -467,7 +467,7 @@ export class EmailService {
    * Send revenue emails to all KOCs for a specific cycle month
    * Returns summary of sent/failed
    */
-  static async sendAllRevenueEmails(month: string, onProgress?: (step: number, total: number, kocName: string) => void): Promise<{
+  static async sendAllRevenueEmails(month: string, adminId?: string, onProgress?: (step: number, total: number, kocName: string) => void): Promise<{
     sent: Array<{ kocId: string; kocName: string; email: string }>;
     failed: Array<{ kocId: string; kocName: string; email: string; error: string }>;
     skipped: Array<{ kocId: string; kocName: string; reason: string }>;
@@ -478,9 +478,9 @@ export class EmailService {
       skipped: [] as Array<{ kocId: string; kocName: string; reason: string }>,
     };
 
-    // Find the cycle for this month
+    // Find the cycle for this month (scoped to admin if provided)
     const cycle = await prisma.revenueCycle.findFirst({
-      where: { month },
+      where: { month, ...(adminId ? { admin_id: adminId } : {}) },
       include: {
         revenue_records: {
           include: {

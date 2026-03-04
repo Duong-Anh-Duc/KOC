@@ -1,9 +1,9 @@
-import { useProgress } from '@/hooks/useProgress';
+import type { ProgressState } from '@/hooks/useProgress';
 import {
-  CalendarOutlined,
-  DollarOutlined,
-  PlusOutlined,
-  ReloadOutlined,
+    CalendarOutlined,
+    DollarOutlined,
+    PlusOutlined,
+    ReloadOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Form, Space, Tabs, Typography } from 'antd';
@@ -14,21 +14,20 @@ import { TaskProgressBar } from '../components/common';
 import { RevenueRecordModal } from '../components/features';
 import { CycleFormModal, CyclesTab, RevenueTab, ScrapeResultModal } from '../components/revenue';
 import {
-  useActiveKOCs,
-  useApproveRecord,
-  useCompleteCycle,
-  useCreateCycle,
-  useCreateRevenueRecord,
-  useCycles,
-  useDeleteRevenueRecord,
-  useFetchExchangeRate,
-  useLockCycle,
-  usePaymentStatus,
-  useRevenueRecords,
-  useScrapeRevenue,
-  useUpdateCycle,
-  useUpdateExchangeRate,
-  useUpdateRevenueRecord,
+    useActiveKOCs,
+    useApproveRecord,
+    useCompleteCycle,
+    useCreateCycle,
+    useCreateRevenueRecord,
+    useCycles,
+    useDeleteRevenueRecord,
+    useFetchExchangeRate,
+    useLockCycle,
+    usePaymentStatus,
+    useRevenueRecords,
+    useUpdateCycle,
+    useUpdateExchangeRate,
+    useUpdateRevenueRecord,
 } from '../hooks';
 import { useAuthStore } from '../stores';
 import type { RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../types';
@@ -69,22 +68,71 @@ const RevenueControlPage: React.FC = () => {
   const deleteRecordMutation = useDeleteRevenueRecord();
   const approveMutation = useApproveRecord();
   const fetchExchangeRateMutation = useFetchExchangeRate();
-  const scrapeRevenueMutation = useScrapeRevenue();
   const updateExchangeRateMutation = useUpdateExchangeRate();
 
-  // SSE Progress for scrape revenue
   const queryClient = useQueryClient();
-  const scrapeProgress = useProgress((result: unknown) => {
-    // When scrape completes, show result and refresh data
-    setScrapeResultData(result);
-    setScrapeResultOpen(true);
-    queryClient.invalidateQueries({ queryKey: ['cycles'] });
-    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
-  });
+
+  // Batch scrape progress state (replaces SSE useProgress hook)
+  const EMPTY_PROGRESS: ProgressState = { taskId: null, active: false, progress: null, completed: false, result: null, error: null };
+  const [batchProgress, setBatchProgress] = useState<ProgressState>(EMPTY_PROGRESS);
 
   // Scrape result modal
   const [scrapeResultOpen, setScrapeResultOpen] = useState(false);
   const [scrapeResultData, setScrapeResultData] = useState<any>(null);
+
+  // ---- Sequential per-KOC scraping helpers ----
+  const scrapeOneAndWait = useCallback((
+    cycleId: number,
+    kocId: string,
+    onChannelProgress: (percent: number, message: string) => void
+  ): Promise<any> => {
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
+    return cycleApi.scrapeRevenue(cycleId, [kocId]).then((res) => {
+      const taskId: string | undefined = res.data?.data?.taskId;
+      if (!taskId) throw new Error('No taskId returned');
+      return new Promise<any>((resolve, reject) => {
+        const url = `${apiBase}/progress/${taskId}`;
+        const es = new EventSource(url);
+        const timer = setTimeout(() => { es.close(); reject(new Error('TIMEOUT')); }, 180000);
+        es.addEventListener('progress', (event: MessageEvent) => {
+          try {
+            const d = JSON.parse(event.data);
+            onChannelProgress(d.percent ?? 0, d.message ?? '');
+          } catch { /* ignore */ }
+        });
+        es.addEventListener('complete', (event: MessageEvent) => {
+          clearTimeout(timer); es.close();
+          try { const d = JSON.parse(event.data); resolve(d?.result ?? d); }
+          catch { resolve(null); }
+        });
+        es.addEventListener('error', () => { clearTimeout(timer); es.close(); reject(new Error('SSE error')); });
+      });
+    });
+  }, []);
+
+  // Merge array of per-channel batch results into one combined result
+  const mergeResults = useCallback((results: any[]): any => {
+    const combined: any = {
+      summary: { totalKOCs: 0, scraped: 0, recordsSkipped: 0, recordsCreated: 0, recordsUpdated: 0, autoApproved: 0, errors: 0 },
+      created: [] as any[],
+      updated: [] as any[],
+      errors: [] as any[],
+    };
+    for (const r of results) {
+      if (!r) continue;
+      if (r.error) { combined.summary.errors += 1; combined.errors.push({ error: r.error }); continue; }
+      combined.summary.totalKOCs += r.summary?.totalKOCs ?? 1;
+      combined.summary.scraped += r.summary?.scraped ?? 0;
+      combined.summary.recordsSkipped += r.summary?.recordsSkipped ?? 0;
+      combined.summary.recordsCreated += r.summary?.recordsCreated ?? 0;
+      combined.summary.recordsUpdated += r.summary?.recordsUpdated ?? 0;
+      combined.summary.autoApproved += r.summary?.autoApproved ?? 0;
+      if (Array.isArray(r.created)) combined.created.push(...r.created);
+      if (Array.isArray(r.updated)) combined.updated.push(...r.updated);
+      if (Array.isArray(r.errors)) combined.errors.push(...r.errors);
+    }
+    return combined;
+  }, []);
 
   // Scrape detail data (for country breakdown + history)
   const { data: scrapeResults } = useQuery({
@@ -168,16 +216,50 @@ const RevenueControlPage: React.FC = () => {
     setActiveTab('revenue');
   };
 
-  const handleScrapeRevenue = (cycleId: number) => {
-    scrapeRevenueMutation.mutate(cycleId, {
-      onSuccess: (res) => {
-        const taskId = res.data?.data?.taskId;
-        if (taskId) {
-          scrapeProgress.startTask(taskId);
-        }
-      },
-    });
-  };
+  const handleScrapeRevenue = useCallback(async (cycleId: number, kocIds?: string[]) => {
+    const ids = kocIds ?? activeKOCs.map((k) => k.id);
+    if (ids.length === 0) return;
+
+    setBatchProgress({ taskId: null, active: true, progress: { step: 0, total: ids.length, percent: 0, message: 'Chuẩn bị...' }, completed: false, result: null, error: null });
+    const allResults: any[] = [];
+
+    for (let i = 0; i < ids.length; i++) {
+      const kocId = ids[i];
+      const koc = activeKOCs.find((k) => k.id === kocId);
+      const kocName = koc?.full_name || kocId;
+      const basePercent = (i / ids.length) * 100;
+      const channelShare = 100 / ids.length;
+
+      setBatchProgress((prev) => ({
+        ...prev,
+        progress: { step: i + 1, total: ids.length, percent: basePercent, message: `(${i + 1}/${ids.length}) ${kocName}` },
+      }));
+
+      try {
+        const result = await scrapeOneAndWait(cycleId, kocId, (chPercent, chMsg) => {
+          setBatchProgress((prev) => ({
+            ...prev,
+            progress: {
+              step: i + 1,
+              total: ids.length,
+              percent: basePercent + (chPercent / 100) * channelShare,
+              message: `(${i + 1}/${ids.length}) ${kocName}${chMsg ? ': ' + chMsg : ''}`,
+            },
+          }));
+        });
+        allResults.push(result);
+      } catch (err: any) {
+        allResults.push({ error: String(err?.message ?? err), kocId });
+      }
+    }
+
+    const combined = mergeResults(allResults);
+    setBatchProgress({ taskId: null, active: false, progress: { step: ids.length, total: ids.length, percent: 100, message: 'Hoàn thành!' }, completed: true, result: combined, error: null });
+    setScrapeResultData(combined);
+    setScrapeResultOpen(true);
+    queryClient.invalidateQueries({ queryKey: ['cycles'] });
+    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+  }, [activeKOCs, scrapeOneAndWait, mergeResults, queryClient]);
 
   const handleCreateRecord = (values: { koc_id: string; original_revenue_usd: number; us_tax_deduction: number }) => {
     if (editingRecord) {
@@ -213,8 +295,8 @@ const RevenueControlPage: React.FC = () => {
           </Space>
         </div>
 
-        {/* SSE Progress Bar for scrape revenue */}
-        <TaskProgressBar state={scrapeProgress.state} onDismiss={scrapeProgress.reset} />
+        {/* Batch scrape progress overlay */}
+        <TaskProgressBar state={batchProgress} onDismiss={() => setBatchProgress((p) => ({ ...p, active: false, completed: false }))} />
 
         <Tabs
           activeKey={activeTab}
@@ -262,7 +344,7 @@ const RevenueControlPage: React.FC = () => {
                   onApprove={(id) => approveMutation.mutate(id)}
                   onDeleteRecord={(id) => deleteRecordMutation.mutate(id)}
                   onScrapeRevenue={handleScrapeRevenue}
-                  scrapeLoading={scrapeRevenueMutation.isPending || scrapeProgress.state.active}
+                  scrapeLoading={batchProgress.active}
                   onLockCycle={(id) => lockCycleMutation.mutate(id)}
                   lockLoading={lockCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
@@ -274,6 +356,7 @@ const RevenueControlPage: React.FC = () => {
                   onViewHistory={(kocId) => setHistoryKocId(kocId)}
                   onCloseHistory={() => setHistoryKocId(null)}
                   paymentStatus={paymentStatus}
+                  activeKOCs={activeKOCs}
                 />
               ),
             },

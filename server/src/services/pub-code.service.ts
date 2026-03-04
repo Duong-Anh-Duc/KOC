@@ -31,17 +31,11 @@ export class PubCodeService {
     
     logger.info(`🔍 Scraping pub code for channel: ${cleanId}`);
 
-    const browser = await YouTubeScraperService.getBrowser(false, 1, adminId); // Headful mode to match login session
-    const page = await browser.newPage();
+    const context = await YouTubeScraperService.getContext(false, adminId);
+    const page = await context.newPage();
 
     try {
-      // Apply stealth
-      await page.evaluateOnNewDocument(`
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        window.chrome = { runtime: {} };
-        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-      `);
+      // Stealth scripts already injected at context level via addInitScript
 
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });

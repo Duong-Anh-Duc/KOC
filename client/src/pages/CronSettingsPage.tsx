@@ -1,5 +1,7 @@
 import {
+  CheckCircleOutlined,
   ClockCircleOutlined,
+  ImportOutlined,
   LinkOutlined,
   LoadingOutlined,
   PlayCircleOutlined,
@@ -9,7 +11,7 @@ import {
   YoutubeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, notification, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
+import { Button, Col, Form, Input, Modal, notification, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cronApi, ytScraperApi } from '../api';
@@ -160,6 +162,7 @@ const CronSettingsPage: React.FC = () => {
 
   // YouTube Scraper - Status check — poll every 3s while waiting for user to login
   const [waitingForLogin, setWaitingForLogin] = React.useState(false);
+  const [loginBrowserOpen, setLoginBrowserOpen] = React.useState(false);
   const {
     data: statusData,
     isLoading: statusLoading,
@@ -169,6 +172,7 @@ const CronSettingsPage: React.FC = () => {
     queryFn: async () => {
       const res = await ytScraperApi.checkStatus();
       const data = res.data?.data;
+      setLoginBrowserOpen(!!data?.loginBrowserOpen);
       if (data?.loggedIn && waitingForLogin) {
         setWaitingForLogin(false);
         notification.destroy('vnc-login');
@@ -177,7 +181,7 @@ const CronSettingsPage: React.FC = () => {
       return data;
     },
     retry: false,
-    refetchInterval: waitingForLogin ? 3000 : false,
+    refetchInterval: (waitingForLogin || loginBrowserOpen) ? 3000 : false,
   });
 
   // Auto-connect on first load
@@ -242,6 +246,64 @@ const CronSettingsPage: React.FC = () => {
     onError: () => {
       toastError('ytScraperChangeError', t('ytScraper.resetSessionError'));
       setWaitingForLogin(false);
+    },
+  });
+
+  // Cookie import modal state
+  const [cookieModalOpen, setCookieModalOpen] = React.useState(false);
+  const [cookieText, setCookieText] = React.useState('');
+
+  const importCookiesMutation = useMutation({
+    mutationFn: (cookies: Array<Record<string, unknown>>) => ytScraperApi.importCookies(cookies),
+    onSuccess: (res) => {
+      const data = res.data?.data;
+      if (data?.loggedIn) {
+        setCookieModalOpen(false);
+        setCookieText('');
+        setWaitingForLogin(false);
+        setLoginBrowserOpen(false);
+        toastSuccess('ytCookieImport', t('ytScraper.importCookiesSuccess'));
+      } else {
+        toastError('ytCookieImportFail', t('ytScraper.importCookiesFailed'));
+      }
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: () => {
+      toastError('ytCookieImportErr', t('ytScraper.importCookiesFailed'));
+    },
+  });
+
+  const handleImportCookies = () => {
+    try {
+      const parsed = JSON.parse(cookieText.trim());
+      const cookies = Array.isArray(parsed) ? parsed : [parsed];
+      if (cookies.length === 0) {
+        toastError('ytCookieEmpty', t('ytScraper.importCookiesEmpty'));
+        return;
+      }
+      importCookiesMutation.mutate(cookies);
+    } catch {
+      toastError('ytCookieParseErr', t('ytScraper.importCookiesInvalidJson'));
+    }
+  };
+
+  // Verify session (close login browser + headless Playwright check)
+  const verifySessionMutation = useMutation({
+    mutationFn: () => ytScraperApi.verifySession(),
+    onSuccess: (res) => {
+      const data = res.data?.data;
+      if (data?.loggedIn) {
+        setWaitingForLogin(false);
+        setLoginBrowserOpen(false);
+        notification.destroy('vnc-login');
+        toastSuccess('ytLoginSuccess', t('ytScraper.loginSuccess'));
+      } else {
+        toastError('ytVerifyFailed', t('ytScraper.verifyFailed'));
+      }
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: () => {
+      toastError('ytVerifyError', t('ytScraper.verifyFailed'));
     },
   });
 
@@ -322,15 +384,40 @@ const CronSettingsPage: React.FC = () => {
                 </Button>
               </Tooltip>
             </Popconfirm>
+          ) : loginBrowserOpen ? (
+            <Space>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                loading={verifySessionMutation.isPending}
+                onClick={() => verifySessionMutation.mutate()}
+              >
+                {t('ytScraper.verifyLogin')}
+              </Button>
+              <Button
+                icon={<LinkOutlined />}
+                onClick={() => window.open('http://46.62.170.132:6080/vnc.html', '_blank', 'noopener,noreferrer')}
+              >
+                {t('ytScraper.openLoginPage')}
+              </Button>
+            </Space>
           ) : (
-            <Button
-              type="primary"
-              icon={<SwapOutlined />}
-              loading={changeAccountMutation.isPending}
-              onClick={() => changeAccountMutation.mutate()}
-            >
-              {t('ytScraper.connect')}
-            </Button>
+            <Space>
+              <Button
+                type="primary"
+                icon={<SwapOutlined />}
+                loading={changeAccountMutation.isPending}
+                onClick={() => changeAccountMutation.mutate()}
+              >
+                {t('ytScraper.connect')}
+              </Button>
+              <Button
+                icon={<ImportOutlined />}
+                onClick={() => setCookieModalOpen(true)}
+              >
+                {t('ytScraper.importCookies')}
+              </Button>
+            </Space>
           )}
         </Space>
       </div>
@@ -385,6 +472,37 @@ const CronSettingsPage: React.FC = () => {
       </Row>
 
       <RunHistoryTable runHistory={runHistory} />
+
+      {/* Cookie Import Modal */}
+      <Modal
+        title={t('ytScraper.importCookies')}
+        open={cookieModalOpen}
+        onCancel={() => { setCookieModalOpen(false); setCookieText(''); }}
+        onOk={handleImportCookies}
+        okText={t('ytScraper.importCookiesSubmit')}
+        okButtonProps={{ loading: importCookiesMutation.isPending, disabled: !cookieText.trim() }}
+        cancelText={t('common.cancel')}
+        width={640}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            <strong>{t('ytScraper.importCookiesDesc')}</strong>
+          </Typography.Paragraph>
+          <ol style={{ paddingLeft: 20, lineHeight: 2 }}>
+            <li>{t('ytScraper.importCookiesStep1')}</li>
+            <li>{t('ytScraper.importCookiesStep2')}</li>
+            <li>{t('ytScraper.importCookiesStep3')}</li>
+            <li>{t('ytScraper.importCookiesStep4')}</li>
+          </ol>
+        </div>
+        <Input.TextArea
+          rows={10}
+          placeholder='[{"name": "SID", "value": "...", "domain": ".youtube.com", ...}]'
+          value={cookieText}
+          onChange={(e) => setCookieText(e.target.value)}
+          style={{ fontFamily: 'monospace', fontSize: 12 }}
+        />
+      </Modal>
     </div>
     </Spin>
   );

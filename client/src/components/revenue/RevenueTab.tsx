@@ -2,12 +2,13 @@ import {
     CheckCircleOutlined,
     CloudSyncOutlined,
     DollarOutlined,
+    DownOutlined,
     LoadingOutlined,
     LockOutlined,
     TeamOutlined
 } from '@ant-design/icons';
-import { Button, Card, Col, Empty, Row, Select, Space, Tag, Tooltip, Typography } from 'antd';
-import React from 'react';
+import { Button, Card, Checkbox, Col, Dropdown, Empty, Modal, Row, Select, Space, Tag, Typography } from 'antd';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PaymentStatusMap, RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../../types';
 import { formatUSD, formatVND } from '../../utils';
@@ -38,7 +39,7 @@ interface RevenueTabProps {
   onEditRecord: (record: RevenueRecord) => void;
   onApprove: (id: string) => void;
   onDeleteRecord: (id: string) => void;
-  onScrapeRevenue: (cycleId: number) => void;
+  onScrapeRevenue: (cycleId: number, kocIds?: string[]) => void;
   scrapeLoading: boolean;
 
   onLockCycle: (id: number) => void;
@@ -53,6 +54,7 @@ interface RevenueTabProps {
   onViewHistory: (kocId: string) => void;
   onCloseHistory: () => void;
   paymentStatus?: PaymentStatusMap;
+  activeKOCs?: Array<{ id: string; full_name: string; channel_name: string; base_rate: number }>;
 }
 
 const RevenueTab: React.FC<RevenueTabProps> = ({
@@ -83,8 +85,11 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   onViewHistory,
   onCloseHistory,
   paymentStatus,
+  activeKOCs,
 }) => {
   const { t } = useTranslation();
+  const [selectKocModalOpen, setSelectKocModalOpen] = useState(false);
+  const [selectedKocIds, setSelectedKocIds] = useState<string[]>([]);
 
   return (
     <>
@@ -128,13 +133,6 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
               formatter: (val) => formatUSD(Number(val)),
             },
             {
-              title: t('revenue.accumulatedKocUsd'),
-              value: totals.totalAccumulatedKocUsd || 0,
-              precision: 2,
-              valueStyle: { color: '#722ed1' },
-              formatter: (val) => formatUSD(Number(val)),
-            },
-            {
               title: t('revenue.kocReceiveVnd'),
               value: totals.totalKocReceiveVnd || 0,
               precision: 0,
@@ -169,16 +167,36 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
             <Col>
               <Space>
                 {!cycleLocked && (
-                  <Tooltip title={t('revenue.updateRevenueHint')}>
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'all',
+                          label: t('revenue.scrapeAll', 'Cào tất cả KOC'),
+                          icon: <CloudSyncOutlined />,
+                          onClick: () => onScrapeRevenue(selectedCycle.id),
+                        },
+                        {
+                          key: 'select',
+                          label: t('revenue.scrapeSelected', 'Chọn KOC để cào'),
+                          icon: <TeamOutlined />,
+                          onClick: () => {
+                            setSelectedKocIds([]);
+                            setSelectKocModalOpen(true);
+                          },
+                        },
+                      ],
+                    }}
+                    disabled={scrapeLoading}
+                  >
                     <Button
                       type="primary"
                       icon={scrapeLoading ? <LoadingOutlined /> : <CloudSyncOutlined />}
-                      onClick={() => onScrapeRevenue(selectedCycle.id)}
                       loading={scrapeLoading}
                     >
-                      {t('revenue.updateRevenue')}
+                      {t('revenue.updateRevenue')} <DownOutlined />
                     </Button>
-                  </Tooltip>
+                  </Dropdown>
                 )}
                 {isAdmin && selectedCycle.status === 'OPEN' && (
                   <Button
@@ -228,6 +246,51 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
       ) : (
         <Empty description={t('revenue.selectCycleFirst')} />
       )}
+
+      {/* KOC Selection Modal */}
+      <Modal
+        title={t('revenue.scrapeSelected', 'Chọn KOC để cào')}
+        open={selectKocModalOpen}
+        onCancel={() => setSelectKocModalOpen(false)}
+        onOk={() => {
+          if (selectedCycle && selectedKocIds.length > 0) {
+            onScrapeRevenue(selectedCycle.id, selectedKocIds);
+            setSelectKocModalOpen(false);
+          }
+        }}
+        okText={t('revenue.startScrape', 'Bắt đầu cào')}
+        okButtonProps={{ disabled: selectedKocIds.length === 0 }}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Checkbox
+            indeterminate={selectedKocIds.length > 0 && selectedKocIds.length < (activeKOCs?.length || 0)}
+            checked={selectedKocIds.length > 0 && selectedKocIds.length === (activeKOCs?.length || 0)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSelectedKocIds(activeKOCs?.map(k => k.id) || []);
+              } else {
+                setSelectedKocIds([]);
+              }
+            }}
+          >
+            {t('common.selectAll', 'Chọn tất cả')} ({activeKOCs?.length || 0})
+          </Checkbox>
+        </div>
+        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          <Checkbox.Group
+            value={selectedKocIds}
+            onChange={(vals) => setSelectedKocIds(vals as string[])}
+            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
+            {activeKOCs?.map(koc => (
+              <Checkbox key={koc.id} value={koc.id}>
+                <span style={{ fontWeight: 500 }}>{koc.full_name}</span>
+                <span style={{ color: '#888', marginLeft: 8 }}>({koc.channel_name})</span>
+              </Checkbox>
+            ))}
+          </Checkbox.Group>
+        </div>
+      </Modal>
     </>
   );
 };

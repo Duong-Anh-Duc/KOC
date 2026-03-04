@@ -238,6 +238,9 @@ export class CycleController {
       const month = cycle.month;
       const taskId = ProgressService.generateTaskId('scrape-revenue');
 
+      // Optional: filter by specific KOC IDs
+      const kocIds: string[] | undefined = req.body?.kocIds;
+
       // Return taskId immediately so client can subscribe to SSE
       res.status(202).json({
         success: true,
@@ -246,8 +249,8 @@ export class CycleController {
       });
 
       // Run scrape in background with progress reporting
-      logger.info(`🚀 Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId})`);
-      CycleController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null).catch(err => {
+      logger.info(`🚀 Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId}, kocIds: ${kocIds ? kocIds.length : 'all'})`);
+      CycleController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null, kocIds).catch(err => {
         logger.error(`❌ scrape-revenue task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
@@ -267,10 +270,14 @@ export class CycleController {
   /**
    * Background method to run scrape revenue with progress
    */
-  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null): Promise<void> {
+  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, kocIds?: string[]): Promise<void> {
     try {
       const kocs = await prisma.kOC.findMany({
-        where: { status: 'ACTIVE', ...(userId ? { admin_id: userId } : {}) },
+        where: {
+          status: 'ACTIVE',
+          ...(userId ? { admin_id: userId } : {}),
+          ...(kocIds && kocIds.length > 0 ? { id: { in: kocIds } } : {}),
+        },
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, base_rate: true },
       });
 
@@ -399,42 +406,9 @@ export class CycleController {
         );
       }
 
-      // ── Auto-approve records that meet the min_payment threshold ──
+      // Auto-approve removed — records accumulate until manually approved by admin.
+      // min_payment is only a display condition (belowThreshold flag) not a trigger.
       const autoApproved: Array<{ koc: string; accumulated: number }> = [];
-      try {
-        const paymentStatus = await RevenueService.getPaymentStatus(cycleId, userId || undefined);
-        // Get all PENDING records in this cycle for this admin's KOCs
-        const pendingRecords = await prisma.revenueRecord.findMany({
-          where: {
-            cycle_id: cycleId,
-            status: 'PENDING',
-            ...(userId ? { koc: { admin_id: userId } } : {}),
-          },
-          include: { koc: { select: { full_name: true, channel_name: true } } },
-        });
-
-        for (const record of pendingRecords) {
-          const status = paymentStatus[record.koc_id];
-          if (status && !status.belowThreshold) {
-            // Accumulated revenue >= threshold → approve this record AND all previous PENDING records
-            await (prisma as any).revenueRecord.updateMany({
-              where: { koc_id: record.koc_id, status: 'PENDING' },
-              data: { status: 'APPROVED', paid_in_cycle_id: cycleId },
-            });
-            autoApproved.push({
-              koc: record.koc.channel_name || record.koc.full_name,
-              accumulated: status.accumulated,
-            });
-            logger.info(`✅ Auto-approved ${record.koc.channel_name} (accumulated: $${status.accumulated} >= $${status.threshold})`);
-          }
-        }
-
-        if (autoApproved.length > 0) {
-          logger.info(`✅ Auto-approved ${autoApproved.length} KOCs for cycle ${cycleId}`);
-        }
-      } catch (err: any) {
-        logger.warn(`⚠️ Auto-approve check failed: ${err.message}`);
-      }
 
       // Send final result via SSE
       ProgressService.complete(taskId, {

@@ -1,7 +1,7 @@
 import {
-  LineChartOutlined,
-  LinkOutlined,
-  ReloadOutlined,
+    LineChartOutlined,
+    LinkOutlined,
+    ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, message, notification, Space, Spin, Tooltip, Typography } from 'antd';
@@ -9,11 +9,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
 import {
-  CreateRevenueBar,
-  CreateRevenueResultModal,
-  LatestResultsTable,
-  LoginStatusCard,
-  ScrapeHistoryDrawer,
+    CreateRevenueBar,
+    CreateRevenueResultModal,
+    LatestResultsTable,
+    LoginStatusCard,
+    ScrapeHistoryDrawer,
 } from '../components/ytScraper';
 import type { RevenueCycle, YouTubeScrapeResult } from '../types';
 
@@ -43,6 +43,7 @@ const YouTubeScraperPage: React.FC = () => {
   });
 
   // Check login status — poll every 3s while waiting for user to log in
+  const [loginBrowserOpen, setLoginBrowserOpen] = React.useState(false);
   const {
     data: statusData,
     isLoading: statusLoading,
@@ -53,6 +54,7 @@ const YouTubeScraperPage: React.FC = () => {
       // Extra: when login is confirmed, clear vncUrl and stop waiting
       const res = await ytScraperApi.checkStatus();
       const data = res.data?.data;
+      setLoginBrowserOpen(!!data?.loginBrowserOpen);
       if (data?.loggedIn && waitingForLogin) {
         setWaitingForLogin(false);
         setVncUrl(null);
@@ -62,7 +64,7 @@ const YouTubeScraperPage: React.FC = () => {
       return data;
     },
     retry: false,
-    refetchInterval: waitingForLogin ? 3000 : false,
+    refetchInterval: (waitingForLogin || loginBrowserOpen) ? 3000 : false,
   });
 
   // Auto-connect on first load
