@@ -607,17 +607,43 @@ export class YouTubeScraperController {
 
   /**
    * POST /api/yt-scraper/monthly/scrape-all
-   * Scrape monthly revenue for all active KOCs
+   * Start background scrape of monthly revenue for all active KOCs.
+   * Returns taskId immediately; client subscribes to SSE for progress.
    */
   static async scrapeAllMonthlyRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
       const adminId = (req as AuthenticatedRequest).user?.userId;
-      const { results, errors } = await MonthlyRevenueService.scrapeAllKOCs(adminId);
-      res.status(200).json({
+      const kocIds: string[] | undefined = req.body?.kocIds;
+      const taskId = ProgressService.generateTaskId('monthly-scrape-all');
+
+      res.status(202).json({
         success: true,
-        data: { results, errors, total: results.length + errors.length },
+        message: t ? t('progress.taskStarted') : 'Task started',
+        data: { taskId },
       });
+
+      // Run in background with progress
+      (async () => {
+        try {
+          const { results, errors } = await MonthlyRevenueService.scrapeAllKOCs(
+            adminId,
+            (current, total, channelName) => {
+              ProgressService.emit(taskId, {
+                step: current,
+                total,
+                percent: Math.round((current / total) * 100),
+                message: `[${current}/${total}] Đang cào: ${channelName}`,
+              });
+            },
+            kocIds
+          );
+          ProgressService.complete(taskId, { results, errors, total: results.length + errors.length });
+        } catch (err: any) {
+          logger.error(`monthly-scrape-all task ${taskId} failed:`, err.message);
+          ProgressService.error(taskId, err.message);
+        }
+      })();
     } catch (error) {
       next(error);
     }

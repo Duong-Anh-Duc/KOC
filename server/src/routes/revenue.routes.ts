@@ -23,6 +23,7 @@ router.get('/records/:id', RevenueController.getRecordById);
 router.post('/records', validate(createRevenueRecordSchema), RevenueController.createRecord);
 router.post('/records/bulk', validate(bulkCreateRevenueRecordSchema), RevenueController.bulkCreateRecords);
 router.put('/records/:id', validate(updateRevenueRecordSchema), RevenueController.updateRecord);
+router.delete('/records/bulk', adminOnly, RevenueController.bulkDeleteRecords);
 router.delete('/records/:id', adminOnly, RevenueController.deleteRecord);
 router.patch('/records/:id/approve', adminOnly, RevenueController.approveRecord);
 

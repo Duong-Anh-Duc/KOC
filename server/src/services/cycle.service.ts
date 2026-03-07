@@ -64,13 +64,41 @@ export class CycleService {
     });
     if (existing) throw new ApiError(409, 'cycle.alreadyExists');
 
-    return db.revenueCycle.create({
+    const cycle = await db.revenueCycle.create({
       data: {
         month,
         exchange_rate: exchangeRate,
         admin_id: adminId || null,
       },
     });
+
+    // Auto-populate empty revenue records for all active KOCs so the table
+    // shows all members immediately. Amounts are 0 and will be filled in by scraping.
+    const activeKocs = await prisma.kOC.findMany({
+      where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) },
+      select: { id: true },
+    });
+
+    if (activeKocs.length > 0) {
+      await prisma.revenueRecord.createMany({
+        data: activeKocs.map(koc => ({
+          koc_id: koc.id,
+          cycle_id: cycle.id,
+          original_revenue_usd: 0,
+          us_tax_deduction: 0,
+          bank_fee: 0,
+          net_revenue: 0,
+          company_share: 0,
+          koc_share_gross: 0,
+          koc_tax_deduction: 0,
+          koc_receive_usd: 0,
+          koc_receive_vnd: 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return cycle;
   }
 
   /**
@@ -118,10 +146,74 @@ export class CycleService {
   }
 
   /**
+   * Add KOC(s) to an existing cycle with empty ($0) revenue records.
+   * If kocIds is omitted, adds ALL active KOCs not yet in the cycle.
+   * Already-added KOCs are silently skipped (no duplicate error).
+   */
+  static async addKocs(cycleId: number, kocIds?: string[], adminId?: string) {
+    const cycle = await db.revenueCycle.findUnique({ where: { id: cycleId } });
+    if (!cycle) throw new ApiError(404, 'cycle.notFound');
+    if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
+    if (cycle.status !== 'OPEN') throw new ApiError(400, 'revenue.cycleLocked');
+
+    // Determine target KOCs
+    const targetKocs = await prisma.kOC.findMany({
+      where: {
+        status: 'ACTIVE',
+        ...(adminId ? { admin_id: adminId } : {}),
+        ...(kocIds && kocIds.length > 0 ? { id: { in: kocIds } } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (targetKocs.length === 0) return { added: 0, skipped: 0 };
+
+    // Find which ones are already in the cycle
+    const existing = await prisma.revenueRecord.findMany({
+      where: { cycle_id: cycleId, koc_id: { in: targetKocs.map(k => k.id) } },
+      select: { koc_id: true },
+    });
+    const existingIds = new Set(existing.map(r => r.koc_id));
+    const toAdd = targetKocs.filter(k => !existingIds.has(k.id));
+
+    if (toAdd.length > 0) {
+      await prisma.revenueRecord.createMany({
+        data: toAdd.map(koc => ({
+          koc_id: koc.id,
+          cycle_id: cycleId,
+          original_revenue_usd: 0,
+          us_tax_deduction: 0,
+          bank_fee: 0,
+          net_revenue: 0,
+          company_share: 0,
+          koc_share_gross: 0,
+          koc_tax_deduction: 0,
+          koc_receive_usd: 0,
+          koc_receive_vnd: 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return { added: toAdd.length, skipped: existingIds.size };
+  }
+
+  /**
    * Lock a cycle (prevent further edits) — checks admin ownership
    */
   static async lock(id: number, adminId?: string) {
     return CycleService.update(id, { status: 'LOCKED' }, adminId);
+  }
+
+  /**
+   * Reopen a LOCKED or PAYMENT_COMPLETED cycle back to OPEN — checks admin ownership
+   */
+  static async reopen(id: number, adminId?: string) {
+    const cycle = await db.revenueCycle.findUnique({ where: { id } });
+    if (!cycle) throw new ApiError(404, 'cycle.notFound');
+    if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
+    if (cycle.status === 'OPEN') throw new ApiError(400, 'cycle.alreadyOpen');
+    return db.revenueCycle.update({ where: { id }, data: { status: 'OPEN' } });
   }
 
   /**

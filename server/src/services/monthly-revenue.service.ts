@@ -8,6 +8,7 @@ import {
   parseRevenueValue,
   parseTimeValue,
 } from '../utils/parseHelpers';
+import { RevenueService } from './revenue.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 // Re-export types so existing imports from this file still work
@@ -397,47 +398,101 @@ export class MonthlyRevenueService {
   }
 
   /**
+   * After saving monthly data, auto-sync revenue into matching open cycles.
+   * monthKey format: "2026-01" → cycle month: "01/2026"
+   */
+  private static async syncToCycles(kocId: string, months: MonthlyRevenueRow[]) {
+    let synced = 0;
+    for (const month of months) {
+      if (month.estimatedRevenue == null) continue;
+
+      // Convert "2026-01" → "01/2026"
+      const [year, mm] = month.monthKey.split('-');
+      const cycleMonth = `${mm}/${year}`;
+
+      try {
+        // Find an OPEN cycle matching this month (scoped to the KOC's admin)
+        const koc = await prisma.kOC.findUnique({ where: { id: kocId }, select: { admin_id: true, base_rate: true } });
+        if (!koc) continue;
+
+        const cycle = await prisma.revenueCycle.findFirst({
+          where: { month: cycleMonth, status: 'OPEN', ...(koc.admin_id ? { admin_id: koc.admin_id } : {}) },
+        });
+        if (!cycle) continue;
+
+        const record = await prisma.revenueRecord.findUnique({
+          where: { koc_id_cycle_id: { koc_id: kocId, cycle_id: cycle.id } },
+        });
+        if (!record) continue;
+
+        // Recalculate all derived fields with the new revenue
+        const calculated = RevenueService.calculate({
+          originalRevenueUsd: month.estimatedRevenue,
+          usTaxDeduction: Number(record.us_tax_deduction),
+          baseRate: Number(koc.base_rate),
+          exchangeRate: Number(cycle.exchange_rate),
+        });
+
+        await prisma.revenueRecord.update({
+          where: { id: record.id },
+          data: calculated,
+        });
+
+        synced++;
+        logger.info(`[MonthlySync] Updated cycle ${cycleMonth} record for KOC ${kocId}: $${month.estimatedRevenue}`);
+      } catch (err: any) {
+        logger.warn(`[MonthlySync] Failed to sync ${month.monthKey} for KOC ${kocId}: ${err.message}`);
+      }
+    }
+    if (synced > 0) logger.info(`[MonthlySync] Synced ${synced} cycle record(s) for KOC ${kocId}`);
+  }
+
+  /**
    * Scrape and save monthly revenue for a single KOC
    */
   static async scrapeAndSave(kocId: string, channelId: string, adminId?: string): Promise<MonthlyRevenueData> {
     const data = await this.scrapeMonthlyRevenue(channelId, adminId);
     await this.saveMonthlyRevenue(kocId, channelId, data);
+    // Auto-update matching open revenue cycles
+    await this.syncToCycles(kocId, data.months);
     return data;
   }
 
   /**
    * Scrape and save monthly revenue for all active KOCs
    */
-  static async scrapeAllKOCs(adminId?: string): Promise<{
+  static async scrapeAllKOCs(
+    adminId?: string,
+    onProgress?: (current: number, total: number, channelName: string) => void,
+    kocIds?: string[]
+  ): Promise<{
     results: Array<{ kocId: string; channelName: string; monthCount: number }>;
     errors: Array<{ kocId: string; channelName: string; error: string }>;
   }> {
     const kocs = await prisma.kOC.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        ...(adminId ? { admin_id: adminId } : {}),
+        ...(kocIds && kocIds.length > 0 ? { id: { in: kocIds } } : {}),
+      },
       select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true },
     });
 
     const results: Array<{ kocId: string; channelName: string; monthCount: number }> = [];
     const errors: Array<{ kocId: string; channelName: string; error: string }> = [];
+    const total = kocs.length;
 
-    for (const koc of kocs) {
+    for (let i = 0; i < kocs.length; i++) {
+      const koc = kocs[i];
+      if (onProgress) onProgress(i + 1, total, koc.channel_name);
       try {
-        logger.info(`📊 Scraping monthly revenue for ${koc.channel_name} (${koc.youtube_channel_id})`);
+        logger.info(`[${i + 1}/${total}] 📊 Scraping monthly revenue for ${koc.channel_name}`);
         const data = await this.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId);
-        results.push({
-          kocId: koc.id,
-          channelName: koc.channel_name,
-          monthCount: data.months.length,
-        });
-        // Small delay between channels
-        await new Promise(r => setTimeout(r, 2000));
+        results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
+        if (i < kocs.length - 1) await new Promise(r => setTimeout(r, 5000));
       } catch (err: any) {
         logger.error(`❌ Failed for ${koc.channel_name}: ${err.message}`);
-        errors.push({
-          kocId: koc.id,
-          channelName: koc.channel_name,
-          error: err.message,
-        });
+        errors.push({ kocId: koc.id, channelName: koc.channel_name, error: err.message });
         if (err.message === 'NOT_LOGGED_IN') break;
       }
     }

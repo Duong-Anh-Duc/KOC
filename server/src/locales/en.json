@@ -52,6 +52,7 @@
     "created": "Revenue cycle created",
     "updated": "Revenue cycle updated",
     "locked": "Revenue cycle locked",
+    "reopened": "Revenue cycle reopened",
     "completed": "Revenue cycle completed",
     "deleted": "Revenue cycle deleted",
     "notFound": "Revenue cycle not found",
@@ -62,6 +63,7 @@
     "mustLockFirst": "Cycle must be locked before completing",
     "pendingRecords": "{{count}} records are still pending approval",
     "onlyOpenCanDelete": "Only OPEN cycles can be deleted",
+    "alreadyOpen": "Cycle is already open",
     "hasRecords": "Cannot delete cycle with existing records",
     "exchangeRateFetched": "Exchange rate fetched successfully",
     "scrapeComplete": "Scrape completed: {{created}} created, {{updated}} updated, {{skipped}} skipped, {{errors}} errors"

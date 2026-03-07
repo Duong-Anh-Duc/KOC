@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, UserAddOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, EditOutlined, UserAddOutlined } from '@ant-design/icons';
 import { Button, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
@@ -20,6 +20,7 @@ interface KOCTableProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onEdit: (koc: KOC) => void;
+  onDuplicate: (koc: KOC) => void;
   onDelete: (id: string) => void;
   onCreateAccount?: (koc: KOC) => void;
   kocHasAccount?: Record<string, boolean>;
@@ -36,6 +37,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
   onPageChange,
   onPageSizeChange,
   onEdit,
+  onDuplicate,
   onDelete,
   onCreateAccount,
   kocHasAccount,
@@ -193,6 +195,15 @@ const KOCTable: React.FC<KOCTableProps> = ({
                   size="small"
                   icon={<EditOutlined style={{ color: '#1677ff' }} />}
                   onClick={() => onEdit(record)}
+                  style={{ padding: '4px 8px' }}
+                />
+              </Tooltip>
+              <Tooltip title="Nhân bản KOC">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CopyOutlined style={{ color: '#fa8c16' }} />}
+                  onClick={() => onDuplicate(record)}
                   style={{ padding: '4px 8px' }}
                 />
               </Tooltip>

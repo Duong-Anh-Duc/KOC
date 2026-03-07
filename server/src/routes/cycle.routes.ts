@@ -15,8 +15,11 @@ router.get('/:id', CycleController.getById);
 router.post('/', adminOnly, validate(createCycleSchema), CycleController.create);
 router.put('/:id', adminOnly, validate(updateCycleSchema), CycleController.update);
 router.patch('/:id/lock', adminOnly, CycleController.lock);
+router.patch('/:id/reopen', adminOnly, CycleController.reopen);
 router.patch('/:id/complete', adminOnly, CycleController.complete);
+router.post('/:id/add-kocs', adminOnly, CycleController.addKocs);
 router.post('/:id/scrape-revenue', adminOnly, CycleController.scrapeRevenue);
+router.post('/:id/check-pub-codes', adminOnly, CycleController.checkPubCodes);
 router.delete('/:id', adminOnly, CycleController.delete);
 
 export default router;

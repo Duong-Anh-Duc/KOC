@@ -1,4 +1,5 @@
 import {
+    CalendarOutlined,
     DatabaseOutlined,
     HistoryOutlined,
     LoadingOutlined,
@@ -23,6 +24,8 @@ interface LatestResultsTableProps {
   onScrapeAll: () => void;
   onRefresh: () => void;
   onViewHistory: (kocId: string) => void;
+  scrapeAllMonthlyLoading: boolean;
+  onScrapeAllMonthly: () => void;
 }
 
 const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
@@ -34,6 +37,8 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
   onScrapeAll,
   onRefresh,
   onViewHistory,
+  scrapeAllMonthlyLoading,
+  onScrapeAllMonthly,
 }) => {
   const { t } = useTranslation();
 
@@ -232,6 +237,14 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       }
       extra={
         <Space>
+          <Button
+            icon={scrapeAllMonthlyLoading ? <LoadingOutlined /> : <CalendarOutlined />}
+            onClick={onScrapeAllMonthly}
+            loading={scrapeAllMonthlyLoading}
+            disabled={!isLoggedIn || scrapeAllMonthlyLoading}
+          >
+            Cào tất cả tháng
+          </Button>
           <Button
             type="primary"
             icon={<PlayCircleOutlined />}

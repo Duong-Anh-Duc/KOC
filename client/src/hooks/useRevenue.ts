@@ -31,6 +31,20 @@ export const useCycleDetail = (id: number) => {
   });
 };
 
+export const useAddKocsToCycle = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cycleId, kocIds }: { cycleId: number; kocIds?: string[] }) =>
+      cycleApi.addKocsToCycle(cycleId, kocIds),
+    onSuccess: (res, vars) => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY, vars.cycleId] });
+      const { added } = res.data.data!;
+      toastSuccess(added > 0 ? `Đã thêm ${added} KOC vào chu kỳ` : 'Không có KOC mới để thêm');
+    },
+    onError: () => toastError('Thêm KOC thất bại'),
+  });
+};
+
 export const useCreateCycle = () => {
   const queryClient = useQueryClient();
 
@@ -73,6 +87,21 @@ export const useLockCycle = () => {
     },
     onError: () => {
       toastError('cycleLockError');
+    },
+  });
+};
+
+export const useReopenCycle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => cycleApi.reopen(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('cycleReopenSuccess');
+    },
+    onError: () => {
+      toastError('cycleReopenError');
     },
   });
 };
@@ -194,6 +223,21 @@ export const useDeleteRevenueRecord = () => {
 
   return useMutation({
     mutationFn: (id: string) => revenueApi.deleteRecord(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      toastSuccess('revenueDeleteSuccess');
+    },
+    onError: () => {
+      toastError('revenueDeleteError');
+    },
+  });
+};
+
+export const useDeleteManyRecords = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => revenueApi.bulkDeleteRecords(ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
       toastSuccess('revenueDeleteSuccess');

@@ -164,6 +164,7 @@
     "month": "Tháng (MM/YYYY)",
     "monthPlaceholder": "MM/YYYY (VD: 02/2026)",
     "lock": "Khoá",
+    "reopen": "Mở lại",
     "complete": "Hoàn thành",
     "open": "Mở",
     "locked": "Đã khoá",
@@ -372,6 +373,7 @@
     "delete": "Bạn có chắc chắn muốn xoá?",
     "approve": "Bạn có chắc chắn muốn duyệt bản ghi này?",
     "lockCycle": "Khoá chu kỳ này? Bản ghi sẽ không thể chỉnh sửa sau khi khoá.",
+    "reopenCycle": "Mở lại chu kỳ này? Trạng thái sẽ chuyển về Mở.",
     "completeCycle": "Hoàn thành chu kỳ? Thao tác này không thể hoàn tác."
   },
   "language": {
@@ -426,6 +428,8 @@
     "cycleUpdateError": "Cập nhật chu kỳ thất bại",
     "cycleLockSuccess": "Khóa chu kỳ thành công!",
     "cycleLockError": "Khóa chu kỳ thất bại",
+    "cycleReopenSuccess": "Mở lại chu kỳ thành công!",
+    "cycleReopenError": "Mở lại chu kỳ thất bại",
     "cycleCompleteSuccess": "Hoàn thành chu kỳ thành công!",
     "cycleCompleteError": "Hoàn thành chu kỳ thất bại",
     "exchangeRateUpdateSuccess": "Cập nhật tỷ giá thành công!",

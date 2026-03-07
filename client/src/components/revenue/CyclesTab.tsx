@@ -1,4 +1,4 @@
-import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined } from '@ant-design/icons';
+import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -18,6 +18,8 @@ interface CyclesTabProps {
   onEditCycle: (cycle: RevenueCycle) => void;
   onLockCycle: (id: number) => void;
   lockLoading: boolean;
+  onReopenCycle: (id: number) => void;
+  reopenLoading: boolean;
   onCompleteCycle: (id: number) => void;
   completeLoading: boolean;
 }
@@ -39,6 +41,8 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
   onEditCycle,
   onLockCycle,
   lockLoading,
+  onReopenCycle,
+  reopenLoading,
   onCompleteCycle,
   completeLoading,
 }) => {
@@ -120,17 +124,49 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
             </>
           )}
           {record.status === 'LOCKED' && isAdmin && (
+            <>
+              <Popconfirm
+                title={t('confirm.reopenCycle')}
+                onConfirm={() => onReopenCycle(record.id)}
+                okText={t('common.yes')}
+                cancelText={t('common.no')}
+              >
+                <Tooltip title={t('cycle.reopen')}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
+                  />
+                </Tooltip>
+              </Popconfirm>
+              <Popconfirm
+                title={t('confirm.completeCycle')}
+                onConfirm={() => onCompleteCycle(record.id)}
+                okText={t('common.yes')}
+                cancelText={t('common.no')}
+              >
+                <Tooltip title={t('cycle.complete')}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                  />
+                </Tooltip>
+              </Popconfirm>
+            </>
+          )}
+          {record.status === 'PAYMENT_COMPLETED' && isAdmin && (
             <Popconfirm
-              title={t('confirm.completeCycle')}
-              onConfirm={() => onCompleteCycle(record.id)}
+              title={t('confirm.reopenCycle')}
+              onConfirm={() => onReopenCycle(record.id)}
               okText={t('common.yes')}
               cancelText={t('common.no')}
             >
-              <Tooltip title={t('cycle.complete')}>
+              <Tooltip title={t('cycle.reopen')}>
                 <Button
                   type="text"
                   size="small"
-                  icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                  icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
                 />
               </Tooltip>
             </Popconfirm>

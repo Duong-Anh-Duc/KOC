@@ -31,7 +31,7 @@ export class PubCodeService {
     
     logger.info(`🔍 Scraping pub code for channel: ${cleanId}`);
 
-    const context = await YouTubeScraperService.getContext(false, adminId);
+    const context = await YouTubeScraperService.getContext(true, adminId);
     const page = await context.newPage();
 
     try {

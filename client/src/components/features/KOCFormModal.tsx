@@ -6,6 +6,7 @@ import type { CreateKOCInput, KOC } from '../../types';
 interface KOCFormModalProps {
   open: boolean;
   editingKOC: KOC | null;
+  cloningKOC?: KOC | null;
   onCancel: () => void;
   onSubmit: (values: CreateKOCInput) => void;
   loading?: boolean;
@@ -14,6 +15,7 @@ interface KOCFormModalProps {
 const KOCFormModal: React.FC<KOCFormModalProps> = ({
   open,
   editingKOC,
+  cloningKOC,
   onCancel,
   onSubmit,
   loading,
@@ -28,12 +30,27 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
         base_rate: Number(editingKOC.base_rate),
         min_payment: Number(editingKOC.min_payment),
       });
+    } else if (open && cloningKOC) {
+      form.setFieldsValue({
+        full_name: cloningKOC.full_name,
+        channel_name: cloningKOC.channel_name,
+        youtube_channel_id: cloningKOC.youtube_channel_id,
+        email: cloningKOC.email,
+        phone: cloningKOC.phone,
+        bank_name: cloningKOC.bank_name,
+        bank_account_number: cloningKOC.bank_account_number,
+        tax_code: cloningKOC.tax_code,
+        pub_code: cloningKOC.pub_code,
+        base_rate: Number(cloningKOC.base_rate),
+        min_payment: Number(cloningKOC.min_payment),
+        status: cloningKOC.status,
+      });
     } else if (open) {
       form.resetFields();
       form.setFieldValue('base_rate', 0.8);
       form.setFieldValue('min_payment', 100);
     }
-  }, [open, editingKOC, form]);
+  }, [open, editingKOC, cloningKOC, form]);
 
   const handleFinish = (values: CreateKOCInput) => {
     onSubmit({
@@ -45,7 +62,13 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
 
   return (
     <Modal
-      title={editingKOC ? t('koc.edit') : t('koc.create')}
+      title={
+        editingKOC
+          ? t('koc.edit')
+          : cloningKOC
+          ? `Nhân bản: ${cloningKOC.channel_name}`
+          : t('koc.create')
+      }
       open={open}
       onCancel={onCancel}
       onOk={() => form.submit()}

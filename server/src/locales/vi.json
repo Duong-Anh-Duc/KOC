@@ -52,6 +52,7 @@
     "created": "Tạo kỳ đối soát thành công",
     "updated": "Cập nhật kỳ đối soát thành công",
     "locked": "Khóa kỳ đối soát thành công",
+    "reopened": "Mở lại kỳ đối soát thành công",
     "completed": "Hoàn tất kỳ đối soát thành công",
     "deleted": "Xóa kỳ đối soát thành công",
     "notFound": "Không tìm thấy kỳ đối soát",
@@ -62,6 +63,7 @@
     "mustLockFirst": "Cần khóa kỳ đối soát trước khi hoàn tất",
     "pendingRecords": "Còn {{count}} bản ghi chưa được phê duyệt",
     "onlyOpenCanDelete": "Chỉ có thể xóa kỳ đối soát đang mở",
+    "alreadyOpen": "Kỳ đối soát đã ở trạng thái mở",
     "hasRecords": "Không thể xóa kỳ đối soát có bản ghi",
     "exchangeRateFetched": "Lấy tỷ giá thành công",
     "scrapeComplete": "Cào hoàn tất: {{created}} tạo mới, {{updated}} cập nhật, {{skipped}} bỏ qua, {{errors}} lỗi"

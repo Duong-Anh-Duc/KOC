@@ -97,8 +97,62 @@ export class YouTubeScraperService {
   private static loginOpenedAtMap: Map<string, number> = new Map();
   /** Flag to prevent concurrent session verifications */
   private static verifyingSession: boolean = false;
+  /** Track the headless Chrome CDP process */
+  private static cdpProcess: import('child_process').ChildProcess | null = null;
   /** Flag to pause KeepAlive during batch scraping */
   private static scrapingInProgress: Map<string, boolean> = new Map();
+
+  /** Used by other services (e.g. exchange rate) to avoid launching concurrent Chromium instances */
+  static isAnyScrapingActive(): boolean {
+    return Array.from(this.scrapingInProgress.values()).some(Boolean);
+  }
+
+  /** Write per-KOC scrape log to src/logs/{label}_{month}.log */
+  private static writeKocLog(
+    channelId: string,
+    month: string | undefined,
+    data: YouTubeAnalyticsData | null,
+    error: string | null,
+    channelLabels?: Map<string, string>
+  ): void {
+    try {
+      const logsDir = path.join(process.cwd(), 'src', 'logs');
+      if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+      const label = (channelLabels?.get(channelId) || channelId).replace(/[^a-zA-Z0-9_\-\u00C0-\u024F\u0300-\u036f\p{L}]/gu, '_');
+      const monthTag = (month || 'unknown').replace('/', '-');
+      const filePath = path.join(logsDir, `${label}_${monthTag}.log`);
+
+      const timestamp = new Date().toLocaleString('vi-VN');
+      const lines: string[] = [];
+      lines.push(`========================================`);
+      lines.push(`Thời gian   : ${timestamp}`);
+      lines.push(`Channel ID  : ${channelId}`);
+      lines.push(`Tháng       : ${month || 'unknown'}`);
+
+      if (error) {
+        lines.push(`Trạng thái  : ❌ THẤT BẠI`);
+        lines.push(`Lỗi         : ${error}`);
+      } else if (data) {
+        lines.push(`Trạng thái  : ✅ THÀNH CÔNG`);
+        lines.push(`Doanh thu   : $${data.totals.estimatedRevenue ?? 0}`);
+        lines.push(`Lượt xem    : ${data.totals.views ?? 0}`);
+        lines.push(`Giờ xem     : ${data.totals.watchTimeHours ?? 0}`);
+        lines.push(`TG xem TB   : ${data.totals.avgWatchTime ?? '-'}`);
+        if (data.countries && data.countries.length > 0) {
+          lines.push(`--- Doanh thu theo quốc gia ---`);
+          for (const c of data.countries) {
+            lines.push(`  ${c.country.padEnd(20)} $${c.estimatedRevenue ?? 0}  (${c.revenuePercent ?? 0}%)`);
+          }
+        }
+      }
+      lines.push('');
+
+      fs.appendFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+    } catch (err: any) {
+      logger.warn(`[Log] Failed to write KOC log for ${channelId}: ${err.message}`);
+    }
+  }
 
   // ============================================================
   // SESSION CHECKS
@@ -161,7 +215,7 @@ export class YouTubeScraperService {
     const existing = this.keepAliveTimers.get(key);
     if (existing) clearInterval(existing);
 
-    const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000; // 10 minutes
+    const KEEP_ALIVE_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
     const timer = setInterval(async () => {
       try {
@@ -189,7 +243,7 @@ export class YouTubeScraperService {
           }
           logger.info(`[KeepAlive] Context gone but sentinel exists for ${key} — relaunching...`);
           try {
-            await this.getContext(false, adminId);
+            await this.getContext(true, adminId);
           } catch (err: any) {
             logger.warn(`[KeepAlive] Failed to relaunch for ${key}: ${err.message}`);
           }
@@ -200,12 +254,12 @@ export class YouTubeScraperService {
         let page: Page | null = null;
         try {
           page = await context.newPage();
+          // Visit studio.youtube.com to refresh Google OAuth tokens (not just youtube.com)
           await page.goto('https://studio.youtube.com', {
-            waitUntil: 'networkidle',
-            timeout: 45000,
+            waitUntil: 'domcontentloaded',
+            timeout: 30000,
           });
-          // Wait for any client-side auth redirects
-          await page.waitForTimeout(3000);
+          await page.waitForTimeout(2000);
 
           const url = page.url();
           if (url.includes('accounts.google.com') || url.includes('signin')) {
@@ -312,80 +366,194 @@ export class YouTubeScraperService {
    * @param headless - false = visible via Xvfb+VNC for login; true would be headless
    * @param adminId - Optional admin ID for per-admin Chrome profile
    */
-  static async getContext(headless: boolean = false, adminId?: string): Promise<BrowserContext> {
-    const key = adminId || '__default__';
+  /** Get real Chrome executable path based on platform */
+  static getRealChromePath(): string | null {
+    if (process.env.CHROME_EXECUTABLE_PATH) return process.env.CHROME_EXECUTABLE_PATH;
+    if (process.platform === 'darwin') {
+      const p = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      if (fs.existsSync(p)) return p;
+    }
+    if (process.platform === 'linux') {
+      for (const p of ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium-browser']) {
+        if (fs.existsSync(p)) return p;
+      }
+    }
+    if (process.platform === 'win32') {
+      const candidates = [
+        path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Google\\Chrome\\Application\\chrome.exe'),
+        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google\\Chrome\\Application\\chrome.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+      }
+    }
+    return null;
+  }
+
+  /** Whether CDP mode is active (real Chrome via remote debugging) */
+  static isCDPMode(): boolean {
+    return !!(process.env.CHROME_CDP_URL);
+  }
+
+  /**
+   * Start Chrome headlessly with --remote-debugging-port for CDP scraping.
+   * Called after login is verified — Chrome runs invisibly in background.
+   * Session is read from user-data-dir so no re-login needed.
+   */
+  static async startHeadlessChrome(adminId?: string): Promise<boolean> {
+    const realChrome = this.getRealChromePath();
+    if (!realChrome) {
+      logger.warn('[CDP] No real Chrome found — cannot start headless Chrome');
+      return false;
+    }
+
     const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
+    const CDP_PORT = 9222;
+
+    // Kill existing CDP process first
+    if (this.cdpProcess) {
+      try { this.cdpProcess.kill('SIGTERM'); } catch { /* ignore */ }
+      this.cdpProcess = null;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+
+    const { spawn } = require('child_process');
+    const isWin = process.platform === 'win32';
+    const args = [
+      `--user-data-dir=${CHROME_USER_DATA_DIR}`,
+      `--remote-debugging-port=${CDP_PORT}`,
+      '--headless=new',           // Real Chrome headless — no window, undetectable
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-client-side-phishing-detection',
+      '--disable-hang-monitor',
+      '--disable-popup-blocking',
+      '--disable-prompt-on-repost',
+      '--disable-sync',
+      '--metrics-recording-only',
+      '--password-store=basic',
+      '--use-mock-keychain',
+      ...(!isWin ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
+    ];
+
+    const child = spawn(realChrome, args, { stdio: 'ignore', detached: false });
+    this.cdpProcess = child;
+    process.env.CHROME_CDP_URL = `http://localhost:${CDP_PORT}`;
+
+    child.on('exit', (code: number | null) => {
+      logger.info(`[CDP] Headless Chrome exited (code=${code})`);
+      this.cdpProcess = null;
+      process.env.CHROME_CDP_URL = '';
+      const key = adminId || '__default__';
+      this.contexts.delete(key);
+    });
+
+    // Wait for Chrome to bind the debugging port
+    await new Promise(r => setTimeout(r, 2500));
+    logger.info(`[CDP] Headless Chrome started (pid=${child.pid}, port=${CDP_PORT}) — no window, full stealth`);
+    return true;
+  }
+
+  static async getContext(headless: boolean = true, adminId?: string): Promise<BrowserContext> {
+    const key = adminId || '__default__';
 
     // Reuse existing context if still open
     const existing = this.contexts.get(key);
     if (existing) {
       try {
-        // Test if context is still alive by listing pages
         await existing.pages();
         return existing;
       } catch {
-        // Context is dead, clean up
         this.contexts.delete(key);
       }
     }
 
-    // Clean stale lock files before launching
+    // ── CDP MODE: connect to real Chrome via remote debugging ──
+    const cdpUrl = process.env.CHROME_CDP_URL;
+    if (cdpUrl) {
+      logger.info(`[CDP] Connecting to real Chrome at ${cdpUrl}...`);
+      try {
+        const { chromium: pw } = require('playwright');
+        const browser = await pw.connectOverCDP(cdpUrl, { timeout: 15000 });
+        const contexts = browser.contexts();
+        const context: BrowserContext = contexts.length > 0 ? contexts[0] : await browser.newContext();
+
+        context.on('close', () => {
+          this.contexts.delete(key);
+          this.stopKeepAlive(adminId);
+          logger.warn('[CDP] Chrome context closed — reconnect on next request');
+        });
+
+        this.contexts.set(key, context);
+        this.startKeepAlive(adminId);
+        logger.info('[CDP] Connected to real Chrome — session is native, no detection risk');
+        return context;
+      } catch (err: any) {
+        throw new Error(
+          `[CDP] Cannot connect to Chrome at ${cdpUrl}. ` +
+          `Make sure Chrome is running: use "Mở trình duyệt" to launch it. Error: ${err.message}`
+        );
+      }
+    }
+
+    // ── PLAYWRIGHT MODE: launch bundled Chromium (fallback) ──
+    const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
     this.cleanStaleLockFiles(CHROME_USER_DATA_DIR);
     fs.mkdirSync(CHROME_USER_DATA_DIR, { recursive: true });
 
-    logger.info(
-      `Launching Playwright persistent context (headless=${headless}) for admin ${adminId || 'default'}...`
-    );
-
-    const launchArgs = [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-dev-shm-usage',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--password-store=basic',
-      '--use-mock-keychain',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--metrics-recording-only',
-      '--no-first-run',
-      '--js-flags=--max-old-space-size=512',
-    ];
+    logger.info(`Launching Playwright persistent context (headless=true) for admin ${adminId || 'default'}...`);
 
     const context = await chromium.launchPersistentContext(CHROME_USER_DATA_DIR, {
-      headless,
+      headless: true,
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
-      args: launchArgs,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-dev-shm-usage',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--password-store=basic',
+        '--use-mock-keychain',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-default-apps',
+        '--disable-translate',
+        '--metrics-recording-only',
+        '--no-first-run',
+        '--js-flags=--max-old-space-size=512',
+      ],
       viewport: { width: 1400, height: 900 },
-      // Do NOT override userAgent — use system Chromium default to match raw login browser
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       timeout: 120000,
       ignoreHTTPSErrors: true,
     });
 
-    // Stealth: inject anti-detection scripts into every new page
     await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      (window as any).chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      (window as any).chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['vi-VN', 'vi', 'en-US', 'en'] });
+      try {
+        const originalQuery = window.navigator.permissions.query.bind(navigator.permissions);
+        (navigator.permissions as any).query = (parameters: any) =>
+          parameters.name === 'notifications'
+            ? Promise.resolve({ state: (typeof Notification !== 'undefined' ? Notification.permission : 'default') } as PermissionStatus)
+            : originalQuery(parameters);
+      } catch { /* ignore */ }
+      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
+      Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
     });
 
-    // Auto-cleanup on close
     context.on('close', () => {
       this.contexts.delete(key);
       this.stopKeepAlive(adminId);
     });
 
     this.contexts.set(key, context);
-
-    // Start session keep-alive timer
     this.startKeepAlive(adminId);
-
     return context;
   }
 
@@ -472,8 +640,14 @@ export class YouTubeScraperService {
     adminId?: string
   ): Promise<{ message: string; vncUrl?: string }> {
     try {
-      // Close any existing Playwright context AND any lingering raw Chromium
+      // Close any existing Playwright/CDP context AND any lingering Chrome processes
       await this.closeBrowser(adminId);
+      if (this.cdpProcess) {
+        try { this.cdpProcess.kill('SIGTERM'); } catch { /* ignore */ }
+        this.cdpProcess = null;
+        process.env.CHROME_CDP_URL = '';
+        await new Promise(r => setTimeout(r, 1000));
+      }
 
       if (adminId) {
         this.loginBrowserOpenMap.set(adminId, true);
@@ -485,22 +659,30 @@ export class YouTubeScraperService {
       this.cleanStaleLockFiles(CHROME_USER_DATA_DIR);
       fs.mkdirSync(CHROME_USER_DATA_DIR, { recursive: true });
 
-      const chromiumPath = process.env.PLAYWRIGHT_CHROMIUM_PATH || '/usr/bin/chromium';
+      // Prefer real Chrome (macOS/Linux), fall back to bundled Chromium
+      const realChrome = this.getRealChromePath();
+      const chromiumPath = realChrome || process.env.PLAYWRIGHT_CHROMIUM_PATH || '/usr/bin/chromium';
+      const isRealChrome = !!realChrome;
 
-      // Raw Chromium args — NO automation flags, NO Playwright detection
+      logger.info(`[Login] Using browser: ${chromiumPath} (real Chrome: ${isRealChrome})`);
+
+      // Base args — NO automation flags
       const args = [
         `--user-data-dir=${CHROME_USER_DATA_DIR}`,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-infobars',
         '--no-first-run',
         '--no-default-browser-check',
-        '--password-store=basic',
-        '--use-mock-keychain',
+        '--disable-infobars',
         '--window-size=1400,900',
-        '--start-maximized',
+        ...(isRealChrome ? [] : [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled',
+          '--password-store=basic',
+          '--use-mock-keychain',
+        ]),
+        // Enable remote debugging so Playwright can connect via CDP after login
+        '--remote-debugging-port=9222',
         'https://studio.youtube.com',
       ];
 
@@ -620,7 +802,7 @@ export class YouTubeScraperService {
     }
     let page: Page | null = null;
     try {
-      const context = await this.getContext(false, adminId);
+      const context = await this.getContext(true, adminId);
       page = await context.newPage();
 
       await page.goto('https://studio.youtube.com', {
@@ -777,7 +959,62 @@ export class YouTubeScraperService {
     const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
 
     try {
-      // Kill the raw login Chromium process
+      // ── CDP MODE: Chrome stays running, just verify via CDP ──
+      const cdpUrl = process.env.CHROME_CDP_URL || 'http://localhost:9222';
+      const realChrome = this.getRealChromePath();
+
+      if (realChrome) {
+        // Real Chrome is still running with --remote-debugging-port=9222
+        // Don't kill it — just connect and verify
+        if (adminId) this.loginBrowserOpenMap.delete(adminId);
+        else this.loginBrowserOpen = false;
+
+        logger.info('[closeLoginAndVerify] CDP mode — verifying via existing Chrome...');
+        let page: Page | null = null;
+        try {
+          // Set CDP URL so getContext uses it
+          process.env.CHROME_CDP_URL = cdpUrl;
+          const context = await this.getContext(true, adminId);
+          page = await context.newPage();
+          await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.waitForTimeout(2000);
+
+          const url = page.url();
+          if (url.includes('accounts.google.com') || url.includes('signin')) {
+            logger.warn('[closeLoginAndVerify] CDP: Not logged in');
+            process.env.CHROME_CDP_URL = '';
+            return { loggedIn: false };
+          }
+
+          const title = await page.title();
+          const channelName = title.replace(/\s*-\s*YouTube Studio.*$/i, '').trim() || undefined;
+          this.markSessionVerified(adminId);
+          const ACCOUNT_INFO_FILE = getAccountInfoFile(adminId);
+          try { fs.writeFileSync(ACCOUNT_INFO_FILE, JSON.stringify({ channelName, extractedAt: new Date().toISOString() }, null, 2)); } catch { /* ignore */ }
+          logger.info(`[closeLoginAndVerify] CDP: Session verified! Channel: ${channelName}`);
+
+          // Kill the headed login Chrome and restart headlessly
+          if (page) { await safeClosePage(page); page = null; }
+          const key = adminId || '__default__';
+          this.contexts.delete(key);
+          if (this.loginProcess) {
+            try { this.loginProcess.kill('SIGTERM'); } catch { /* ignore */ }
+            this.loginProcess = null;
+          }
+          await new Promise(r => setTimeout(r, 1500));
+          await this.startHeadlessChrome(adminId);
+          logger.info('[CDP] Switched to headless Chrome — browser window closed, scraping runs invisibly');
+          return { loggedIn: true, channelName };
+        } catch (err: any) {
+          logger.warn(`[closeLoginAndVerify] CDP verify failed: ${err.message}`);
+          process.env.CHROME_CDP_URL = '';
+          // Fall through to Playwright verification below
+        } finally {
+          if (page) await safeClosePage(page);
+        }
+      }
+
+      // ── PLAYWRIGHT MODE: kill Chrome, verify with headless Playwright ──
       if (this.loginProcess) {
         try { this.loginProcess.kill('SIGTERM'); } catch { /* ignore */ }
         this.loginProcess = null;
@@ -785,23 +1022,16 @@ export class YouTubeScraperService {
       if (adminId) this.loginBrowserOpenMap.delete(adminId);
       else this.loginBrowserOpen = false;
 
-      // Wait for Chrome to fully exit and release file locks
       await new Promise((r) => setTimeout(r, 3000));
       this.cleanStaleLockFiles(CHROME_USER_DATA_DIR);
 
-      // Launch temporary headless Playwright context on the same profile
       let tempContext: BrowserContext | null = null;
       let page: Page | null = null;
       try {
         tempContext = await chromium.launchPersistentContext(CHROME_USER_DATA_DIR, {
           headless: true,
           executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-blink-features=AutomationControlled',
-          ],
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
           timeout: 30000,
           ignoreHTTPSErrors: true,
         });
@@ -1125,10 +1355,23 @@ export class YouTubeScraperService {
       throw new Error(`NAVIGATION_FAILED: Page did not navigate to channel ${cleanId}`);
     }
 
-    // Simple static wait for analytics to render (matching proven monthly scrape approach)
-    // Avoid long waitForSelector which keeps page active and accumulates RAM
-    logger.info('Waiting 8s for analytics to render...');
-    await new Promise(r => setTimeout(r, 8000));
+    // Wait for analytics table to render
+    logger.info('Waiting for analytics to render...');
+    try {
+      await page.waitForSelector('[role="row"], ytd-app, #page-manager', { timeout: 15000 });
+      logger.info('Page ready, waiting 4s for analytics data...');
+      await new Promise(r => setTimeout(r, 4000));
+    } catch {
+      logger.info('Selector timeout, using 12s fallback...');
+      await new Promise(r => setTimeout(r, 12000));
+    }
+
+    // Scroll to trigger lazy-loaded elements (needed in headless mode)
+    try {
+      await page.evaluate('window.scrollTo(0, 400)');
+      await new Promise(r => setTimeout(r, 1000));
+      await page.evaluate('window.scrollTo(0, 0)');
+    } catch { /* ignore */ }
 
     // Stop all background network loading to freeze RAM usage before extraction
     try { await page.evaluate(() => window.stop()); } catch { /* ignore */ }
@@ -1138,61 +1381,49 @@ export class YouTubeScraperService {
     let text = '';
     for (let attempt = 1; attempt <= 2; attempt++) {
       text = await Promise.race([
-        page.evaluate(() => {
-          // --- Memory-safe extraction to avoid renderer OOM on large pages ---
-          // Strategy: collect text row-by-row from table/row elements, avoiding
-          // a single giant `document.body.innerText` allocation that crashes Chromium.
-          const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'SVG', 'PATH', 'DEFS', 'USE']);
-
-          function rowText(el: Element): string {
+        page.evaluate(`(function() {
+          var SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'SVG', 'PATH', 'DEFS', 'USE']);
+          function rowText(el) {
             if (SKIP_TAGS.has(el.tagName)) return '';
-            if ((el as HTMLElement).offsetParent === null) {
-              // Only skip truly hidden elements (display:none). Visibility:hidden still
-              // occupies space but we want to include it for text matching.
-              const cs = window.getComputedStyle(el);
+            if (el.offsetParent === null) {
+              var cs = window.getComputedStyle(el);
               if (cs.display === 'none') return '';
             }
-            const parts: string[] = [];
-            for (const child of Array.from(el.childNodes)) {
+            var parts = [];
+            for (var i = 0; i < el.childNodes.length; i++) {
+              var child = el.childNodes[i];
               if (child.nodeType === 3) {
-                const t = (child.textContent || '').trim();
+                var t = (child.textContent || '').trim();
                 if (t) parts.push(t);
               } else if (child.nodeType === 1) {
-                parts.push(rowText(child as Element));
+                parts.push(rowText(child));
               }
             }
             return parts.join(' ');
           }
-
-          // Try scoped selectors first (analytics main area only, ~10× smaller)
-          const scopeSelectors = [
+          var scopeSelectors = [
             'ytd-analytics-multi-dimension-data-table-renderer',
             'ytd-analytics-main-app',
             '#analytics-content-container',
             'main',
             '#page-manager',
-            'ytd-app',
+            'ytd-app'
           ];
-          for (const sel of scopeSelectors) {
-            const el = document.querySelector(sel);
+          for (var s = 0; s < scopeSelectors.length; s++) {
+            var el = document.querySelector(scopeSelectors[s]);
             if (el) {
-              // Collect rows individually to keep per-allocation small
-              const rowEls = el.querySelectorAll('tr, [role="row"]');
+              var rowEls = el.querySelectorAll('tr, [role="row"]');
               if (rowEls.length > 3) {
-                return Array.from(rowEls).map(r => rowText(r)).join('\n');
+                return Array.from(rowEls).map(function(r) { return rowText(r); }).join('\\n');
               }
             }
           }
-
-          // Last resort: collect row elements from the whole document
-          const allRows = document.querySelectorAll('tr, [role="row"]');
+          var allRows = document.querySelectorAll('tr, [role="row"]');
           if (allRows.length > 3) {
-            return Array.from(allRows).map(r => rowText(r)).join('\n');
+            return Array.from(allRows).map(function(r) { return rowText(r); }).join('\\n');
           }
-
-          // Absolute fallback: body innerText (may crash on very large pages)
           return document.body.innerText;
-        }) as Promise<string>,
+        })()`) as Promise<string>,
         new Promise<string>((_, reject) =>
           setTimeout(
             () => reject(new Error('Timeout extracting text (exceeded 60s)')),
@@ -1224,7 +1455,7 @@ export class YouTubeScraperService {
   ): Promise<YouTubeAnalyticsData> {
     let page: Page | null = null;
     try {
-      const context = await this.getContext(false, adminId);
+      const context = await this.getContext(true, adminId);
       page = await context.newPage();
 
       // Block heavy resources to save RAM
@@ -1254,7 +1485,8 @@ export class YouTubeScraperService {
     channelIds: string[],
     month?: string,
     onProgress?: (channelId: string, index: number, total: number) => void,
-    adminId?: string
+    adminId?: string,
+    channelLabels?: Map<string, string>
   ): Promise<{
     results: YouTubeAnalyticsData[];
     errors: Array<{ channelId: string; error: string }>;
@@ -1274,7 +1506,7 @@ export class YouTubeScraperService {
     const scrapeOneChannel = async (channelId: string): Promise<YouTubeAnalyticsData> => {
       let page: Page | null = null;
       try {
-        const context = await this.getContext(false, adminId);
+        const context = await this.getContext(true, adminId);
         page = await context.newPage();
 
         // Block heavy resources (images, fonts, media, CSS) to save RAM
@@ -1295,7 +1527,42 @@ export class YouTubeScraperService {
     };
 
     /**
-     * Helper: evict corrupted context and kill zombie chromium processes.
+     * SOFT reset: navigate all open pages to about:blank and close extras,
+     * but KEEP exactly ONE blank page open so the persistent context stays alive
+     * (closing all pages kills the launchPersistentContext → context goes dead).
+     * Used between channel batches to reclaim renderer heap without re-login.
+     */
+    const softReset = async () => {
+      const existingCtx = this.contexts.get(adminId || '__default__');
+      if (!existingCtx) return;
+      try {
+        const pages = existingCtx.pages();
+        if (pages.length === 0) return;
+
+        // Navigate first page to blank (keep it as the "holder" page)
+        try {
+          await pages[0].goto('about:blank', { waitUntil: 'commit', timeout: 3000 });
+        } catch { /* ignore */ }
+
+        // Close all extra pages (index 1+)
+        for (let idx = 1; idx < pages.length; idx++) {
+          try {
+            await pages[idx].goto('about:blank', { waitUntil: 'commit', timeout: 2000 });
+            await pages[idx].close();
+          } catch { /* ignore */ }
+        }
+
+        logger.info(`[Memory] Soft reset: navigated ${pages.length} page(s) to blank, kept 1 holder open`);
+      } catch (err: any) {
+        logger.warn(`[Memory] Soft reset failed: ${err.message}`);
+      }
+      // Give GC a moment to reclaim freed heap
+      await new Promise(r => setTimeout(r, 3000));
+    };
+
+    /**
+     * HARD reset: used ONLY when a crash is detected. Closes context fully,
+     * kills zombie chromium processes, then relaunches on next scrape call.
      */
     const resetContext = async () => {
       const existingCtx = this.contexts.get(adminId || '__default__');
@@ -1312,64 +1579,122 @@ export class YouTubeScraperService {
       await new Promise(r => setTimeout(r, 5000));
     };
 
-    try {
-      // Warm-up: load YouTube Studio once so Chromium finishes cold-start
-      // before real scraping begins, preventing first-channel crashes
-      logger.info('Warming up browser — loading YouTube Studio...');
+    /**
+     * Navigate studio.youtube.com to fully restore session from persistent profile.
+     * Only needed after a cold context launch (brand-new or post-crash relaunch).
+     * Skipped when context is already warm (pages from a previous request exist).
+     */
+    const warmUpSession = async (reason: string) => {
+      logger.info(`Warming up browser session (${reason})...`);
+      let warmPage: Page | null = null;
       try {
-        const context = await this.getContext(false, adminId);
-        const warmPage = await context.newPage();
+        const context = await this.getContext(true, adminId);
+        warmPage = await context.newPage();
         await warmPage.route('**/*', (route) => {
           const type = route.request().resourceType();
           if (['image', 'font', 'media', 'stylesheet'].includes(type)) return route.abort();
           return route.continue();
         });
         await warmPage.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const warmUrl = warmPage.url();
+        if (warmUrl.includes('accounts.google.com')) {
+          logger.error(`Session truly expired during warm-up: ${warmUrl}`);
+          throw new Error('NOT_LOGGED_IN');
+        }
         await new Promise(r => setTimeout(r, 3000));
-        await safeClosePage(warmPage); // Close warm-up page too
-        logger.info('Browser warm-up complete');
+        await safeClosePage(warmPage);
+        logger.info('Browser session warm-up complete');
       } catch (err: any) {
+        if (warmPage) await safeClosePage(warmPage).catch(() => {});
+        if (err.message === 'NOT_LOGGED_IN') throw err;
         logger.warn(`Warm-up failed (continuing anyway): ${err.message}`);
+      }
+    };
+
+    try {
+      // Only warm up if context is cold (no live pages = first launch or post-crash relaunch).
+      // Skipping on existing warm context avoids 11× studio navigations when UI
+      // fires one request per KOC — those redundant navigations trigger Google rate-limits.
+      const existingCtxForWarmCheck = this.contexts.get(adminId || '__default__');
+      const isContextCold = !existingCtxForWarmCheck || existingCtxForWarmCheck.pages().length === 0;
+      if (isContextCold) {
+        await warmUpSession('cold start');
+      } else {
+        logger.info('Browser context already warm — skipping studio warm-up');
+      }
+
+      // Process channels in parallel batches. Each batch opens CONCURRENCY tabs
+      // simultaneously, then fully restarts the browser before the next batch
+      // to reclaim all RAM. This is faster than sequential but safe for memory.
+      const CONCURRENCY = 3;
+
+      // Split channelIds into chunks of CONCURRENCY
+      const chunks: string[][] = [];
+      for (let i = 0; i < channelIds.length; i += CONCURRENCY) {
+        chunks.push(channelIds.slice(i, i + CONCURRENCY));
       }
 
       logger.info(
-        `Starting batch scrape: ${total} channels, ONE page per channel (heap freed between each)${month ? ` — month ${month}` : ''}`
+        `Starting parallel batch scrape: ${total} channels, ${CONCURRENCY} tabs at a time (${chunks.length} batches)${month ? ` — month ${month}` : ''}`
       );
 
-      for (let i = 0; i < channelIds.length; i++) {
-        const channelId = channelIds[i];
-        try {
-          if (onProgress) onProgress(channelId, i, total);
-          logger.info(`[${i + 1}/${total}] Scraping channel: ${channelId}`);
+      let sessionExpired = false;
 
-          const data = await scrapeOneChannel(channelId);
-          results.push(data);
-          logger.info(`[${i + 1}/${total}] ✓ Success`);
+      for (let batchIdx = 0; batchIdx < chunks.length; batchIdx++) {
+        if (sessionExpired) break;
 
-          // Small breathing room between channels so OS GC can run
-          if (i < channelIds.length - 1) {
-            await new Promise(r => setTimeout(r, 2000));
+        const chunk = chunks[batchIdx];
+        const batchStart = batchIdx * CONCURRENCY;
+
+        logger.info(`[Batch ${batchIdx + 1}/${chunks.length}] Scraping ${chunk.length} channels in parallel: ${chunk.join(', ')}`);
+
+        // Notify progress for each channel in this batch
+        chunk.forEach((channelId, idx) => {
+          if (onProgress) onProgress(channelId, batchStart + idx, total);
+        });
+
+        // Run CONCURRENCY channels simultaneously
+        const chunkResults = await Promise.allSettled(
+          chunk.map(channelId => scrapeOneChannel(channelId))
+        );
+
+        // Collect results
+        for (let j = 0; j < chunkResults.length; j++) {
+          const channelId = chunk[j];
+          const r = chunkResults[j];
+          if (r.status === 'fulfilled') {
+            results.push(r.value);
+            logger.info(`[Batch ${batchIdx + 1}] ✓ ${channelId}`);
+            this.writeKocLog(channelId, month, r.value, null, channelLabels);
+          } else {
+            const errMsg = r.reason?.message || 'Unknown error';
+            errors.push({ channelId, error: errMsg });
+            logger.warn(`[Batch ${batchIdx + 1}] ✗ ${channelId}: ${errMsg}`);
+            this.writeKocLog(channelId, month, null, errMsg, channelLabels);
+            if (errMsg === 'NOT_LOGGED_IN') sessionExpired = true;
           }
-        } catch (error: any) {
-          logger.warn(`[${i + 1}/${total}] ✗ Failed: ${error.message}`);
-          errors.push({ channelId, error: error.message });
+        }
 
-          if (error.message === 'NOT_LOGGED_IN') {
-            logger.error('Login session expired. Stopping batch scrape.');
-            break;
+        if (sessionExpired) {
+          // Verify session before giving up — might be a transient redirect
+          logger.warn('NOT_LOGGED_IN detected in batch — verifying session...');
+          try {
+            await warmUpSession('session verify after NOT_LOGGED_IN');
+            logger.info('Session still valid — will retry failed channels in retry pass');
+            sessionExpired = false;
+          } catch (verifyErr: any) {
+            if (verifyErr.message === 'NOT_LOGGED_IN') {
+              logger.error('Session truly expired — stopping scrape.');
+              break;
+            }
+            sessionExpired = false;
           }
+        }
 
-          // On crash/timeout: evict corrupted context so next channel gets a fresh one
-          const isCrash = error.message?.includes('Target crashed') ||
-                          error.message?.includes('Target closed') ||
-                          error.message?.includes('Session closed') ||
-                          error.message?.includes('existing browser session') ||
-                          error.message?.includes('NAVIGATION_FAILED') ||
-                          error.message?.includes('SCRAPE_TIMEOUT');
-          if (isCrash) {
-            logger.warn(`[${i + 1}/${total}] Crash detected — evicting context, next channel will get a fresh browser`);
-            await resetContext();
-          }
+        // Soft reset between batches (keep context alive, just free page memory)
+        if (batchIdx < chunks.length - 1 && !sessionExpired) {
+          logger.info(`[Memory] Soft reset after batch ${batchIdx + 1}...`);
+          await softReset();
         }
       }
 
@@ -1413,6 +1738,15 @@ export class YouTubeScraperService {
 
       return { results, errors };
     } finally {
+      // Soft-reset context to free renderer memory BEFORE next request
+      // This is critical when client sends 1-channel requests sequentially:
+      // without this, Chromium accumulates RAM across requests → OOM after 4-5 channels
+      try {
+        await softReset();
+        logger.info('[Memory] Post-batch soft reset done — context ready for next request');
+      } catch (rErr: any) {
+        logger.warn(`[Memory] Post-batch soft reset failed (non-fatal): ${rErr.message}`);
+      }
       // Resume KeepAlive
       this.scrapingInProgress.set(scrapeKey, false);
       logger.debug('Batch scrape complete. Persistent context kept alive for next scrape.');
@@ -1521,10 +1855,7 @@ export class YouTubeScraperService {
     const countries: RevenueByCountry[] = [];
     let period = '';
 
-    const logPath = path.join(
-      process.cwd(),
-      `parse-revenue-${Date.now()}.log`
-    );
+    const logPath: string | null = null;
     let logContent = `=== REVENUE PARSING LOG ===\nTime: ${new Date().toISOString()}\n\n`;
 
     try {
@@ -1533,6 +1864,7 @@ export class YouTubeScraperService {
         .map((l) => l.trim())
         .filter(Boolean);
       logContent += `Total lines in text: ${lines.length}\n\n`;
+      logContent += `=== RAW TEXT ===\n${lines.join('\n')}\n\n=== PARSING ===\n`;
 
       for (const line of lines) {
         const periodMatch = line.match(
@@ -1753,11 +2085,10 @@ export class YouTubeScraperService {
       logContent += `  [${idx}] ${c.country}: revenue=${c.estimatedRevenue}, views=${c.views}\n`;
     });
 
-    try {
-      fs.writeFileSync(logPath, logContent, 'utf-8');
-      logger.info(`Parsing log saved to: ${logPath}`);
-    } catch (err) {
-      logger.error(`Failed to write parsing log: ${err}`);
+    if (logPath) {
+      try {
+        fs.writeFileSync(logPath, logContent, 'utf-8');
+      } catch { /* ignore */ }
     }
 
     return { totals, countries, period };

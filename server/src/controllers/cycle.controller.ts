@@ -4,6 +4,7 @@ import { AUDIT_ACTIONS, ENTITIES } from '../constants';
 import logger from '../middlewares/logger.middleware';
 import { AuditLogService, CycleService, ExchangeRateService, RevenueService } from '../services';
 import { ProgressService } from '../services/progress.service';
+import { PubCodeService } from '../services/pub-code.service';
 import { YouTubeScrapeResultService } from '../services/youtube-scrape-result.service';
 import { YouTubeScraperService } from '../services/youtube-scraper.service';
 import { AuthenticatedRequest } from '../types';
@@ -81,6 +82,26 @@ export class CycleController {
   }
 
   /**
+   * POST /api/cycles/:id/add-kocs
+   * Body: { kocIds?: string[] }  — omit to add ALL missing active KOCs
+   */
+  static async addKocs(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const { kocIds } = req.body as { kocIds?: string[] };
+      const result = await CycleService.addKocs(Number(req.params.id), kocIds, adminId);
+      const t = (req as any).t;
+      res.status(200).json({
+        success: true,
+        message: t ? t('cycle.kocsAdded', { count: result.added }) : `Added ${result.added} KOC(s) to cycle`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * PUT /api/cycles/:id
    */
   static async update(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -133,6 +154,37 @@ export class CycleController {
       res.status(200).json({
         success: true,
         message: t ? t('cycle.locked') : 'Revenue cycle locked',
+        data: cycle,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /api/cycles/:id/reopen
+   */
+  static async reopen(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const oldCycle = await CycleService.getById(Number(req.params.id), adminId);
+      const cycle = await CycleService.reopen(Number(req.params.id), adminId);
+
+      if (req.user) {
+        await AuditLogService.log(
+          req.user.userId,
+          AUDIT_ACTIONS.REOPEN_CYCLE,
+          ENTITIES.REVENUE_CYCLE,
+          String(cycle.id),
+          { status: oldCycle.status },
+          { status: 'OPEN' }
+        );
+      }
+
+      const t = (req as any).t;
+      res.status(200).json({
+        success: true,
+        message: t ? t('cycle.reopened') : 'Revenue cycle reopened',
         data: cycle,
       });
     } catch (error) {
@@ -268,6 +320,92 @@ export class CycleController {
   }
 
   /**
+   * POST /api/cycles/:id/check-pub-codes
+   * Check pub codes for all KOCs in a cycle, update revenue records
+   */
+  static async checkPubCodes(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const t = (req as any).t;
+      const cycleId = Number(req.params.id);
+      const taskId = ProgressService.generateTaskId('check-pub-codes');
+      res.status(202).json({
+        success: true,
+        message: t ? t('progress.taskStarted') : 'Task started',
+        data: { taskId },
+      });
+
+      CycleController.runCheckPubCodes(cycleId, taskId, req.user?.userId || null).catch(err => {
+        logger.error(`❌ check-pub-codes task ${taskId} failed:`, err.message);
+        ProgressService.error(taskId, err.message);
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private static async runCheckPubCodes(cycleId: number, taskId: string, userId: string | null): Promise<void> {
+    try {
+      // Get unique KOCs that have records in this cycle
+      const records = await prisma.revenueRecord.findMany({
+        where: { cycle_id: cycleId },
+        include: { koc: { select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, pub_code: true } } },
+      });
+
+      if (records.length === 0) {
+        ProgressService.complete(taskId, { total: 0, matched: 0, mismatched: 0, noData: 0, errors: 0, results: [] });
+        return;
+      }
+
+      // Deduplicate: check each KOC only once
+      const kocMap = new Map<string, typeof records[0]['koc']>();
+      for (const r of records) {
+        if (!kocMap.has(r.koc.id)) kocMap.set(r.koc.id, r.koc);
+      }
+      const kocs = Array.from(kocMap.values());
+
+      ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: `Kiểm tra mã Pub cho ${kocs.length} KOC...` });
+
+      const results: Array<{ koc: string; stored: string | null; scraped: string | null; matched: boolean | null; error?: string }> = [];
+      let matched = 0, mismatched = 0, noData = 0, errors = 0;
+
+      for (let i = 0; i < kocs.length; i++) {
+        const koc = kocs[i];
+        const percent = Math.round(((i + 1) / kocs.length) * 100);
+
+        ProgressService.emit(taskId, {
+          step: i + 1, total: kocs.length, percent,
+          message: `Checking ${koc.channel_name || koc.full_name} (${i + 1}/${kocs.length})`,
+        });
+
+        try {
+          const scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id, userId || undefined);
+          const pubCodeMatch = scrapedPubCode && koc.pub_code ? scrapedPubCode === koc.pub_code : null;
+
+          // Update ALL revenue records for this KOC (across all cycles)
+          await prisma.revenueRecord.updateMany({
+            where: { koc_id: koc.id },
+            data: { scraped_pub_code: scrapedPubCode, pub_code_match: pubCodeMatch },
+          });
+
+          results.push({ koc: koc.channel_name || koc.full_name, stored: koc.pub_code, scraped: scrapedPubCode, matched: pubCodeMatch });
+          if (pubCodeMatch === true) matched++;
+          else if (pubCodeMatch === false) mismatched++;
+          else noData++;
+        } catch (err: any) {
+          results.push({ koc: koc.channel_name || koc.full_name, stored: koc.pub_code, scraped: null, matched: null, error: err.message });
+          errors++;
+        }
+
+        if (i < kocs.length - 1) await new Promise(r => setTimeout(r, 1500));
+      }
+
+      ProgressService.complete(taskId, { total: kocs.length, matched, mismatched, noData, errors, results });
+    } catch (error: any) {
+      ProgressService.error(taskId, error.message);
+    }
+  }
+
+  /**
    * Background method to run scrape revenue with progress
    */
   private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, kocIds?: string[]): Promise<void> {
@@ -305,6 +443,12 @@ export class CycleController {
         }
       }
 
+      // Build channel label map (channelId → KOC name) for log file naming
+      const channelLabels = new Map<string, string>();
+      for (const [cId, koc] of channelToKocMap.entries()) {
+        channelLabels.set(cId, koc.channel_name || koc.full_name || cId);
+      }
+
       // Scrape channels with progress callback — pass the cycle month so correct period is scraped
       const { results: scrapeResults, errors: scrapeErrors } =
         await YouTubeScraperService.scrapeMultipleChannels(channelIds, month, (channelId, idx, total) => {
@@ -315,7 +459,7 @@ export class CycleController {
             step: currentStep, total: totalSteps, percent,
             message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
           });
-        }, userId || undefined);
+        }, userId || undefined, channelLabels);
 
       // Save scrape results to DB
       for (const result of scrapeResults) {
@@ -377,7 +521,7 @@ export class CycleController {
             });
             if (currentRecord) {
               const prevPending = await prisma.revenueRecord.findMany({
-                where: { koc_id: koc.id, status: 'PENDING', cycle_id: { not: cycleId } },
+                where: { koc_id: koc.id, status: 'PENDING', cycle_id: { lt: cycleId } },
               });
               const accRevenue = prevPending.reduce((s, r) => s + Number(r.original_revenue_usd), 0) + Number(currentRecord.original_revenue_usd);
               const accKoc = prevPending.reduce((s, r) => s + Number(r.koc_receive_usd), 0) + Number(currentRecord.koc_receive_usd);

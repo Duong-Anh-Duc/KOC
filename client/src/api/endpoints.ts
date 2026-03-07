@@ -79,6 +79,9 @@ export const cycleApi = {
   lock: (id: number) =>
     apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/lock`),
 
+  reopen: (id: number) =>
+    apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/reopen`),
+
   complete: (id: number) =>
     apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/complete`),
 
@@ -92,6 +95,13 @@ export const cycleApi = {
   /** Scrape YouTube revenue for KOCs in this cycle's month and auto-create records (returns taskId for SSE progress) */
   scrapeRevenue: (id: number, kocIds?: string[]) =>
     apiClient.post<ApiResponse<{ taskId: string }>>(`/cycles/${id}/scrape-revenue`, kocIds ? { kocIds } : undefined),
+
+  checkPubCodes: (id: number) =>
+    apiClient.post<ApiResponse<{ taskId: string }>>(`/cycles/${id}/check-pub-codes`),
+
+  /** Add KOC(s) to an existing cycle with empty $0 records. Omit kocIds to add all missing active KOCs. */
+  addKocsToCycle: (id: number, kocIds?: string[]) =>
+    apiClient.post<ApiResponse<{ added: number; skipped: number }>>(`/cycles/${id}/add-kocs`, { kocIds }),
 };
 
 // ============================================================
@@ -117,6 +127,9 @@ export const revenueApi = {
 
   deleteRecord: (id: string) =>
     apiClient.delete<ApiResponse>(`/revenue/records/${id}`),
+
+  bulkDeleteRecords: (ids: string[]) =>
+    apiClient.delete<ApiResponse<{ deleted: number }>>('/revenue/records/bulk', { data: { ids } }),
 
   approveRecord: (id: string) =>
     apiClient.patch<ApiResponse<RevenueRecord>>(`/revenue/records/${id}/approve`),
@@ -278,13 +291,9 @@ export const ytScraperApi = {
       scrapedAt: string;
     }>>(`/yt-scraper/monthly/scrape/${kocId}`),
 
-  /** Scrape monthly revenue for all active KOCs */
-  scrapeAllMonthlyRevenue: () =>
-    apiClient.post<ApiResponse<{
-      results: Array<{ kocId: string; channelName: string; monthCount: number }>;
-      errors: Array<{ kocId: string; channelName: string; error: string }>;
-      total: number;
-    }>>('/yt-scraper/monthly/scrape-all'),
+  /** Start background scrape of monthly revenue — returns taskId. Pass kocIds to limit scope. */
+  scrapeAllMonthlyRevenue: (kocIds?: string[]) =>
+    apiClient.post<ApiResponse<{ taskId: string }>>('/yt-scraper/monthly/scrape-all', kocIds ? { kocIds } : undefined),
 
   /** Get stored monthly revenue analytics for a KOC */
   getMonthlyRevenue: (kocId: string) =>

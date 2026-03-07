@@ -206,6 +206,42 @@ export class RevenueController {
   }
 
   /**
+   * DELETE /api/revenue/records/bulk
+   * Body: { ids: string[] }
+   */
+  static async bulkDeleteRecords(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { ids } = req.body as { ids: string[] };
+      const t = (req as any).t;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ success: false, message: 'ids array is required' });
+        return;
+      }
+
+      const result = await RevenueService.bulkDeleteRecords(ids);
+
+      if (req.user) {
+        await AuditLogService.log(
+          req.user.userId,
+          AUDIT_ACTIONS.DELETE_REVENUE_RECORD,
+          ENTITIES.REVENUE_RECORD,
+          'bulk',
+          { ids },
+          null
+        );
+      }
+
+      res.status(200).json({
+        success: true,
+        message: t ? t('revenue.recordsDeleted', { count: result.deleted }) : `${result.deleted} records deleted`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * PATCH /api/revenue/records/:id/approve
    */
   static async approveRecord(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {

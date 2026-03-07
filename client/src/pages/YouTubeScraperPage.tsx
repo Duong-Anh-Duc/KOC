@@ -8,6 +8,8 @@ import { Button, message, notification, Space, Spin, Tooltip, Typography } from 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
+import { TaskProgressBar } from '../components/common';
+import { useProgress } from '../hooks/useProgress';
 import {
     CreateRevenueBar,
     CreateRevenueResultModal,
@@ -239,6 +241,24 @@ const YouTubeScraperPage: React.FC = () => {
     }, 3000);
   };
 
+  // Monthly scrape-all with SSE progress
+  const { state: monthlyProgress, startTask: startMonthlyTask, reset: resetMonthlyProgress } = useProgress(() => {
+    queryClient.invalidateQueries({ queryKey: ['monthlyRevenue'] });
+    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+    message.success('Đã cào xong dữ liệu tháng cho tất cả KOC');
+  });
+
+  const scrapeAllMonthlyMutation = useMutation({
+    mutationFn: () => ytScraperApi.scrapeAllMonthlyRevenue(),
+    onSuccess: (res) => {
+      const taskId = res.data?.data?.taskId;
+      if (taskId) startMonthlyTask(taskId);
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.message || 'Cào dữ liệu tháng thất bại');
+    },
+  });
+
   const isScraping = scrapeAllAsyncMutation.isPending || asyncJobStatus === 'running' || asyncJobStatus === 'pending';
 
   return (
@@ -280,6 +300,8 @@ const YouTubeScraperPage: React.FC = () => {
           disabled={!selectedCycleId || !latestResults || latestResults.length === 0}
         />
 
+        <TaskProgressBar state={monthlyProgress} onDismiss={resetMonthlyProgress} />
+
         <LatestResultsTable
           latestResults={latestResults}
           latestLoading={latestLoading}
@@ -293,6 +315,11 @@ const YouTubeScraperPage: React.FC = () => {
           }}
           onRefresh={() => refetchLatest()}
           onViewHistory={(kocId) => setSelectedKocId(kocId)}
+          scrapeAllMonthlyLoading={scrapeAllMonthlyMutation.isPending || monthlyProgress.active}
+          onScrapeAllMonthly={() => {
+            resetMonthlyProgress();
+            scrapeAllMonthlyMutation.mutate();
+          }}
         />
 
         <ScrapeHistoryDrawer

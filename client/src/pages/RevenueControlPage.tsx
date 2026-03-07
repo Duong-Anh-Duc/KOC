@@ -5,9 +5,10 @@ import {
     PlusOutlined,
     ReloadOutlined,
 } from '@ant-design/icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Form, Space, Tabs, Typography } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button, Form, Space, Tabs, Typography, message } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useProgress } from '../hooks/useProgress';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
 import { TaskProgressBar } from '../components/common';
@@ -15,15 +16,18 @@ import { RevenueRecordModal } from '../components/features';
 import { CycleFormModal, CyclesTab, RevenueTab, ScrapeResultModal } from '../components/revenue';
 import {
     useActiveKOCs,
+    useAddKocsToCycle,
     useApproveRecord,
     useCompleteCycle,
     useCreateCycle,
     useCreateRevenueRecord,
     useCycles,
+    useDeleteManyRecords,
     useDeleteRevenueRecord,
     useFetchExchangeRate,
     useLockCycle,
     usePaymentStatus,
+    useReopenCycle,
     useRevenueRecords,
     useUpdateCycle,
     useUpdateExchangeRate,
@@ -62,15 +66,40 @@ const RevenueControlPage: React.FC = () => {
   const createCycleMutation = useCreateCycle();
   const updateCycleMutation = useUpdateCycle();
   const lockCycleMutation = useLockCycle();
+  const reopenCycleMutation = useReopenCycle();
   const completeCycleMutation = useCompleteCycle();
   const createRecordMutation = useCreateRevenueRecord();
   const updateRecordMutation = useUpdateRevenueRecord();
   const deleteRecordMutation = useDeleteRevenueRecord();
+  const deleteManyMutation = useDeleteManyRecords();
   const approveMutation = useApproveRecord();
   const fetchExchangeRateMutation = useFetchExchangeRate();
   const updateExchangeRateMutation = useUpdateExchangeRate();
+  const addKocsMutation = useAddKocsToCycle();
 
   const queryClient = useQueryClient();
+
+  // Monthly scrape-all with SSE progress
+  const { state: monthlyProgress, startTask: startMonthlyTask, reset: resetMonthlyProgress } = useProgress(() => {
+    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+    message.success('Đã cào xong dữ liệu tháng, doanh thu gốc đã được cập nhật');
+  });
+
+  const { state: pubCodeProgress, startTask: startPubCodeTask, reset: resetPubCodeProgress } = useProgress(() => {
+    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+    message.success('Đã kiểm tra xong mã Pub cho toàn chu kỳ');
+  });
+
+  const scrapeMonthlyMutation = useMutation({
+    mutationFn: (kocIds?: string[]) => ytScraperApi.scrapeAllMonthlyRevenue(kocIds),
+    onSuccess: (res) => {
+      const taskId = res.data?.data?.taskId;
+      if (taskId) { resetMonthlyProgress(); startMonthlyTask(taskId); }
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.message || 'Cào dữ liệu tháng thất bại');
+    },
+  });
 
   // Batch scrape progress state (replaces SSE useProgress hook)
   const EMPTY_PROGRESS: ProgressState = { taskId: null, active: false, progress: null, completed: false, result: null, error: null };
@@ -261,6 +290,16 @@ const RevenueControlPage: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
   }, [activeKOCs, scrapeOneAndWait, mergeResults, queryClient]);
 
+  const handleCheckPubCodes = useCallback(async (cycleId: number) => {
+    try {
+      const res = await cycleApi.checkPubCodes(cycleId);
+      const taskId = res.data?.data?.taskId;
+      if (taskId) { resetPubCodeProgress(); startPubCodeTask(taskId); }
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Kiểm tra mã Pub thất bại');
+    }
+  }, [resetPubCodeProgress, startPubCodeTask]);
+
   const handleCreateRecord = (values: { koc_id: string; original_revenue_usd: number; us_tax_deduction: number }) => {
     if (editingRecord) {
       updateRecordMutation.mutate(
@@ -318,6 +357,8 @@ const RevenueControlPage: React.FC = () => {
                   onEditCycle={openEditCycle}
                   onLockCycle={(id) => lockCycleMutation.mutate(id)}
                   lockLoading={lockCycleMutation.isPending}
+                  onReopenCycle={(id) => reopenCycleMutation.mutate(id)}
+                  reopenLoading={reopenCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
                   completeLoading={completeCycleMutation.isPending}
                 />
@@ -329,7 +370,10 @@ const RevenueControlPage: React.FC = () => {
                 <span><DollarOutlined style={{ marginRight: 6 }} />{t('revenue.records')}</span>
               ),
               children: (
-                <RevenueTab
+                <>
+                  <TaskProgressBar state={monthlyProgress} onDismiss={resetMonthlyProgress} />
+                  <TaskProgressBar state={pubCodeProgress} onDismiss={resetPubCodeProgress} />
+                  <RevenueTab
                   cycles={cycles}
                   loadingCycles={loadingCycles}
                   selectedCycleId={selectedCycleId}
@@ -343,8 +387,15 @@ const RevenueControlPage: React.FC = () => {
                   onEditRecord={(record) => { setEditingRecord(record); setRecordModalOpen(true); }}
                   onApprove={(id) => approveMutation.mutate(id)}
                   onDeleteRecord={(id) => deleteRecordMutation.mutate(id)}
+                  onDeleteManyRecords={(ids) => deleteManyMutation.mutate(ids)}
                   onScrapeRevenue={handleScrapeRevenue}
                   scrapeLoading={batchProgress.active}
+                  onScrapeMonthly={(kocIds) => scrapeMonthlyMutation.mutate(kocIds)}
+                  scrapeMonthlyLoading={scrapeMonthlyMutation.isPending || monthlyProgress.active}
+                  onAddKocsToCycle={(cycleId, kocIds) => addKocsMutation.mutate({ cycleId, kocIds })}
+                  addKocsLoading={addKocsMutation.isPending}
+                  onCheckPubCodes={handleCheckPubCodes}
+                  checkPubCodesLoading={pubCodeProgress.active}
                   onLockCycle={(id) => lockCycleMutation.mutate(id)}
                   lockLoading={lockCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
@@ -357,7 +408,8 @@ const RevenueControlPage: React.FC = () => {
                   onCloseHistory={() => setHistoryKocId(null)}
                   paymentStatus={paymentStatus}
                   activeKOCs={activeKOCs}
-                />
+                  />
+                </>
               ),
             },
           ]}

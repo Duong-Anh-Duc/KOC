@@ -1,9 +1,7 @@
 import prisma from '../config/database';
 import { REVENUE_CONSTANTS } from '../constants';
 import { ApiError } from '../middlewares';
-import logger from '../middlewares/logger.middleware';
 import { RevenueCalculationInput, RevenueCalculationResult } from '../types';
-import { PubCodeService } from './pub-code.service';
 
 export class RevenueService {
   /**
@@ -21,10 +19,13 @@ export class RevenueService {
     const { originalRevenueUsd, usTaxDeduction, baseRate, exchangeRate } = input;
 
     // Step 1: Bank Fee
-    const bankFee = ((originalRevenueUsd - usTaxDeduction) * REVENUE_CONSTANTS.BANK_FEE_RATE) + REVENUE_CONSTANTS.BANK_FEE_FIXED;
+    // If net-before-fee is less than or equal to bank fee, waive bank fee entirely (avoid negative net)
+    const netBeforeFee = originalRevenueUsd - usTaxDeduction;
+    const rawBankFee = (netBeforeFee * REVENUE_CONSTANTS.BANK_FEE_RATE) + REVENUE_CONSTANTS.BANK_FEE_FIXED;
+    const bankFee = netBeforeFee <= rawBankFee ? 0 : rawBankFee;
 
     // Step 2: Net Revenue (after US tax and bank fee)
-    const netRevenue = originalRevenueUsd - usTaxDeduction - bankFee;
+    const netRevenue = netBeforeFee - bankFee;
 
     // Step 3: Company Share (EBE)
     const companyRate = 1 - baseRate;
@@ -88,27 +89,11 @@ export class RevenueService {
       exchangeRate: Number(cycle.exchange_rate),
     });
 
-    // Scrape pub code from YouTube Studio
-    let scrapedPubCode: string | null = null;
-    let pubCodeMatch: boolean | null = null;
-
-    try {
-      scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id, adminId);
-      if (scrapedPubCode && koc.pub_code) {
-        pubCodeMatch = scrapedPubCode === koc.pub_code;
-      }
-      logger.info(`Pub code for ${koc.full_name}: stored=${koc.pub_code}, scraped=${scrapedPubCode}, match=${pubCodeMatch}`);
-    } catch (error: any) {
-      logger.warn(`Failed to scrape pub code for ${koc.full_name}:`, error.message);
-    }
-
     // Create record
     const record = await prisma.revenueRecord.create({
       data: {
         koc_id: kocId,
         cycle_id: cycleId,
-        scraped_pub_code: scrapedPubCode,
-        pub_code_match: pubCodeMatch,
         ...calculated,
       },
       include: {
@@ -147,20 +132,6 @@ export class RevenueService {
       exchangeRate: Number(record.cycle.exchange_rate),
     });
 
-    // Scrape pub code from YouTube Studio
-    let scrapedPubCode: string | null = null;
-    let pubCodeMatch: boolean | null = null;
-
-    try {
-      scrapedPubCode = await PubCodeService.scrapePubCode(record.koc.youtube_channel_id, adminId);
-      if (scrapedPubCode && record.koc.pub_code) {
-        pubCodeMatch = scrapedPubCode === record.koc.pub_code;
-      }
-      logger.info(`Update: Pub code for ${record.koc.full_name}: stored=${record.koc.pub_code}, scraped=${scrapedPubCode}, match=${pubCodeMatch}`);
-    } catch (error: any) {
-      logger.warn(`Update: Failed to scrape pub code for ${record.koc.full_name}:`, error.message);
-    }
-
     const oldValue = {
       original_revenue_usd: Number(record.original_revenue_usd),
       us_tax_deduction: Number(record.us_tax_deduction),
@@ -170,11 +141,7 @@ export class RevenueService {
 
     const updated = await prisma.revenueRecord.update({
       where: { id: recordId },
-      data: {
-        ...calculated,
-        scraped_pub_code: scrapedPubCode,
-        pub_code_match: pubCodeMatch,
-      },
+      data: { ...calculated },
       include: {
         koc: { select: { full_name: true, channel_name: true, pub_code: true } },
         cycle: { select: { month: true, exchange_rate: true } },
@@ -214,30 +181,10 @@ export class RevenueService {
         exchangeRate: Number(cycle.exchange_rate),
       });
 
-      // Scrape pub code
-      let scrapedPubCode: string | null = null;
-      let pubCodeMatch: boolean | null = null;
-
-      try {
-        scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id, adminId);
-        if (scrapedPubCode && koc.pub_code) {
-          pubCodeMatch = scrapedPubCode === koc.pub_code;
-        }
-        logger.info(`Bulk: Pub code for ${koc.full_name}: stored=${koc.pub_code}, scraped=${scrapedPubCode}, match=${pubCodeMatch}`);
-      } catch (error: any) {
-        logger.warn(`Bulk: Failed to scrape pub code for ${koc.full_name}:`, error.message);
-      }
-
       const record = await prisma.revenueRecord.upsert({
         where: { koc_id_cycle_id: { koc_id: item.koc_id, cycle_id: cycleId } },
-        update: { ...calculated, scraped_pub_code: scrapedPubCode, pub_code_match: pubCodeMatch },
-        create: {
-          koc_id: item.koc_id,
-          cycle_id: cycleId,
-          scraped_pub_code: scrapedPubCode,
-          pub_code_match: pubCodeMatch,
-          ...calculated,
-        },
+        update: { ...calculated },
+        create: { koc_id: item.koc_id, cycle_id: cycleId, ...calculated },
       });
 
       results.push({ record, isNew: !existing, oldValue: existing });
@@ -276,13 +223,38 @@ export class RevenueService {
       orderBy: { koc: { full_name: 'asc' } },
     });
 
+    // Dynamically compute accumulated from previous PENDING cycles (not from stored DB value)
+    const kocIds = records.map(r => r.koc_id);
+    const prevPendingRecords = kocIds.length > 0
+      ? await prisma.revenueRecord.findMany({
+          where: { koc_id: { in: kocIds }, status: 'PENDING', cycle_id: { lt: cycleId } },
+        })
+      : [];
+
+    // Sum previous PENDING revenue per KOC
+    const prevOriginalByKoc = new Map<string, number>();
+    const prevKocUsdByKoc = new Map<string, number>();
+    for (const r of prevPendingRecords) {
+      prevOriginalByKoc.set(r.koc_id, (prevOriginalByKoc.get(r.koc_id) ?? 0) + Number(r.original_revenue_usd));
+      prevKocUsdByKoc.set(r.koc_id, (prevKocUsdByKoc.get(r.koc_id) ?? 0) + Number(r.koc_receive_usd));
+    }
+
+    // Inject computed accumulated into each record
+    const enrichedRecords = records.map(r => {
+      const prevOrig = prevOriginalByKoc.get(r.koc_id) ?? 0;
+      const prevKoc = prevKocUsdByKoc.get(r.koc_id) ?? 0;
+      return {
+        ...r,
+        accumulated_revenue_usd: RevenueService.round2(prevOrig + Number(r.original_revenue_usd)),
+        accumulated_koc_usd: RevenueService.round2(prevKoc + Number(r.koc_receive_usd)),
+      };
+    });
+
     // Calculate totals
-    const totals = records.reduce(
+    const totals = enrichedRecords.reduce(
       (acc, r) => {
         const monthly = Number(r.koc_receive_usd);
-        const accumulated = Number((r as any).accumulated_koc_usd ?? 0);
-        // For payment total: use accumulated_koc_usd when > monthly (has prior months),
-        // otherwise use monthly. This represents the actual payout for this entry.
+        const accumulated = Number(r.accumulated_koc_usd ?? 0);
         const kocPayout = accumulated > monthly + 0.001 ? accumulated : monthly;
         return {
           totalOriginal: acc.totalOriginal + Number(r.original_revenue_usd),
@@ -303,7 +275,7 @@ export class RevenueService {
       }
     );
 
-    return { records, totals };
+    return { records: enrichedRecords, totals };
   }
 
   /**
@@ -336,6 +308,28 @@ export class RevenueService {
 
     await prisma.revenueRecord.delete({ where: { id: recordId } });
     return record;
+  }
+
+  /**
+   * Bulk delete revenue records by IDs (all must belong to OPEN cycles)
+   */
+  static async bulkDeleteRecords(ids: string[]) {
+    if (!ids || ids.length === 0) return { deleted: 0 };
+
+    // Validate all records exist and belong to OPEN cycles
+    const records = await prisma.revenueRecord.findMany({
+      where: { id: { in: ids } },
+      include: { cycle: true },
+    });
+
+    for (const record of records) {
+      if (record.cycle.status !== 'OPEN') {
+        throw new ApiError(400, 'revenue.cannotDeleteFromLocked');
+      }
+    }
+
+    await prisma.revenueRecord.deleteMany({ where: { id: { in: ids } } });
+    return { deleted: records.length };
   }
 
   /**

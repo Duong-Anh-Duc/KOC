@@ -1,8 +1,9 @@
-import axios from 'axios';
 import cron from 'node-cron';
+import { chromium } from 'playwright';
 import prisma from '../config/database';
 import logger from '../middlewares/logger.middleware';
 import { RevenueService } from './revenue.service';
+import { YouTubeScraperService } from './youtube-scraper.service';
 
 export interface ExchangeRateData {
   /** Average rate across banks: 1 USD = ? VND */
@@ -14,6 +15,8 @@ export interface ExchangeRateData {
 }
 
 export class ExchangeRateService {
+  private static readonly MBBANK_URL = 'https://webgia.com/ty-gia/mbbank/';
+
   /** In-memory cache of the latest fetched rate */
   private static cachedRate: ExchangeRateData | null = null;
 
@@ -49,6 +52,11 @@ export class ExchangeRateService {
    */
   static startRateRefresher(): void {
     const run = async () => {
+      // Skip if scraper Chromium is active to prevent OOM from concurrent instances
+      if (YouTubeScraperService.isAnyScrapingActive()) {
+        logger.info('💱 [AutoRate] Skipping rate fetch — scraping in progress (avoiding concurrent Chromium OOM)');
+        return;
+      }
       try {
         const data = await this.fetchRate();
         this.cachedRate = data;
@@ -98,63 +106,97 @@ export class ExchangeRateService {
       }
     };
 
-    // Run immediately on startup, then every 10 minutes
+    // Run immediately on startup, then every 30 minutes
     run();
-    cron.schedule('*/10 * * * *', run);
-    logger.info('💱 Exchange rate auto-refresher started (every 10 minutes)');
+    cron.schedule('*/30 * * * *', run);
+    logger.info('💱 Exchange rate auto-refresher started (every 30 minutes)');
   }
 
   /**
-   * Fetch current USD/VND exchange rate.
-   * Tries multiple sources (plain HTTP — no browser needed):
-   * 1. open.er-api.com (free, no key)
-   * 2. Vietcombank XML API
-   * Falls back to 25,000 if all fail.
+   * Fetch current USD/VND exchange rate from MBBank (via webgia.com)
+   * Uses Playwright to wait for JavaScript rendering
+   * Returns the transfer buy rate (mua chuyển khoản)
    */
   static async fetchRate(): Promise<ExchangeRateData> {
-    // --- Source 1: open.er-api.com ---
+    let browser;
     try {
-      logger.info('💱 Fetching USD/VND exchange rate from open.er-api.com...');
-      const res = await axios.get('https://open.er-api.com/v6/latest/USD', {
-        timeout: 10000,
-        headers: { 'User-Agent': 'Mozilla/5.0' },
+      logger.info('💱 Fetching USD/VND exchange rate from MBBank (Playwright)...');
+
+      const isLinux = process.platform === 'linux';
+      browser = await chromium.launch({
+        headless: true,
+        ...(isLinux && { executablePath: '/usr/bin/chromium' }),
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       });
-      const vndRate = res.data?.rates?.VND;
-      if (vndRate && vndRate > 0) {
-        const rate = Math.round(vndRate);
-        logger.info(`✅ Exchange rate fetched: 1 USD = ${rate.toLocaleString()} VND (open.er-api.com)`);
-        return { averageRate: rate, source: 'open.er-api.com', fetchedAt: new Date().toISOString() };
-      }
-    } catch (err: any) {
-      logger.warn(`⚠️ open.er-api.com failed: ${err.message}`);
-    }
 
-    // --- Source 2: Vietcombank XML API ---
-    try {
-      logger.info('💱 Fetching USD/VND exchange rate from Vietcombank...');
-      const res = await axios.get(
-        'https://portal.vietcombank.com.vn/Usercontrols/TVPortal.TyGia/pXML.aspx?b=10',
-        { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } },
-      );
-      const xml: string = res.data;
-      // Parse sell rate for USD: <Exrate CurrencyCode="USD" ... Sell="25,768.00" ... />
-      const match = xml.match(/CurrencyCode="USD"[^>]*Sell="([\d,]+\.?\d*)"/);
-      if (match) {
-        const raw = match[1].replace(/,/g, '').split('.')[0];
-        const rate = parseInt(raw, 10);
-        if (rate > 0) {
-          logger.info(`✅ Exchange rate fetched: 1 USD = ${rate.toLocaleString()} VND (Vietcombank sell)`);
-          return { averageRate: rate, source: 'Vietcombank', fetchedAt: new Date().toISOString() };
-        }
-      }
-    } catch (err: any) {
-      logger.warn(`⚠️ Vietcombank failed: ${err.message}`);
-    }
+      const page = await browser.newPage();
 
-    // --- Fallback: use cached or hardcoded ---
-    const fallback = this.cachedRate?.averageRate || 25800;
-    logger.warn(`⚠️ All exchange rate sources failed. Using fallback: ${fallback.toLocaleString()}`);
-    return { averageRate: fallback, source: 'fallback', fetchedAt: new Date().toISOString() };
+      await page.goto(this.MBBANK_URL, { waitUntil: 'networkidle', timeout: 30000 });
+
+      // Wait for the exchange rate table to load
+      await page.waitForSelector('table.table-exchanges tbody tr', { timeout: 10000 });
+
+      // Extract USD row — find the 50,100 denomination row
+      const usdData = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll('table.table-exchanges tbody tr'));
+        const usdRow = rows.find((row: any) => {
+          const text = row.textContent || '';
+          return text.includes('USD') && text.includes('50,100');
+        }) as HTMLTableRowElement | undefined;
+
+        if (!usdRow) return null;
+
+        const cells = Array.from(usdRow.querySelectorAll('td'));
+        // 0: Currency, 1: Name, 2: Buy cash, 3: Buy transfer <-- WE WANT THIS, 4: Sell cash, 5: Sell transfer
+        const transferBuyText = (cells[3] as HTMLElement)?.innerText?.trim() || '';
+
+        return {
+          transferBuy: transferBuyText,
+          allCells: cells.map((c: any) => c.innerText?.trim() || ''),
+        };
+      });
+
+      await browser.close();
+      browser = undefined;
+
+      if (!usdData || !usdData.transferBuy) {
+        throw new Error(`Could not find USD transfer buy rate. Data: ${JSON.stringify(usdData)}`);
+      }
+
+      logger.info('USD row data:', usdData);
+
+      const transferBuyRate = this.parseVNDNumber(usdData.transferBuy);
+      if (transferBuyRate <= 0) {
+        throw new Error(`Invalid transfer buy rate: ${usdData.transferBuy}`);
+      }
+
+      logger.info(`✅ Exchange rate fetched: 1 USD = ${transferBuyRate.toLocaleString()} VND (MBBank transfer buy)`);
+      return {
+        averageRate: transferBuyRate,
+        source: this.MBBANK_URL,
+        fetchedAt: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      logger.error('❌ Failed to fetch exchange rate from MBBank:', error.message);
+      throw error;
+    } finally {
+      if (browser) await browser.close();
+    }
   }
 
+  /**
+   * Parse VND number format: "25.765,00" → 25765
+   * In Vietnamese format:
+   * - Dot (.) is thousand separator
+   * - Comma (,) is decimal separator
+   * For exchange rates, we only need the integer part
+   */
+  private static parseVNDNumber(str: string): number {
+    // Remove dots (thousand separator)
+    const withoutThousandSep = str.replace(/\./g, '');
+    // Take only the integer part (before comma)
+    const integerPart = withoutThousandSep.split(',')[0];
+    const num = parseInt(integerPart, 10);
+    return isNaN(num) ? 0 : num;
+  }
 }

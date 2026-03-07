@@ -1,15 +1,15 @@
 import type { PaymentStatusMap, RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
 import { formatUSD, formatVND, getTableLocale } from '@/utils';
 import {
-  BarChartOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  EyeOutlined,
-  HistoryOutlined,
-  QuestionCircleOutlined,
-  WarningOutlined,
+    BarChartOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    EyeOutlined,
+    HistoryOutlined,
+    QuestionCircleOutlined,
+    WarningOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -28,6 +28,7 @@ interface RevenueTableProps {
   cycleLocked?: boolean;
   onApprove?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onDeleteMany?: (ids: string[]) => void;
   onEdit?: (record: RevenueRecord) => void;
   isAdmin?: boolean;
   /** Latest scrape results for each KOC - used for country breakdown */
@@ -51,6 +52,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   cycleLocked,
   onApprove,
   onDelete,
+  onDeleteMany,
   onEdit,
   isAdmin,
   scrapeResults,
@@ -65,6 +67,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   const darkMode = useAppStore((s) => s.darkMode);
   const [detailKocId, setDetailKocId] = useState<string | null>(null);
   const [monthlyKoc, setMonthlyKoc] = useState<{ id: string; name: string; channel: string } | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   // Find scrape result for a KOC
   const getScrapeResult = (kocId: string): YouTubeScrapeResult | undefined => {
@@ -257,14 +260,9 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
           return <Text type="secondary">-</Text>;
         }
         const acc = Number(val || 0);
-        const monthly = Number(record.original_revenue_usd || 0);
-        // No prior accumulation — don't show duplicate value
-        if (acc <= monthly + 0.001) {
-          return <Text type="secondary">-</Text>;
-        }
         return (
           <Tooltip title={paymentStatus?.[record.koc_id]?.accumulatedMonths?.map(m => `${m.month}: $${m.revenue.toFixed(2)}`).join(' + ') || ''}>
-            <Text strong style={{ color: '#722ed1' }}>{formatUSD(acc)}</Text>
+            <Text strong style={{ color: acc > 0 ? '#722ed1' : undefined }}>{formatUSD(acc)}</Text>
           </Tooltip>
         );
       },
@@ -335,8 +333,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
         const isIntermediate = record.paid_in_cycle_id != null && record.paid_in_cycle_id !== record.cycle_id;
         if (isIntermediate) return <Text type="secondary">-</Text>;
         const acc = Number(val || 0);
-        if (acc === 0) return <Text type="secondary">-</Text>;
-        const color = acc < 0 ? '#ff4d4f' : '#1677ff';
+        const color = acc < 0 ? '#ff4d4f' : acc > 0 ? '#1677ff' : undefined;
         return <Text strong style={{ color, fontSize: 13 }}>{formatUSD(acc)}</Text>;
       },
     },
@@ -487,6 +484,49 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
 
   return (
   <>
+    {/* ===== Bulk Action Bar ===== */}
+    {isAdmin && !cycleLocked && (onDelete || onDeleteMany) && (
+      <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {selectedRowKeys.length > 0 && (
+          <>
+            <span style={{ color: '#1677ff', fontWeight: 500 }}>
+              {t('common.selected', 'Đã chọn')}: {selectedRowKeys.length}
+            </span>
+            <Popconfirm
+              title={t('confirm.deleteSelected', `Xóa ${selectedRowKeys.length} bản ghi đã chọn?`)}
+              onConfirm={() => {
+                if (onDeleteMany) onDeleteMany(selectedRowKeys as string[]);
+                setSelectedRowKeys([]);
+              }}
+              okText={t('common.yes')}
+              cancelText={t('common.no')}
+            >
+              <Button danger size="small" icon={<DeleteOutlined />}>
+                {t('common.deleteSelected', 'Xóa đã chọn')} ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+            <Button size="small" onClick={() => setSelectedRowKeys([])}>
+              {t('common.cancel', 'Bỏ chọn')}
+            </Button>
+          </>
+        )}
+        {records.length > 0 && (
+          <Popconfirm
+            title={t('confirm.deleteAll', `Xóa tất cả ${records.length} bản ghi?`)}
+            onConfirm={() => {
+              if (onDeleteMany) onDeleteMany(records.map(r => r.id));
+              setSelectedRowKeys([]);
+            }}
+            okText={t('common.yes')}
+            cancelText={t('common.no')}
+          >
+            <Button danger size="small" icon={<DeleteOutlined />} style={{ marginLeft: selectedRowKeys.length > 0 ? 8 : 0 }}>
+              {t('common.deleteAll', 'Xóa tất cả')} ({records.length})
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
+    )}
     <Table<RevenueRecord>
       columns={columns}
       dataSource={records}
@@ -498,6 +538,11 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       pagination={false}
       size="small"
       style={{ borderRadius: 8 }}
+      rowSelection={isAdmin && !cycleLocked && (onDelete || onDeleteMany) ? {
+        selectedRowKeys,
+        onChange: (keys) => setSelectedRowKeys(keys),
+        columnWidth: 40,
+      } : undefined}
       onRow={(record, index) => {
         const getRowBgColor = () => {
           if (record.status === 'APPROVED') {

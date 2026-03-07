@@ -24,6 +24,7 @@ const KOCManagementPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingKOC, setEditingKOC] = useState<KOC | null>(null);
+  const [cloningKOC, setCloningKOC] = useState<KOC | null>(null);
 
   // Account creation state
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -69,7 +70,14 @@ const KOCManagementPage: React.FC = () => {
   };
 
   const handleEdit = (koc: KOC) => {
+    setCloningKOC(null);
     setEditingKOC(koc);
+    setModalOpen(true);
+  };
+
+  const handleDuplicate = (koc: KOC) => {
+    setEditingKOC(null);
+    setCloningKOC(koc);
     setModalOpen(true);
   };
 
@@ -77,7 +85,7 @@ const KOCManagementPage: React.FC = () => {
     if (editingKOC) {
       updateMutation.mutate(
         { id: editingKOC.id, data: values as UpdateKOCInput },
-        { 
+        {
           onSuccess: () => {
             setModalOpen(false);
             setEditingKOC(null);
@@ -86,7 +94,12 @@ const KOCManagementPage: React.FC = () => {
         }
       );
     } else {
-      createMutation.mutate(values, { onSuccess: () => setModalOpen(false) });
+      createMutation.mutate(values, {
+        onSuccess: () => {
+          setModalOpen(false);
+          setCloningKOC(null);
+        }
+      });
     }
   };
 
@@ -147,6 +160,7 @@ const KOCManagementPage: React.FC = () => {
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
         onEdit={handleEdit}
+        onDuplicate={handleDuplicate}
         onDelete={(id) => deleteMutation.mutate(id)}
         onCreateAccount={isAdmin ? handleCreateAccount : undefined}
         kocHasAccount={kocHasAccount}
@@ -155,7 +169,8 @@ const KOCManagementPage: React.FC = () => {
       <KOCFormModal
         open={modalOpen}
         editingKOC={editingKOC}
-        onCancel={() => setModalOpen(false)}
+        cloningKOC={cloningKOC}
+        onCancel={() => { setModalOpen(false); setCloningKOC(null); }}
         onSubmit={handleSubmit}
         loading={createMutation.isPending || updateMutation.isPending}
       />

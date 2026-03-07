@@ -164,6 +164,7 @@
     "month": "Month (MM/YYYY)",
     "monthPlaceholder": "MM/YYYY (e.g., 02/2026)",
     "lock": "Lock",
+    "reopen": "Reopen",
     "complete": "Complete",
     "open": "Open",
     "locked": "Locked",
@@ -372,6 +373,7 @@
     "delete": "Are you sure you want to delete?",
     "approve": "Are you sure you want to approve this record?",
     "lockCycle": "Lock this cycle? Records cannot be edited after locking.",
+    "reopenCycle": "Reopen this cycle? Status will change back to Open.",
     "completeCycle": "Complete this cycle? This action is irreversible."
   },
   "language": {
@@ -426,6 +428,8 @@
     "cycleUpdateError": "Failed to update cycle",
     "cycleLockSuccess": "Cycle locked successfully!",
     "cycleLockError": "Failed to lock cycle",
+    "cycleReopenSuccess": "Cycle reopened successfully!",
+    "cycleReopenError": "Failed to reopen cycle",
     "cycleCompleteSuccess": "Cycle completed successfully!",
     "cycleCompleteError": "Failed to complete cycle",
     "exchangeRateUpdateSuccess": "Exchange rate updated successfully!",
