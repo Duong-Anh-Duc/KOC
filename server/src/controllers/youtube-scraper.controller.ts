@@ -37,8 +37,9 @@ export class YouTubeScraperController {
       const adminId = (req as AuthenticatedRequest).user?.userId;
       const status = await YouTubeScraperService.checkLoginStatus(adminId);
       // Also sync to DB
+      let disconnectInfo: { disconnected_at?: Date | null; disconnect_reason?: string | null; disconnect_url?: string | null } = {};
       if (adminId) {
-        await prisma.youTubeSession.upsert({
+        const session = await prisma.youTubeSession.upsert({
           where: { admin_id: adminId },
           create: {
             admin_id: adminId,
@@ -52,11 +53,18 @@ export class YouTubeScraperController {
             is_logged_in: status.loggedIn,
             account_email: status.email || null,
             account_name: status.channelName || null,
-            ...(status.loggedIn ? { verified_at: new Date() } : {}),
+            ...(status.loggedIn ? { verified_at: new Date(), disconnected_at: null, disconnect_reason: null, disconnect_url: null } : {}),
           },
-        }).catch(() => {}); // Don’t fail if DB not migrated yet
+        }).catch(() => null);
+        if (session && !status.loggedIn) {
+          disconnectInfo = {
+            disconnected_at: session.disconnected_at,
+            disconnect_reason: session.disconnect_reason,
+            disconnect_url: session.disconnect_url,
+          };
+        }
       }
-      res.status(200).json({ success: true, data: status });
+      res.status(200).json({ success: true, data: { ...status, ...disconnectInfo } });
     } catch (error) {
       next(error);
     }
@@ -145,6 +153,46 @@ export class YouTubeScraperController {
           message: 'Cookie không hợp lệ hoặc đã hết hạn. Vui lòng export lại cookie mới từ trình duyệt.',
           data: result,
         });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/yt-scraper/sync-from-chrome
+   * Auto-sync cookies from local Chrome (no extension needed)
+   */
+  static async syncFromChrome(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const { cdpUrl } = req.body;
+      const result = await YouTubeScraperService.syncFromChrome(cdpUrl, adminId);
+
+      if (adminId && result.loggedIn) {
+        await prisma.youTubeSession.upsert({
+          where: { admin_id: adminId },
+          create: {
+            admin_id: adminId,
+            is_logged_in: true,
+            account_email: result.email || null,
+            account_name: result.channelName || null,
+            chrome_profile: adminId,
+            verified_at: new Date(),
+          },
+          update: {
+            is_logged_in: true,
+            account_email: result.email || null,
+            account_name: result.channelName || null,
+            verified_at: new Date(),
+          },
+        }).catch(() => {});
+      }
+
+      if (result.loggedIn) {
+        res.status(200).json({ success: true, message: 'Đồng bộ cookie từ Chrome thành công!', data: result });
+      } else {
+        res.status(200).json({ success: false, message: 'Chrome chưa đăng nhập YouTube Studio. Vui lòng đăng nhập vào Chrome trước.', data: result });
       }
     } catch (error) {
       next(error);

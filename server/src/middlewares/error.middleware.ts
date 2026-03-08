@@ -1,4 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
+import { YouTubeScraperService } from '../services/youtube-scraper.service';
+import { AuthenticatedRequest } from '../types';
 
 export interface AppError extends Error {
   statusCode: number;
@@ -33,6 +35,18 @@ export const errorHandler = (
     res.status(err.statusCode).json({
       success: false,
       message,
+    });
+    return;
+  }
+
+  // Khi bất kỳ service nào throw NOT_LOGGED_IN → xóa sentinel ngay, trả 401
+  if (err.message === 'NOT_LOGGED_IN') {
+    const adminId = (req as AuthenticatedRequest).user?.userId;
+    YouTubeScraperService.markSessionDisconnected('scrape_not_logged_in', undefined, adminId).catch(() => {});
+    res.status(401).json({
+      success: false,
+      message: 'Phiên YouTube Studio đã hết hạn. Vui lòng kết nối lại.',
+      code: 'NOT_LOGGED_IN',
     });
     return;
   }

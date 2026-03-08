@@ -12,7 +12,7 @@
     "audit": "Audit Logs",
     "stats": "Channel Stats",
     "ytScraper": "YT Scraper",
-    "cronSettings": "Revenue Update",
+    "cronSettings": "Connection & Schedule Settings",
     "emailSettings": "Email Settings"
   },
   "auth": {
@@ -449,6 +449,14 @@
     "title": "YouTube Analytics Scraper",
     "connected": "Connected",
     "notConnected": "Not Connected",
+    "cookieExpiredWarning": "Cookie has expired or session was logged out. Please import new cookies to continue scraping.",
+    "connectionStatusTitle": "YouTube Studio Connection Status",
+    "checkConnection": "Check Connection",
+    "checkConnectionSuccess": "Connection is still active!",
+    "checkConnectionFailed": "Connection lost! Please reconnect.",
+    "syncFromChrome": "Sync from Chrome",
+    "syncFromChromeSuccess": "Successfully synced cookies from Chrome!",
+    "syncFromChromeFailed": "Cannot sync. Chrome is not open or not logged in to YouTube Studio.",
     "openLogin": "Open Login Browser",
     "closeBrowser": "Close Browser",
     "loginBrowserOpened": "Browser opened. Please log in to YouTube Studio.",

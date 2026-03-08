@@ -39,10 +39,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid -> redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const data = error.response.data as any;
+      if (data?.code === 'NOT_LOGGED_IN') {
+        // YouTube session expired — invalidate status cache, NOT logout user
+        window.dispatchEvent(new CustomEvent('yt-session-expired'));
+      } else {
+        // JWT expired → redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

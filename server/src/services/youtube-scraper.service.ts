@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { BrowserContext, chromium, Page } from 'playwright';
 import logger from '../middlewares/logger.middleware';
+import { EmailService } from './email.service';
 import { ExchangeRateService } from './exchange-rate.service';
 
 // Re-export Page type so socialblade.service.ts can import from here if needed
@@ -83,6 +84,8 @@ export class YouTubeScraperService {
   private static loginBrowserOpenMap: Map<string, boolean> = new Map();
   /** Legacy flag */
   private static loginBrowserOpen: boolean = false;
+  /** Throttle session-expired email alerts — track last sent time per adminId */
+  private static lastAlertSentAt: Map<string, number> = new Map();
   /** Timestamp when sentinel was last written */
   private static sessionVerifiedAt: number = 0;
   /** Per-admin session verified timestamps */
@@ -163,23 +166,75 @@ export class YouTubeScraperService {
    */
   static hasValidSession(adminId?: string): boolean {
     const SESSION_VERIFIED_FILE = getSessionVerifiedFile(adminId);
-    const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
-
     if (fs.existsSync(SESSION_VERIFIED_FILE)) {
-      logger.info(`Valid session found for admin ${adminId || 'default'} (sentinel file present)`);
+      logger.info(`Valid session for admin ${adminId || 'default'} (sentinel present)`);
       return true;
     }
-    if (!fs.existsSync(CHROME_USER_DATA_DIR)) {
-      logger.info(`No session for admin ${adminId || 'default'}: Chrome profile directory does not exist`);
-      return false;
+    logger.info(`No valid session for admin ${adminId || 'default'} (sentinel missing)`);
+    return false;
+  }
+
+  /**
+   * Record disconnect reason to DB so UI can show detailed error
+   */
+  static async markSessionDisconnected(reason: string, url?: string, adminId?: string): Promise<void> {
+    try {
+      const sf = getSessionVerifiedFile(adminId);
+      if (fs.existsSync(sf)) fs.unlinkSync(sf);
+    } catch { /* ignore */ }
+
+    logger.warn(`[Session] Disconnected — reason: "${reason}"${url ? ` url: ${url}` : ''} admin: ${adminId || 'default'}`);
+
+    if (adminId) {
+      try {
+        const prisma = (await import('../config/database')).default;
+        await prisma.youTubeSession.updateMany({
+          where: { admin_id: adminId },
+          data: {
+            is_logged_in: false,
+            disconnected_at: new Date(),
+            disconnect_reason: reason,
+            disconnect_url: url?.substring(0, 1000) ?? null,
+          },
+        });
+      } catch { /* ignore — DB might not have a row yet */ }
     }
-    const defaultProfilePath = path.join(CHROME_USER_DATA_DIR, 'Default');
-    if (!fs.existsSync(defaultProfilePath)) {
-      logger.info(`No session for admin ${adminId || 'default'}: Default profile not found`);
-      return false;
+
+    this.notifySessionExpired(adminId).catch(() => {});
+  }
+
+  /**
+   * Send session-expired email alert to admin — throttled to once per hour
+   */
+  private static async notifySessionExpired(adminId?: string): Promise<void> {
+    const key = adminId || '__default__';
+    const last = this.lastAlertSentAt.get(key) || 0;
+    const ONE_HOUR = 60 * 60 * 1000;
+    if (Date.now() - last < ONE_HOUR) {
+      logger.info(`[Alert] Throttled — already sent session alert for ${key} within last hour`);
+      return;
     }
-    logger.info(`Valid session found for admin ${adminId || 'default'} (profile exists)`);
-    return true;
+    this.lastAlertSentAt.set(key, Date.now());
+
+    try {
+      let adminEmail: string | null | undefined;
+      if (adminId) {
+        const prisma = (await import('../config/database')).default;
+        adminEmail = (await prisma.user.findUnique({ where: { id: adminId }, select: { email: true } }))?.email;
+      } else {
+        adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
+      }
+
+      if (!adminEmail) {
+        logger.warn(`[Alert] No admin email found for ${key} — cannot send alert`);
+        return;
+      }
+
+      logger.info(`[Alert] Sending session expired email to ${adminEmail}...`);
+      await EmailService.sendSessionExpiredAlert(adminEmail);
+    } catch (err: any) {
+      logger.error(`[Alert] Failed to send session expired email: ${err.message}`);
+    }
   }
 
   /**
@@ -205,83 +260,55 @@ export class YouTubeScraperService {
   // ============================================================
 
   /**
-   * Start a periodic keep-alive for an admin's session.
-   * Every 10 minutes, navigates to YouTube Studio main page to keep Google session fresh.
-   * With Playwright persistent context, cookies + localStorage + IndexedDB are all
-   * auto-saved, so this just needs to touch the page to refresh server-side session TTL.
+   * Keep-alive: chỉ kiểm tra context còn sống không, KHÔNG navigate thêm trang.
+   * Tránh gửi request đều đặn đến Google (dễ bị bot detection).
+   * Context Playwright persistent tự refresh OAuth token nội bộ khi còn trong memory.
+   * Navigate thực sự chỉ xảy ra khi scrape — đó là hành vi tự nhiên nhất.
    */
   private static startKeepAlive(adminId?: string): void {
     const key = adminId || '__default__';
     const existing = this.keepAliveTimers.get(key);
     if (existing) clearInterval(existing);
 
-    const KEEP_ALIVE_INTERVAL = 15 * 60 * 1000; // 15 minutes
+    const KEEP_ALIVE_INTERVAL = 30 * 60 * 1000; // 30 phút — chỉ check, không navigate
 
     const timer = setInterval(async () => {
       try {
-        const isLoginOpen = adminId
-          ? this.loginBrowserOpenMap.get(adminId)
-          : this.loginBrowserOpen;
+        if (this.scrapingInProgress.get(key)) return;
+        const isLoginOpen = adminId ? this.loginBrowserOpenMap.get(adminId) : this.loginBrowserOpen;
         if (isLoginOpen) return;
 
-        // Skip keep-alive if scraping is in progress — avoids RAM competition
-        if (this.scrapingInProgress.get(key)) {
-          logger.debug(`[KeepAlive] Skipping for ${key} — scraping in progress`);
+        const sentinelExists = fs.existsSync(getSessionVerifiedFile(adminId));
+        if (!sentinelExists) {
+          // Sentinel đã bị xóa (session chết được phát hiện lúc scrape)
+          const t = this.keepAliveTimers.get(key);
+          if (t) { clearInterval(t); this.keepAliveTimers.delete(key); }
+          logger.debug(`[KeepAlive] Sentinel gone for ${key} — stopping timer`);
           return;
         }
 
-        let context = this.contexts.get(key);
-
-        // If context is gone but sentinel exists, relaunch
+        const context = this.contexts.get(key);
         if (!context) {
-          const sentinelExists = fs.existsSync(getSessionVerifiedFile(adminId));
-          if (!sentinelExists) {
-            const t = this.keepAliveTimers.get(key);
-            if (t) { clearInterval(t); this.keepAliveTimers.delete(key); }
-            logger.debug(`[KeepAlive] No sentinel for ${key}, stopping timer`);
-            return;
-          }
-          logger.info(`[KeepAlive] Context gone but sentinel exists for ${key} — relaunching...`);
+          // Context bị mất (server restart) — relaunch lazy để refresh tokens từ disk profile
+          logger.info(`[KeepAlive] Context gone for ${key} — relaunching from saved profile...`);
           try {
             await this.getContext(true, adminId);
+            logger.info(`[KeepAlive] Context restored for ${key}`);
           } catch (err: any) {
-            logger.warn(`[KeepAlive] Failed to relaunch for ${key}: ${err.message}`);
+            logger.warn(`[KeepAlive] Failed to restore context for ${key}: ${err.message}`);
           }
           return;
         }
 
-        logger.info(`[KeepAlive] Refreshing session for ${key}...`);
-        let page: Page | null = null;
-        try {
-          page = await context.newPage();
-          // Visit studio.youtube.com to refresh Google OAuth tokens (not just youtube.com)
-          await page.goto('https://studio.youtube.com', {
-            waitUntil: 'domcontentloaded',
-            timeout: 30000,
-          });
-          await page.waitForTimeout(2000);
-
-          const url = page.url();
-          if (url.includes('accounts.google.com') || url.includes('signin')) {
-            logger.warn(`[KeepAlive] Session expired for ${key} — redirected to: ${url}`);
-            try {
-              const sf = getSessionVerifiedFile(adminId);
-              if (fs.existsSync(sf)) fs.unlinkSync(sf);
-            } catch { /* ignore */ }
-          } else {
-            logger.info(`[KeepAlive] Session still valid for ${key}`);
-            this.markSessionVerified(adminId);
-          }
-        } finally {
-          if (page) await safeClosePage(page);
-        }
+        // Context còn sống → không cần làm gì thêm
+        logger.debug(`[KeepAlive] Context alive for ${key} — no action needed`);
       } catch (err: any) {
         logger.warn(`[KeepAlive] Error for ${key}: ${err.message}`);
       }
     }, KEEP_ALIVE_INTERVAL);
 
     this.keepAliveTimers.set(key, timer);
-    logger.info(`[KeepAlive] Timer started for ${key} (every ${KEEP_ALIVE_INTERVAL / 60000} min)`);
+    logger.info(`[KeepAlive] Timer started for ${key} (check every ${KEEP_ALIVE_INTERVAL / 60000} min, no page visits)`);
   }
 
   /**
@@ -317,10 +344,14 @@ export class YouTubeScraperService {
       return;
     }
 
-    logger.info(
-      `[Session Init] Found ${found.length} saved session(s): ${found.map((a) => a || 'default').join(', ')}. ` +
-      `Sessions will be restored on-demand (not at startup) to conserve memory.`
-    );
+    logger.info(`[Session Init] Found ${found.length} saved session(s): ${found.map((a) => a || 'default').join(', ')}.`);
+
+    // Start keep-alive timers immediately so sessions stay alive without needing a scrape first.
+    // The timer will lazily launch the browser context on first tick (not right now) to save RAM.
+    for (const adminId of found) {
+      this.startKeepAlive(adminId);
+      logger.info(`[Session Init] Keep-alive started for ${adminId || 'default'}`);
+    }
   }
 
   private static stopKeepAlive(adminId?: string): void {
@@ -526,7 +557,7 @@ export class YouTubeScraperService {
         '--js-flags=--max-old-space-size=512',
       ],
       viewport: { width: 1400, height: 900 },
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
       timeout: 120000,
       ignoreHTTPSErrors: true,
     });
@@ -815,12 +846,7 @@ export class YouTubeScraperService {
         logger.warn('Not logged in (redirected to Google login)');
         await safeClosePage(page);
         await this.closeBrowser(adminId);
-        try {
-          if (fs.existsSync(SESSION_VERIFIED_FILE)) {
-            fs.unlinkSync(SESSION_VERIFIED_FILE);
-            logger.info('Sentinel file deleted (session expired).');
-          }
-        } catch { /* ignore */ }
+        this.markSessionDisconnected('account_info_redirect', page.url(), adminId).catch(() => {});
         return {};
       }
 
@@ -906,24 +932,18 @@ export class YouTubeScraperService {
     }
 
     const hasSession = this.hasValidSession(adminId);
-    if (!hasSession) return { loggedIn: false };
+    if (!hasSession) {
+      // Xóa cache cũ để không hiện sai thông tin kênh
+      try { if (fs.existsSync(ACCOUNT_INFO_FILE)) fs.unlinkSync(ACCOUNT_INFO_FILE); } catch { /* ignore */ }
+      return { loggedIn: false };
+    }
 
     if (fs.existsSync(ACCOUNT_INFO_FILE)) {
       try {
         const raw = fs.readFileSync(ACCOUNT_INFO_FILE, 'utf-8');
         const info = JSON.parse(raw);
 
-        const REAL_VERIFY_INTERVAL = 15 * 60 * 1000;
-        const lastVerify =
-          this.lastRealVerifyMap.get(adminId || '__default__') || 0;
-        if (Date.now() - lastVerify > REAL_VERIFY_INTERVAL) {
-          this.lastRealVerifyMap.set(adminId || '__default__', Date.now());
-          setTimeout(
-            () => this.extractAndCacheAccountInfo(adminId).catch(() => {}),
-            0
-          );
-        }
-
+        // Chỉ đọc cache — không tự navigate để tránh bot detection
         return {
           loggedIn: true,
           channelName: info.channelName,
@@ -932,15 +952,8 @@ export class YouTubeScraperService {
       } catch { /* ignore */ }
     }
 
-    const verifiedAt = adminId
-      ? this.sessionVerifiedAtMap.get(adminId) || 0
-      : this.sessionVerifiedAt;
-    const msSinceVerified = Date.now() - verifiedAt;
-    const delayMs = Math.max(0, 10000 - msSinceVerified);
-    setTimeout(
-      () => this.extractAndCacheAccountInfo(adminId).catch(() => {}),
-      delayMs
-    );
+    // Không có account-info.json → trả loggedIn: true nhưng không navigate tự động
+    // User có thể click "Tải lại" để lấy thông tin tài khoản thủ công
     return { loggedIn: true };
   }
 
@@ -1110,6 +1123,71 @@ export class YouTubeScraperService {
   // ============================================================
 
   /**
+   * Auto-sync cookies from a running Chrome instance (via CDP).
+   * Requires Chrome to be open with --remote-debugging-port=9222 and logged in to YouTube Studio.
+   * No browser extension needed — server reads cookies directly via Playwright CDP.
+   */
+  static async syncFromChrome(
+    cdpUrl?: string,
+    adminId?: string
+  ): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+    const url = cdpUrl || process.env.CHROME_CDP_URL || 'http://127.0.0.1:9222';
+    logger.info(`[SyncFromChrome] Connecting to Chrome at ${url}...`);
+
+    const { chromium: pw } = require('playwright');
+    let browser: any = null;
+
+    try {
+      browser = await pw.connectOverCDP(url, { timeout: 10000 });
+      const contexts = browser.contexts();
+      const context = contexts.length > 0 ? contexts[0] : await browser.newContext();
+
+      // Extract ALL cookies from Chrome (no URL filter — get everything including .google.com)
+      const allCookies = await context.cookies();
+      const ytCookies = allCookies.filter((c: any) =>
+        c.domain.includes('google.com') ||
+        c.domain.includes('youtube.com') ||
+        c.domain.includes('googleapis.com')
+      );
+
+      logger.info(`[SyncFromChrome] Got ${allCookies.length} total cookies, ${ytCookies.length} Google/YouTube cookies`);
+
+      if (ytCookies.length === 0) {
+        logger.warn('[SyncFromChrome] No Google/YouTube cookies found — make sure Chrome is logged in to YouTube Studio');
+        return { loggedIn: false };
+      }
+
+      // Log key auth cookies for debugging (name only, not value)
+      const keyNames = ['SID', 'HSID', 'SSID', 'APISID', 'SAPISID', '__Secure-1PSID', '__Secure-3PSID', 'LOGIN_INFO'];
+      const foundKeys = ytCookies.filter((c: any) => keyNames.includes(c.name)).map((c: any) => `${c.name}(exp:${c.expires > 0 ? new Date(c.expires * 1000).toISOString().slice(0, 10) : 'session'})`);
+      logger.info(`[SyncFromChrome] Key auth cookies: ${foundKeys.join(', ') || 'none'}`);
+
+      // Disconnect from Chrome before importing (avoid lock conflicts)
+      await browser.close().catch(() => {});
+      browser = null;
+
+      // Import into Playwright persistent profile
+      const result = await this.importCookies(ytCookies, adminId);
+
+      // After successful import, immediately start keep-alive so context stays warm
+      if (result.loggedIn) {
+        this.startKeepAlive(adminId);
+        // Pre-warm context in background (don't block response)
+        this.getContext(true, adminId).catch((err: any) =>
+          logger.warn(`[SyncFromChrome] Context pre-warm failed: ${err.message}`)
+        );
+      }
+
+      return result;
+    } catch (err: any) {
+      logger.error(`[SyncFromChrome] Failed: ${err.message}`);
+      throw new Error(`Cannot connect to Chrome at ${url}. Make sure Chrome is running with --remote-debugging-port=9222. Error: ${err.message}`);
+    } finally {
+      if (browser) await browser.close().catch(() => {});
+    }
+  }
+
+  /**
    * Import cookies from user's local browser to establish YouTube session.
    * User exports cookies using Chrome extension (e.g. Cookie-Editor) on studio.youtube.com,
    * then pastes the JSON here. Server writes cookies into a headless Playwright profile
@@ -1158,23 +1236,34 @@ export class YouTubeScraperService {
         ignoreHTTPSErrors: true,
       });
 
-      // Convert Cookie-Editor format to Playwright format
-      const playwrightCookies = cookies.map((c) => ({
-        name: c.name,
-        value: c.value,
-        domain: c.domain.startsWith('.') ? c.domain : c.domain,
-        path: c.path || '/',
-        httpOnly: c.httpOnly ?? false,
-        secure: c.secure ?? true,
-        sameSite: (c.sameSite === 'no_restriction' || c.sameSite === 'None')
-          ? 'None' as const
-          : c.sameSite === 'lax' || c.sameSite === 'Lax'
-            ? 'Lax' as const
-            : 'Strict' as const,
-        expires: c.expirationDate ? Math.floor(c.expirationDate) : undefined,
-      }));
+      // Convert Cookie-Editor / Playwright-CDP format to Playwright addCookies format.
+      // expirationDate = Cookie-Editor (unix seconds), expires = Playwright CDP format.
+      // Session cookies (expires = -1 or missing) are kept as session cookies.
+      const playwrightCookies = cookies.map((c) => {
+        const rawExpires = c.expirationDate ?? (c as any).expires;
+        const expires = rawExpires && rawExpires > 0 ? Math.floor(rawExpires) : undefined;
 
-      logger.info(`[importCookies] Adding ${playwrightCookies.length} cookies for admin ${adminId || 'default'}...`);
+        const ss = c.sameSite;
+        const sameSite: 'None' | 'Lax' | 'Strict' =
+          ss === 'no_restriction' || ss === 'None' ? 'None'
+          : ss === 'lax' || ss === 'Lax' ? 'Lax'
+          : ss === 'strict' || ss === 'Strict' ? 'Strict'
+          : 'Lax'; // safe default (was 'Strict' before, which breaks cross-site cookies)
+
+        return {
+          name: c.name,
+          value: c.value,
+          domain: c.domain,
+          path: c.path || '/',
+          httpOnly: c.httpOnly ?? false,
+          secure: c.secure ?? true,
+          sameSite,
+          ...(expires !== undefined ? { expires } : {}),
+        };
+      });
+
+      const persistentCount = playwrightCookies.filter((c) => (c as any).expires !== undefined).length;
+      logger.info(`[importCookies] Adding ${playwrightCookies.length} cookies (${persistentCount} persistent, ${playwrightCookies.length - persistentCount} session) for admin ${adminId || 'default'}...`);
 
       // Add cookies to context
       await tempContext.addCookies(playwrightCookies);
@@ -1327,7 +1416,8 @@ export class YouTubeScraperService {
 
     // Navigate to blank first to reduce memory pressure
     try { await page.goto('about:blank', { waitUntil: 'commit', timeout: 5000 }); } catch { /* ignore */ }
-    await new Promise(r => setTimeout(r, 500));
+    // Random pre-navigation delay (1-3s) to mimic human pace
+    await new Promise(r => setTimeout(r, 1000 + Math.floor(Math.random() * 2000)));
 
     try {
       logger.info('Navigating to revenue explore page...');
@@ -1623,10 +1713,13 @@ export class YouTubeScraperService {
         logger.info('Browser context already warm — skipping studio warm-up');
       }
 
-      // Process channels in parallel batches. Each batch opens CONCURRENCY tabs
-      // simultaneously, then fully restarts the browser before the next batch
-      // to reclaim all RAM. This is faster than sequential but safe for memory.
-      const CONCURRENCY = 3;
+      // Concurrency: sequential (1) for large batches to avoid Google session kill,
+      // parallel (2) for small batches. Tune via env var if needed.
+      const CONCURRENCY = total > 10 ? 1 : 2;
+      // Delay between batches: longer for large batches to avoid rate-limiting
+      const BATCH_DELAY_MS = total > 10 ? 8000 : 4000;
+      // Every N batches, do a studio homepage visit to "reset" Google's request counter
+      const SESSION_REFRESH_EVERY = 5;
 
       // Split channelIds into chunks of CONCURRENCY
       const chunks: string[][] = [];
@@ -1635,7 +1728,7 @@ export class YouTubeScraperService {
       }
 
       logger.info(
-        `Starting parallel batch scrape: ${total} channels, ${CONCURRENCY} tabs at a time (${chunks.length} batches)${month ? ` — month ${month}` : ''}`
+        `Starting batch scrape: ${total} channels, concurrency=${CONCURRENCY}, batchDelay=${BATCH_DELAY_MS}ms (${chunks.length} batches)${month ? ` — month ${month}` : ''}`
       );
 
       let sessionExpired = false;
@@ -1685,16 +1778,30 @@ export class YouTubeScraperService {
           } catch (verifyErr: any) {
             if (verifyErr.message === 'NOT_LOGGED_IN') {
               logger.error('Session truly expired — stopping scrape.');
+              this.markSessionDisconnected('scrape_not_logged_in', undefined, adminId).catch(() => {});
               break;
             }
             sessionExpired = false;
           }
         }
 
-        // Soft reset between batches (keep context alive, just free page memory)
+        // Between batches: soft reset + delay + periodic session refresh
         if (batchIdx < chunks.length - 1 && !sessionExpired) {
-          logger.info(`[Memory] Soft reset after batch ${batchIdx + 1}...`);
           await softReset();
+
+          // Every SESSION_REFRESH_EVERY batches: visit studio homepage to reset Google's request counter
+          if ((batchIdx + 1) % SESSION_REFRESH_EVERY === 0) {
+            logger.info(`[Session] Refreshing session after batch ${batchIdx + 1} to avoid rate-limit...`);
+            try {
+              await warmUpSession(`periodic refresh after ${batchIdx + 1} batches`);
+            } catch { /* ignore — scrape continues */ }
+          }
+
+          // Random delay: base + jitter to mimic human behavior
+          const jitter = Math.floor(Math.random() * 3000);
+          const delay = BATCH_DELAY_MS + jitter;
+          logger.info(`[Throttle] Waiting ${delay}ms before next batch...`);
+          await new Promise(r => setTimeout(r, delay));
         }
       }
 

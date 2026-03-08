@@ -248,15 +248,18 @@ model MonthlyRevenueAnalytics {
 
 /// YouTube Session - Trạng thái kết nối YouTube Studio cho từng Admin
 model YouTubeSession {
-  id             String   @id @default(uuid()) @db.Uuid
-  admin_id       String   @unique @db.Uuid
-  is_logged_in   Boolean  @default(false)
-  account_email  String?  @db.VarChar(255)
-  account_name   String?  @db.VarChar(255)
-  chrome_profile String?  @db.VarChar(255) // Path suffix for per-admin Chrome data dir
-  verified_at    DateTime? @db.Timestamptz()
-  created_at     DateTime @default(now()) @db.Timestamptz()
-  updated_at     DateTime @updatedAt @db.Timestamptz()
+  id                String    @id @default(uuid()) @db.Uuid
+  admin_id          String    @unique @db.Uuid
+  is_logged_in      Boolean   @default(false)
+  account_email     String?   @db.VarChar(255)
+  account_name      String?   @db.VarChar(255)
+  chrome_profile    String?   @db.VarChar(255)
+  verified_at       DateTime? @db.Timestamptz()
+  disconnected_at   DateTime? @db.Timestamptz()
+  disconnect_reason String?   @db.VarChar(500) // e.g. "keepalive_redirect", "scrape_not_logged_in"
+  disconnect_url    String?   @db.VarChar(1000) // URL detected at time of disconnect
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+  updated_at        DateTime  @updatedAt @db.Timestamptz()
 
   admin User @relation(fields: [admin_id], references: [id], onDelete: Cascade)
 

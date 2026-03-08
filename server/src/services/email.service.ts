@@ -428,6 +428,44 @@ export class EmailService {
   }
 
   /**
+   * Alert admin when YouTube Studio session expires
+   */
+  static async sendSessionExpiredAlert(adminEmail: string): Promise<void> {
+    try {
+      const transporter = await this.createTransporter();
+      const emailConfig = await this.getConfig();
+      const appUrl = process.env.APP_URL || 'http://localhost:5173';
+      const vncUrl = `${process.env.VNC_URL || 'http://46.62.170.132:6080'}/vnc.html`;
+
+      await transporter.sendMail({
+        from: `"${emailConfig.fromName}" <${emailConfig.fromEmail}>`,
+        to: adminEmail,
+        subject: '⚠️ [EBE CMS] Cookie YouTube Studio đã hết hạn',
+        html: `
+          <div style="font-family: sans-serif; max-width: 520px; margin: auto; padding: 32px;">
+            <h2 style="color: #ff4d4f;">⚠️ Phiên YouTube Studio đã hết hạn</h2>
+            <p>Cookie kết nối với YouTube Studio đã hết hạn. Hệ thống <strong>không thể cào dữ liệu</strong> cho đến khi bạn đăng nhập lại.</p>
+            <p style="margin-top: 24px;">Thời gian phát hiện: <strong>${new Date().toLocaleString('vi-VN')}</strong></p>
+            <div style="margin-top: 28px; display: flex; gap: 12px;">
+              <a href="${vncUrl}" style="background:#ED8F3A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+                🖥️ Đăng nhập lại qua VNC
+              </a>
+              &nbsp;&nbsp;
+              <a href="${appUrl}/cron-settings" style="background:#1677ff;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+                ⚙️ Vào trang cấu hình
+              </a>
+            </div>
+            <p style="margin-top: 32px; color: #888; font-size: 12px;">EBE CMS — Thông báo tự động</p>
+          </div>
+        `,
+      });
+      logger.info(`[EmailService] Session expired alert sent to ${adminEmail}`);
+    } catch (err: any) {
+      logger.error(`[EmailService] Failed to send session alert: ${err.message}`);
+    }
+  }
+
+  /**
    * Send revenue report email to a single KOC
    */
   static async sendRevenueEmail(

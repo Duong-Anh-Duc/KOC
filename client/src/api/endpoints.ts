@@ -246,6 +246,10 @@ export const ytScraperApi = {
   importCookies: (cookies: Array<Record<string, unknown>>) =>
     apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/import-cookies', { cookies }),
 
+  /** Auto-sync cookies from local Chrome (no extension needed) */
+  syncFromChrome: (cdpUrl?: string) =>
+    apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/sync-from-chrome', cdpUrl ? { cdpUrl } : {}),
+
   /** Extract & refresh connected account info (channel name, email) */
   refreshAccountInfo: () =>
     apiClient.post<ApiResponse<{ channelName?: string; email?: string }>>('/yt-scraper/refresh-account-info'),

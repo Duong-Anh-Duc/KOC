@@ -7,11 +7,13 @@ import {
   PlayCircleOutlined,
   SettingOutlined,
   SwapOutlined,
+  SyncOutlined,
   UserOutlined,
+  WarningOutlined,
   YoutubeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, Input, Modal, notification, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
+import { Alert, Button, Col, Form, Input, Modal, notification, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cronApi, ytScraperApi } from '../api';
@@ -181,7 +183,7 @@ const CronSettingsPage: React.FC = () => {
       return data;
     },
     retry: false,
-    refetchInterval: (waitingForLogin || loginBrowserOpen) ? 3000 : false,
+    refetchInterval: (waitingForLogin || loginBrowserOpen) ? 3000 : 15 * 60 * 1000,
   });
 
   // Auto-connect on first load
@@ -213,6 +215,15 @@ const CronSettingsPage: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, statusLoading]);
+
+  // Khi bất kỳ API call nào trả về NOT_LOGGED_IN → refresh status ngay
+  useEffect(() => {
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    };
+    window.addEventListener('yt-session-expired', handler);
+    return () => window.removeEventListener('yt-session-expired', handler);
+  }, [queryClient]);
 
   // Change account (reset session + re-open login)
   const changeAccountMutation = useMutation({
@@ -252,6 +263,23 @@ const CronSettingsPage: React.FC = () => {
   // Cookie import modal state
   const [cookieModalOpen, setCookieModalOpen] = React.useState(false);
   const [cookieText, setCookieText] = React.useState('');
+
+  const syncFromChromeMutation = useMutation({
+    mutationFn: () => ytScraperApi.syncFromChrome(),
+    onSuccess: (res) => {
+      const data = res.data?.data;
+      if (data?.loggedIn) {
+        toastSuccess('ytSyncChrome', t('ytScraper.syncFromChromeSuccess'));
+      } else {
+        toastError('ytSyncChromeFail', t('ytScraper.syncFromChromeFailed'));
+      }
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || t('ytScraper.syncFromChromeFailed');
+      toastError('ytSyncChromeErr', msg);
+    },
+  });
 
   const importCookiesMutation = useMutation({
     mutationFn: (cookies: Array<Record<string, unknown>>) => ytScraperApi.importCookies(cookies),
@@ -304,6 +332,24 @@ const CronSettingsPage: React.FC = () => {
     },
     onError: () => {
       toastError('ytVerifyError', t('ytScraper.verifyFailed'));
+    },
+  });
+
+  // Check connection (verify still logged in without changing state)
+  const checkConnectionMutation = useMutation({
+    mutationFn: () => ytScraperApi.verifySession(),
+    onSuccess: (res) => {
+      const data = res.data?.data;
+      if (data?.loggedIn) {
+        toastSuccess('ytCheckConn', t('ytScraper.checkConnectionSuccess'));
+      } else {
+        toastError('ytCheckConnFail', t('ytScraper.checkConnectionFailed'));
+      }
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
+    },
+    onError: () => {
+      toastError('ytCheckConnErr', t('ytScraper.checkConnectionFailed'));
+      queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
     },
   });
 
@@ -421,6 +467,90 @@ const CronSettingsPage: React.FC = () => {
           )}
         </Space>
       </div>
+
+      {/* Connection status banner */}
+      {statusLoading ? (
+        <Alert
+          style={{ marginBottom: 16 }}
+          message={<><LoadingOutlined style={{ marginRight: 8 }} />{t('ytScraper.connectionStatusTitle')}</>}
+          description={t('common.loading')}
+          type="info"
+          showIcon={false}
+        />
+      ) : isLoggedIn ? (
+        <Alert
+          style={{ marginBottom: 16 }}
+          message={<><CheckCircleOutlined style={{ marginRight: 8, color: '#52c41a' }} />{t('ytScraper.connectionStatusTitle')}</>}
+          description={
+            <Space wrap align="center">
+              <span style={{ color: '#52c41a', fontWeight: 600 }}>{t('ytScraper.connected')}</span>
+              {statusData?.channelName && <><YoutubeOutlined style={{ color: '#ff4d4f' }} /> {statusData.channelName}</>}
+              {statusData?.email && <><UserOutlined style={{ color: '#69b1ff' }} /> {statusData.email}</>}
+              <Button
+                size="small"
+                icon={<CheckCircleOutlined />}
+                loading={checkConnectionMutation.isPending}
+                onClick={() => checkConnectionMutation.mutate()}
+              >
+                {t('ytScraper.checkConnection')}
+              </Button>
+            </Space>
+          }
+          type="success"
+          showIcon={false}
+        />
+      ) : (
+        <Alert
+          style={{ marginBottom: 16 }}
+          message={<><WarningOutlined style={{ marginRight: 8 }} />{t('ytScraper.connectionStatusTitle')}</>}
+          description={
+            <Space wrap direction="vertical" style={{ width: '100%' }}>
+              <span>{t('ytScraper.cookieExpiredWarning')}</span>
+              {(statusData as any)?.disconnected_at && (
+                <div style={{ fontSize: 12, color: '#888', lineHeight: 1.8 }}>
+                  <div>Mất phiên lúc: <strong>{new Date((statusData as any).disconnected_at).toLocaleString('vi-VN')}</strong></div>
+                  {(statusData as any)?.disconnect_reason && (
+                    <div>Lý do: <strong style={{ color: '#ff4d4f' }}>{
+                      {
+                        keepalive_redirect: 'Bị redirect về trang đăng nhập Google (keep-alive phát hiện)',
+                        scrape_not_logged_in: 'Mất phiên khi đang cào dữ liệu',
+                        account_info_redirect: 'Bị redirect khi kiểm tra thông tin tài khoản',
+                      }[(statusData as any).disconnect_reason] || (statusData as any).disconnect_reason
+                    }</strong></div>
+                  )}
+                  {(statusData as any)?.disconnect_url && (
+                    <div style={{ wordBreak: 'break-all' }}>URL lúc mất phiên: <code style={{ fontSize: 11 }}>{(statusData as any).disconnect_url}</code></div>
+                  )}
+                </div>
+              )}
+              <Space wrap>
+              <Tooltip title={
+                <div style={{ lineHeight: 1.8, fontSize: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Yêu cầu: Chrome đang mở với CDP</div>
+                  <div>macOS: <code style={{ background: '#333', padding: '1px 4px', borderRadius: 3 }}>open -a "Google Chrome" --args --remote-debugging-port=9222</code></div>
+                  <div style={{ marginTop: 4, color: '#aaa' }}>Đảm bảo Chrome đã đăng nhập YouTube Studio</div>
+                </div>
+              } color="#1d1d1d" placement="top">
+              <Button
+                size="small"
+                type="primary"
+                icon={<SyncOutlined />}
+                loading={syncFromChromeMutation.isPending}
+                onClick={() => syncFromChromeMutation.mutate()}
+              >
+                {t('ytScraper.syncFromChrome')}
+              </Button>
+              </Tooltip>
+              <Button size="small" icon={<ImportOutlined />} onClick={() => setCookieModalOpen(true)}>
+                {t('ytScraper.importCookies')}
+              </Button>
+              </Space>
+            </Space>
+          }
+          type="error"
+          showIcon={false}
+        />
+      )}
 
       <SummaryBar
         items={[

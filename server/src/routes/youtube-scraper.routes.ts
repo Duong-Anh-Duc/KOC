@@ -13,6 +13,7 @@ router.post('/auto-connect', YouTubeScraperController.autoConnect);
 router.post('/close', YouTubeScraperController.closeBrowser);
 router.post('/verify-session', YouTubeScraperController.verifySession);
 router.post('/import-cookies', YouTubeScraperController.importCookies);
+router.post('/sync-from-chrome', YouTubeScraperController.syncFromChrome);
 router.post('/reset-session', YouTubeScraperController.resetSession);
 router.post('/refresh-account-info', YouTubeScraperController.refreshAccountInfo);
 

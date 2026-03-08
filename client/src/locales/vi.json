@@ -12,7 +12,7 @@
     "audit": "Nhật ký Hệ thống",
     "stats": "Thống kê Kênh",
     "ytScraper": "YT Scraper",
-    "cronSettings": "Cập nhật Doanh thu",
+    "cronSettings": "Cấu hình Kết nối & Lịch trình",
     "emailSettings": "Cấu hình Gmail"
   },
   "auth": {
@@ -449,6 +449,14 @@
     "title": "YouTube Analytics Scraper",
     "connected": "Đã kết nối",
     "notConnected": "Chưa kết nối",
+    "cookieExpiredWarning": "Cookie đã hết hạn hoặc phiên bị đăng xuất. Vui lòng import cookie mới để tiếp tục cào dữ liệu.",
+    "connectionStatusTitle": "Trạng thái kết nối YouTube Studio",
+    "checkConnection": "Kiểm tra kết nối",
+    "checkConnectionSuccess": "Kết nối vẫn còn hoạt động!",
+    "checkConnectionFailed": "Mất kết nối! Vui lòng kết nối lại.",
+    "syncFromChrome": "Đồng bộ từ Chrome",
+    "syncFromChromeSuccess": "Đồng bộ cookie từ Chrome thành công!",
+    "syncFromChromeFailed": "Không thể đồng bộ. Chrome chưa mở hoặc chưa đăng nhập YouTube Studio.",
     "openLogin": "Mở trình duyệt đăng nhập",
     "closeBrowser": "Đóng trình duyệt",
     "loginBrowserOpened": "Đã mở trình duyệt. Vui lòng đăng nhập YouTube Studio.",
