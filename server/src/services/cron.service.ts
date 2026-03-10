@@ -491,3 +491,98 @@ export class CronService {
     return { running: scheduledTasks.has(taskKey) };
   }
 }
+
+// ============================================================
+// MONTHLY REVENUE SPOT-SCRAPER — every ~2-3 minutes, 1 random KOC
+// ============================================================
+
+let monthlySpotTask: NodeJS.Timeout | null = null;
+let monthlySpotRunning = false;
+
+export class MonthlySpotScraperService {
+  /**
+   * Start the spot-scraper.
+   * Every 2.5 minutes picks a random active KOC and scrapes monthly revenue for January
+   * of the current year. Skips if a scrape is already in progress.
+   */
+  static start(): void {
+    if (monthlySpotTask) return; // already running
+
+    const INTERVAL_MS = 150_000; // 2.5 minutes
+    const run = async () => {
+      if (monthlySpotRunning) {
+        logger.debug('[MonthlySpot] Previous run still in progress — skipping');
+        return;
+      }
+      if (YouTubeScraperService.isAnyScrapingActive()) {
+        logger.debug('[MonthlySpot] Another scrape in progress — skipping');
+        return;
+      }
+
+      monthlySpotRunning = true;
+      let adminId: string | undefined;
+      let koc: { id: string; channel_name: string; youtube_channel_id: string } | undefined;
+      try {
+        // Find a valid admin session
+        const session = await prisma.youTubeSession.findFirst({
+          where: { is_logged_in: true },
+          select: { admin_id: true },
+        });
+        if (!session) {
+          logger.debug('[MonthlySpot] No active YouTube session — skipping');
+          return;
+        }
+        adminId = session.admin_id;
+
+        // Pick a random active KOC
+        const kocs = await prisma.kOC.findMany({
+          where: { status: 'ACTIVE', admin_id: adminId },
+          select: { id: true, channel_name: true, youtube_channel_id: true },
+        });
+        if (kocs.length === 0) {
+          logger.debug('[MonthlySpot] No active KOCs found — skipping');
+          return;
+        }
+        koc = kocs[Math.floor(Math.random() * kocs.length)];
+
+        // Scrape tháng 1 of current year
+        const year = new Date().getFullYear();
+        const month = `01/${year}`;
+
+        logger.info(`[MonthlySpot] Scraping ${koc.channel_name} — ${month}`);
+        const data = await MonthlyRevenueService.scrapeAndSave(
+          koc.id,
+          koc.youtube_channel_id,
+          adminId,
+          koc.channel_name,
+        );
+        logger.info(`[MonthlySpot] Done: ${koc.channel_name} — ${data.months.length} tháng`);
+      } catch (err: any) {
+        logger.warn(`[MonthlySpot] Error: ${err.message}`);
+        if (err.message === 'NOT_LOGGED_IN') {
+          YouTubeScraperService.markSessionDisconnected('monthly_spot_not_logged_in', undefined, adminId, {
+            trigger: 'MonthlySpotScraperService',
+            failedChannel: koc?.channel_name ?? 'unknown',
+          }).catch(() => {});
+        }
+      } finally {
+        monthlySpotRunning = false;
+      }
+    };
+
+    monthlySpotTask = setInterval(run, INTERVAL_MS);
+    logger.info('[MonthlySpot] Scheduler started — every 2.5 min, 1 random KOC, tháng 01');
+  }
+
+  static stop(): void {
+    if (monthlySpotTask) {
+      clearInterval(monthlySpotTask);
+      monthlySpotTask = null;
+      logger.info('[MonthlySpot] Scheduler stopped');
+    }
+  }
+
+  static isRunning(): boolean {
+    return monthlySpotTask !== null;
+  }
+}

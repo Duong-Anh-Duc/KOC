@@ -3,7 +3,7 @@ import app from './app';
 import { config } from './config';
 import prisma from './config/database';
 import logger from './middlewares/logger.middleware';
-import { CronService } from './services/cron.service';
+import { CronService, MonthlySpotScraperService } from './services/cron.service';
 import { ExchangeRateService } from './services/exchange-rate.service';
 import { YouTubeScraperService } from './services/youtube-scraper.service';
 
@@ -46,6 +46,9 @@ const startServer = async () => {
       YouTubeScraperService.initializePersistentSessions().catch(err => {
         logger.warn('⚠️ Failed to initialize YouTube sessions:', err.message);
       });
+
+      // Monthly spot-scraper: every 5 min, 1 random KOC, tháng 01
+      MonthlySpotScraperService.start();
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error);

@@ -44,4 +44,8 @@ router.get('/monthly/:kocId', YouTubeScraperController.getMonthlyRevenue);
 router.post('/verify-pub-code/:kocId', YouTubeScraperController.verifyPubCode);
 router.post('/verify-pub-codes', YouTubeScraperController.verifyAllPubCodes);
 
+// Auto-login configuration
+router.post('/auto-login-config', YouTubeScraperController.saveAutoLoginConfig);
+router.get('/auto-login-config', YouTubeScraperController.getAutoLoginConfig);
+
 export default router;

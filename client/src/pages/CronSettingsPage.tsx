@@ -1,16 +1,16 @@
 import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ImportOutlined,
-  LinkOutlined,
-  LoadingOutlined,
-  PlayCircleOutlined,
-  SettingOutlined,
-  SwapOutlined,
-  SyncOutlined,
-  UserOutlined,
-  WarningOutlined,
-  YoutubeOutlined,
+    CheckCircleOutlined,
+    ClockCircleOutlined,
+    ImportOutlined,
+    LinkOutlined,
+    LoadingOutlined,
+    PlayCircleOutlined,
+    SettingOutlined,
+    SwapOutlined,
+    SyncOutlined,
+    UserOutlined,
+    WarningOutlined,
+    YoutubeOutlined
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Col, Form, Input, Modal, notification, Popconfirm, Row, Space, Spin, Tooltip, Typography } from 'antd';
@@ -335,6 +335,38 @@ const CronSettingsPage: React.FC = () => {
     },
   });
 
+  // Auto-login config
+  const { data: autoLoginConfig, refetch: refetchAutoLoginConfig } = useQuery({
+    queryKey: ['auto-login-config'],
+    queryFn: async () => {
+      const res = await ytScraperApi.getAutoLoginConfig();
+      return res.data?.data;
+    },
+    retry: false,
+  });
+
+  const [autoLoginEmail, setAutoLoginEmail] = React.useState('');
+  const [autoLoginPassword, setAutoLoginPassword] = React.useState('');
+
+  useEffect(() => {
+    if (autoLoginConfig?.email) {
+      setAutoLoginEmail(autoLoginConfig.email);
+    }
+  }, [autoLoginConfig]);
+
+  const saveAutoLoginMutation = useMutation({
+    mutationFn: (data: { email?: string; password?: string; enabled?: boolean }) =>
+      ytScraperApi.saveAutoLoginConfig(data),
+    onSuccess: () => {
+      toastSuccess('autoLoginSaved', t('ytScraper.autoLoginSaved'));
+      setAutoLoginPassword('');
+      refetchAutoLoginConfig();
+    },
+    onError: () => {
+      toastError('autoLoginErr', t('ytScraper.autoLoginSaveError'));
+    },
+  });
+
   // Check connection (verify still logged in without changing state)
   const checkConnectionMutation = useMutation({
     mutationFn: () => ytScraperApi.verifySession(),
@@ -511,11 +543,11 @@ const CronSettingsPage: React.FC = () => {
                   <div>Mất phiên lúc: <strong>{new Date((statusData as any).disconnected_at).toLocaleString('vi-VN')}</strong></div>
                   {(statusData as any)?.disconnect_reason && (
                     <div>Lý do: <strong style={{ color: '#ff4d4f' }}>{
-                      {
+                      ({
                         keepalive_redirect: 'Bị redirect về trang đăng nhập Google (keep-alive phát hiện)',
                         scrape_not_logged_in: 'Mất phiên khi đang cào dữ liệu',
                         account_info_redirect: 'Bị redirect khi kiểm tra thông tin tài khoản',
-                      }[(statusData as any).disconnect_reason] || (statusData as any).disconnect_reason
+                      } as Record<string, string>)[(statusData as any).disconnect_reason] || (statusData as any).disconnect_reason
                     }</strong></div>
                   )}
                   {(statusData as any)?.disconnect_url && (
@@ -602,6 +634,8 @@ const CronSettingsPage: React.FC = () => {
       </Row>
 
       <RunHistoryTable runHistory={runHistory} />
+
+      {/* Auto-Login Config Card — DISABLED */}
 
       {/* Cookie Import Modal */}
       <Modal

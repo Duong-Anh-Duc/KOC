@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { BrowserContext, chromium, Page } from 'playwright';
@@ -11,8 +12,31 @@ export type { Page } from 'playwright';
 // Base directory for Chrome profiles - each admin gets their own sub-directory
 const CHROME_DATA_BASE_DIR = path.join(process.cwd(), '.chrome-data');
 
+/**
+ * Get system Chrome profile path (macOS/Linux/Windows).
+ * Used when CHROME_USE_SYSTEM_PROFILE=true — no login needed, session from real Chrome.
+ */
+function getSystemChromeProfileDir(): string | null {
+  if (process.env.CHROME_USER_DATA_DIR) return process.env.CHROME_USER_DATA_DIR;
+  if (process.platform === 'darwin') {
+    return path.join(process.env.HOME || '', 'Library/Application Support/Google/Chrome');
+  }
+  if (process.platform === 'linux') {
+    return path.join(process.env.HOME || '', '.config/google-chrome');
+  }
+  if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\User Data');
+  }
+  return null;
+}
+
 /** Get per-admin Chrome profile directory */
 function getChromeUserDataDir(adminId?: string): string {
+  // If system profile mode is enabled, use the real Chrome profile (already logged in)
+  if (process.env.CHROME_USE_SYSTEM_PROFILE === 'true') {
+    const sysProfile = getSystemChromeProfileDir();
+    if (sysProfile) return sysProfile;
+  }
   if (adminId) {
     return path.join(CHROME_DATA_BASE_DIR, adminId);
   }
@@ -27,6 +51,15 @@ function getAccountInfoFile(adminId?: string): string {
 /** Get per-admin session verified sentinel file */
 function getSessionVerifiedFile(adminId?: string): string {
   return path.join(getChromeUserDataDir(adminId), 'session-verified');
+}
+
+/**
+ * Plaintext cookie cache — written by importCookies (Playwright Chromium),
+ * read by getContext() to re-inject into real Chrome via CDP.
+ * Needed because Playwright Chromium and real Chrome use different cookie encryption keys.
+ */
+function getPendingCookiesFile(adminId?: string): string {
+  return path.join(getChromeUserDataDir(adminId), 'yt-cookies.json');
 }
 
 /** Revenue by country row */
@@ -86,12 +119,8 @@ export class YouTubeScraperService {
   private static loginBrowserOpen: boolean = false;
   /** Throttle session-expired email alerts — track last sent time per adminId */
   private static lastAlertSentAt: Map<string, number> = new Map();
-  /** Timestamp when sentinel was last written */
-  private static sessionVerifiedAt: number = 0;
   /** Per-admin session verified timestamps */
   private static sessionVerifiedAtMap: Map<string, number> = new Map();
-  /** Flag to prevent multiple auto-close timers */
-  private static closeScheduled: boolean = false;
   /** Per-admin keep-alive interval timers */
   private static keepAliveTimers: Map<string, NodeJS.Timeout> = new Map();
   /** Per-admin last real session verification timestamp */
@@ -104,6 +133,8 @@ export class YouTubeScraperService {
   private static cdpProcess: import('child_process').ChildProcess | null = null;
   /** Flag to pause KeepAlive during batch scraping */
   private static scrapingInProgress: Map<string, boolean> = new Map();
+  // /** Prevent concurrent auto-login attempts per admin */
+  // private static autoLoginInProgress: Map<string, boolean> = new Map();
 
   /** Used by other services (e.g. exchange rate) to avoid launching concurrent Chromium instances */
   static isAnyScrapingActive(): boolean {
@@ -119,7 +150,7 @@ export class YouTubeScraperService {
     channelLabels?: Map<string, string>
   ): void {
     try {
-      const logsDir = path.join(process.cwd(), 'src', 'logs');
+      const logsDir = path.join(process.cwd(), 'logs', 'revenue');
       if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
 
       const label = (channelLabels?.get(channelId) || channelId).replace(/[^a-zA-Z0-9_\-\u00C0-\u024F\u0300-\u036f\p{L}]/gu, '_');
@@ -177,13 +208,37 @@ export class YouTubeScraperService {
   /**
    * Record disconnect reason to DB so UI can show detailed error
    */
-  static async markSessionDisconnected(reason: string, url?: string, adminId?: string): Promise<void> {
+  static async markSessionDisconnected(reason: string, url?: string, adminId?: string, extra?: Record<string, unknown>): Promise<void> {
     try {
       const sf = getSessionVerifiedFile(adminId);
       if (fs.existsSync(sf)) fs.unlinkSync(sf);
     } catch { /* ignore */ }
 
     logger.warn(`[Session] Disconnected — reason: "${reason}"${url ? ` url: ${url}` : ''} admin: ${adminId || 'default'}`);
+
+    // Write detailed session disconnect log
+    try {
+      const logDir = path.join(process.cwd(), 'logs', 'session-errors');
+      fs.mkdirSync(logDir, { recursive: true });
+      const now = new Date();
+      const dateStr = now.toISOString().replace('T', ' ').substring(0, 19);
+      const fileLabel = now.toISOString().substring(0, 10); // YYYY-MM-DD
+      const logFile = path.join(logDir, `${fileLabel}.log`);
+      const lines: string[] = [
+        `\n${'='.repeat(60)}`,
+        `[${dateStr}] SESSION DISCONNECTED`,
+        `  Admin   : ${adminId || 'default'}`,
+        `  Reason  : ${reason}`,
+        url ? `  URL     : ${url}` : `  URL     : (not captured)`,
+      ];
+      if (extra) {
+        for (const [k, v] of Object.entries(extra)) {
+          lines.push(`  ${k.padEnd(8)}: ${String(v).substring(0, 500)}`);
+        }
+      }
+      lines.push('');
+      fs.appendFileSync(logFile, lines.join('\n') + '\n');
+    } catch { /* ignore log write errors */ }
 
     if (adminId) {
       try {
@@ -199,6 +254,26 @@ export class YouTubeScraperService {
         });
       } catch { /* ignore — DB might not have a row yet */ }
     }
+
+    // /* AUTO-LOGIN DISABLED
+    // // Try auto-login before sending email alert
+    // if (adminId) {
+    //   setImmediate(async () => {
+    //     try {
+    //       const autoResult = await this.autoLogin(adminId);
+    //       if (autoResult.success) {
+    //         logger.info(`[Session] Auto-login succeeded — session restored, skipping email`);
+    //         return;
+    //       }
+    //       logger.warn(`[Session] Auto-login failed (${autoResult.reason}) — sending email alert`);
+    //     } catch (err: any) {
+    //       logger.warn(`[Session] Auto-login error: ${err.message}`);
+    //     }
+    //     this.notifySessionExpired(adminId).catch(() => {});
+    //   });
+    //   return;
+    // }
+    // */
 
     this.notifySessionExpired(adminId).catch(() => {});
   }
@@ -246,7 +321,6 @@ export class YouTubeScraperService {
       const file = getSessionVerifiedFile(adminId);
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(file, new Date().toISOString());
-      this.sessionVerifiedAt = Date.now();
       if (adminId) {
         this.sessionVerifiedAtMap.set(adminId, Date.now());
         this.lastRealVerifyMap.set(adminId, Date.now());
@@ -254,6 +328,35 @@ export class YouTubeScraperService {
       logger.info(`Session marked as verified for admin ${adminId || 'default'}.`);
     } catch { /* ignore */ }
   }
+
+  // ============================================================
+  // CREDENTIAL ENCRYPTION
+  // ============================================================
+
+  private static getEncryptionKey(): Buffer {
+    return crypto.scryptSync(process.env.JWT_SECRET || 'koc-default-key', 'yt-cred-salt-v1', 32);
+  }
+
+  static encryptPassword(plaintext: string): string {
+    const key = this.getEncryptionKey();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
+  }
+
+  static decryptPassword(encryptedText: string): string {
+    const key = this.getEncryptionKey();
+    const [ivHex, encHex] = encryptedText.split(':');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(ivHex, 'hex'));
+    return Buffer.concat([decipher.update(Buffer.from(encHex, 'hex')), decipher.final()]).toString('utf8');
+  }
+
+  // ============================================================
+  // AUTO-LOGIN — DISABLED (methods removed, trigger commented out above)
+  // ============================================================
+
+  // autoLogin() removed — restore from git if needed
 
   // ============================================================
   // KEEP-ALIVE
@@ -371,6 +474,28 @@ export class YouTubeScraperService {
    * Remove stale Chrome lock files that prevent browser launch
    */
   private static cleanStaleLockFiles(userDataDir: string): void {
+    // SAFETY: Never delete lock files from the system Chrome profile — Chrome may be running
+    const sysProfile = getSystemChromeProfileDir();
+    if (sysProfile && userDataDir.startsWith(sysProfile)) {
+      logger.debug(`[LockClean] Skipping system Chrome profile: ${userDataDir}`);
+      return;
+    }
+
+    // Check if a Chrome process is actively using this profile by reading SingletonLock
+    const lockPath = path.join(userDataDir, 'SingletonLock');
+    try {
+      const target = fs.readlinkSync(lockPath); // SingletonLock is a symlink to hostname-pid
+      const pidMatch = target.match(/-(\d+)$/);
+      if (pidMatch) {
+        const pid = parseInt(pidMatch[1], 10);
+        try {
+          process.kill(pid, 0); // signal 0 = just check existence
+          logger.warn(`[LockClean] Chrome PID ${pid} is still running with this profile — skipping lock cleanup`);
+          return; // Chrome is alive, don't touch its locks
+        } catch { /* PID doesn't exist — lock is stale, safe to clean */ }
+      }
+    } catch { /* lock doesn't exist or isn't a symlink — fine */ }
+
     const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
     for (const file of lockFiles) {
       const filePath = path.join(userDataDir, file);
@@ -449,12 +574,45 @@ export class YouTubeScraperService {
       await new Promise(r => setTimeout(r, 1500));
     }
 
+    // Also kill any stale Chrome holding the SingletonLock on this profile.
+    // This happens when the previous cdpProcess exited (clearing this.cdpProcess) but the
+    // OS process is still alive (e.g. zombie or slow to die), preventing a new Chrome from
+    // using the same user-data-dir (exit code 21 = "profile already in use").
+    const lockPath = path.join(CHROME_USER_DATA_DIR, 'SingletonLock');
+    try {
+      const target = fs.readlinkSync(lockPath);
+      const pidMatch = target.match(/-(\d+)$/);
+      if (pidMatch) {
+        const stalePid = parseInt(pidMatch[1], 10);
+        try {
+          process.kill(stalePid, 0); // check it's alive
+          logger.info(`[CDP] Killing stale Chrome PID ${stalePid} holding SingletonLock...`);
+          process.kill(stalePid, 'SIGTERM');
+          await new Promise(r => setTimeout(r, 1000));
+          // Force kill if still alive
+          try { process.kill(stalePid, 'SIGKILL'); } catch { /* already gone */ }
+          await new Promise(r => setTimeout(r, 500));
+        } catch { /* PID already dead — safe to proceed */ }
+      }
+    } catch { /* no lock file — clean start */ }
+
+    // Remove stale lock files after killing the old process
+    const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+    for (const lf of lockFiles) {
+      try { fs.unlinkSync(path.join(CHROME_USER_DATA_DIR, lf)); } catch { /* ignore ENOENT */ }
+    }
+
     const { spawn } = require('child_process');
+    const isMac = process.platform === 'darwin';
     const isWin = process.platform === 'win32';
     const args = [
       `--user-data-dir=${CHROME_USER_DATA_DIR}`,
       `--remote-debugging-port=${CDP_PORT}`,
-      '--headless=new',           // Real Chrome headless — no window, undetectable
+      '--headless=new',
+      '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+      // Hide automation signals that Google uses to detect headless bots
+      '--disable-blink-features=AutomationControlled',
+      '--exclude-switches=enable-automation',
       '--no-first-run',
       '--no-default-browser-check',
       '--disable-background-timer-throttling',
@@ -465,8 +623,9 @@ export class YouTubeScraperService {
       '--disable-prompt-on-repost',
       '--disable-sync',
       '--metrics-recording-only',
-      '--password-store=basic',
-      '--use-mock-keychain',
+      // On macOS: let Chrome use Keychain so it can decrypt cookies saved by regular Chrome.
+      // On Linux/Windows: use basic store (no Keychain available).
+      ...(isMac ? [] : ['--password-store=basic', '--use-mock-keychain']),
       ...(!isWin ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
     ];
 
@@ -488,14 +647,136 @@ export class YouTubeScraperService {
     return true;
   }
 
-  static async getContext(headless: boolean = true, adminId?: string): Promise<BrowserContext> {
+  /**
+   * Verify session by navigating to studio.youtube.com and checking the URL.
+   * - If CDP Chrome is already running: reuse the existing context (no new process needed).
+   * - If not: spawn a headless Chrome on port 9223 (separate from scraping port 9222).
+   * Never opens a visible window.
+   */
+  static async openVerifyTab(adminId?: string): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+    // If CDP Chrome is already running, use it directly — no need to spawn a second instance
+    // (two Chrome processes cannot share the same user-data-dir).
+    const cdpUrl = process.env.CHROME_CDP_URL;
+    if (cdpUrl) {
+      logger.info('[VerifyTab] CDP already running — verifying via existing context');
+      return this._verifyViaContext(adminId);
+    }
+
+    // No CDP running — spawn a temporary headless Chrome on a separate port
+    const realChrome = this.getRealChromePath();
+    if (!realChrome) {
+      logger.info('[VerifyTab] No real Chrome — falling back to Playwright verify');
+      return this.closeLoginAndVerify(adminId);
+    }
+
+    const CHROME_USER_DATA_DIR = adminId
+      ? path.join(CHROME_DATA_BASE_DIR, adminId)
+      : CHROME_DATA_BASE_DIR;
+    const VERIFY_PORT = 9223;
+
+    const { spawn } = require('child_process');
+    const args = [
+      '--headless=new',
+      `--user-data-dir=${CHROME_USER_DATA_DIR}`,
+      `--remote-debugging-port=${VERIFY_PORT}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-infobars',
+    ];
+
+    logger.info('[VerifyTab] Spawning headless Chrome on port 9223 for verification...');
+    const child = spawn(realChrome, args, { stdio: 'ignore', detached: false });
+    const killChild = () => { try { child.kill('SIGTERM'); } catch { /* ignore */ } };
+
+    try {
+      await new Promise(r => setTimeout(r, 3000));
+      const { chromium: pw } = require('playwright');
+      const browser = await pw.connectOverCDP(`http://localhost:${VERIFY_PORT}`, { timeout: 10000 });
+      const ctx = browser.contexts()[0] ?? await browser.newContext();
+      const page: Page = ctx.pages()[0] ?? await ctx.newPage();
+
+      await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(2000);
+
+      const result = await this._extractVerifyResult(page, adminId);
+      await browser.close().catch(() => {});
+      killChild();
+      return result;
+    } catch (err: any) {
+      logger.warn(`[VerifyTab] Spawn verify failed: ${err.message} — falling back to Playwright verify`);
+      killChild();
+      return this.closeLoginAndVerify(adminId);
+    }
+  }
+
+  /** Verify session by reusing the existing Playwright browser context. */
+  private static async _verifyViaContext(adminId?: string): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+    let page: Page | null = null;
+    try {
+      const context = await this.getContext(true, adminId);
+      page = await context.newPage();
+      await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(2000);
+      const result = await this._extractVerifyResult(page, adminId);
+      await safeClosePage(page);
+      return result;
+    } catch (err: any) {
+      logger.warn(`[VerifyTab] Context verify failed: ${err.message}`);
+      if (page) await safeClosePage(page).catch(() => {});
+      return { loggedIn: false };
+    }
+  }
+
+  /** Extract channel/email from a Studio page and mark session accordingly. */
+  private static async _extractVerifyResult(
+    page: Page,
+    adminId?: string
+  ): Promise<{ loggedIn: boolean; channelName?: string; email?: string }> {
+    const url = page.url();
+    logger.info(`[VerifyTab] URL: ${url}`);
+
+    if (url.includes('accounts.google.com') || url.includes('signin')) {
+      logger.warn('[VerifyTab] Not logged in — redirected to Google login');
+      return { loggedIn: false };
+    }
+
+    const title = await page.title().catch(() => '');
+    const channelName = title.replace(/\s*-\s*YouTube Studio.*$/i, '').trim() || undefined;
+
+    let email: string | undefined;
+    try {
+      email = ((await page.evaluate(() => {
+        for (const sel of ['[aria-label*="@"]', '[title*="@"]', 'button[aria-label*="Google"]']) {
+          const el = document.querySelector(sel);
+          if (el) {
+            const label = el.getAttribute('aria-label') || el.getAttribute('title') || '';
+            const match = label.match(/[\w.-]+@[\w.-]+\.[a-z]{2,}/i);
+            if (match) return match[0];
+          }
+        }
+        return null;
+      })) as string | null) ?? undefined;
+    } catch { /* ignore */ }
+
+    this.markSessionVerified(adminId);
+    try {
+      fs.writeFileSync(getAccountInfoFile(adminId), JSON.stringify({
+        channelName, email, extractedAt: new Date().toISOString(),
+      }, null, 2));
+    } catch { /* ignore */ }
+
+    logger.info(`[VerifyTab] Session verified! Channel: ${channelName}, Email: ${email || 'unknown'}`);
+    return { loggedIn: true, channelName, email };
+  }
+
+  static async getContext(_headless: boolean = true, adminId?: string): Promise<BrowserContext> {
     const key = adminId || '__default__';
 
     // Reuse existing context if still open
     const existing = this.contexts.get(key);
     if (existing) {
       try {
-        await existing.pages();
+        void existing.pages(); // just check context is still alive (sync check)
         return existing;
       } catch {
         this.contexts.delete(key);
@@ -520,6 +801,10 @@ export class YouTubeScraperService {
 
         this.contexts.set(key, context);
         this.startKeepAlive(adminId);
+        // Patch navigator.webdriver so Google cannot detect automation
+        await context.addInitScript(() => {
+          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        }).catch(() => {});
         logger.info('[CDP] Connected to real Chrome — session is native, no detection risk');
         return context;
       } catch (err: any) {
@@ -530,30 +815,89 @@ export class YouTubeScraperService {
       }
     }
 
-    // ── PLAYWRIGHT MODE: launch bundled Chromium (fallback) ──
+    // ── REAL CHROME via CDP (auto-start headless Chrome, then connect) ──
+    // launchPersistentContext with real Chrome is broken (--remote-debugging-pipe incompatibility).
+    // Instead: spawn Chrome directly with --headless=new --remote-debugging-port, then connectOverCDP.
+    const realChromePath = this.getRealChromePath();
+    if (realChromePath) {
+      logger.info(`[Context] Real Chrome found — auto-starting headless CDP for admin ${adminId || 'default'}...`);
+      const started = await this.startHeadlessChrome(adminId);
+      if (started) {
+        const autoCdpUrl = process.env.CHROME_CDP_URL;
+        if (autoCdpUrl) {
+          try {
+            const { chromium: pw } = require('playwright');
+            const browser = await pw.connectOverCDP(autoCdpUrl, { timeout: 15000 });
+            const contexts = browser.contexts();
+            const context: BrowserContext = contexts.length > 0 ? contexts[0] : await browser.newContext();
+            context.on('close', () => {
+              this.contexts.delete(key);
+              this.stopKeepAlive(adminId);
+              logger.warn('[CDP] Chrome context closed — will restart on next request');
+            });
+            this.contexts.set(key, context);
+            this.startKeepAlive(adminId);
+            // Patch navigator.webdriver so Google cannot detect automation
+            await context.addInitScript(() => {
+              Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            }).catch(() => {});
+            logger.info('[CDP] Auto-connected to headless real Chrome via CDP');
+
+            // Inject pending cookies (saved by importCookies) into real Chrome via CDP.
+            // This is necessary because Playwright Chromium and Google Chrome use different
+            // cookie encryption keys — cookies written by one cannot be read by the other.
+            const pendingFile = getPendingCookiesFile(adminId);
+            if (fs.existsSync(pendingFile)) {
+              try {
+                const pending = JSON.parse(fs.readFileSync(pendingFile, 'utf-8'));
+                await context.addCookies(pending);
+                fs.unlinkSync(pendingFile);
+                logger.info(`[CDP] Injected ${pending.length} pending cookies into real Chrome`);
+              } catch (cookieErr: any) {
+                logger.warn(`[CDP] Failed to inject pending cookies: ${cookieErr.message}`);
+              }
+            }
+
+            return context;
+          } catch (err: any) {
+            logger.warn(`[CDP] Auto-connect failed: ${err.message} — killing CDP Chrome before Playwright fallback`);
+            // Kill the CDP Chrome process before Playwright uses the same profile
+            if (this.cdpProcess) {
+              try { this.cdpProcess.kill('SIGTERM'); } catch { /* ignore */ }
+              this.cdpProcess = null;
+            }
+            process.env.CHROME_CDP_URL = '';
+            await new Promise(r => setTimeout(r, 1500)); // wait for Chrome to release profile
+          }
+        }
+      }
+    }
+
+    // ── PLAYWRIGHT CHROMIUM (fallback when no real Chrome) ──
     const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
     this.cleanStaleLockFiles(CHROME_USER_DATA_DIR);
     fs.mkdirSync(CHROME_USER_DATA_DIR, { recursive: true });
 
-    logger.info(`Launching Playwright persistent context (headless=true) for admin ${adminId || 'default'}...`);
-
+    logger.info(`Launching Playwright Chromium for admin ${adminId || 'default'}...`);
     const context = await chromium.launchPersistentContext(CHROME_USER_DATA_DIR, {
       headless: true,
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
-        '--disable-features=IsolateOrigins,site-per-process',
         '--password-store=basic',
         '--use-mock-keychain',
         '--disable-gpu',
-        '--disable-software-rasterizer',
+        '--no-first-run',
+        '--no-default-browser-check',
         '--disable-default-apps',
         '--disable-translate',
         '--metrics-recording-only',
-        '--no-first-run',
+        '--disable-sync',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-software-rasterizer',
         '--js-flags=--max-old-space-size=512',
       ],
       viewport: { width: 1400, height: 900 },
@@ -697,7 +1041,7 @@ export class YouTubeScraperService {
 
       logger.info(`[Login] Using browser: ${chromiumPath} (real Chrome: ${isRealChrome})`);
 
-      // Base args — NO automation flags
+      // Base args — NO automation flags, NO remote debugging (avoids "controlled by test software" banner)
       const args = [
         `--user-data-dir=${CHROME_USER_DATA_DIR}`,
         '--no-first-run',
@@ -712,8 +1056,11 @@ export class YouTubeScraperService {
           '--password-store=basic',
           '--use-mock-keychain',
         ]),
-        // Enable remote debugging so Playwright can connect via CDP after login
-        '--remote-debugging-port=9222',
+        // NOTE: NO --remote-debugging-port here — that flag triggers the
+        // "Chrome is being controlled by automated test software" banner
+        // which causes Google to reject the login with signin/rejected.
+        // After user logs in, closeLoginAndVerify reads cookies from the
+        // profile directory via launchPersistentContext (no CDP needed).
         'https://studio.youtube.com',
       ];
 
@@ -822,7 +1169,6 @@ export class YouTubeScraperService {
     adminId?: string
   ): Promise<{ channelName?: string; email?: string }> {
     const ACCOUNT_INFO_FILE = getAccountInfoFile(adminId);
-    const SESSION_VERIFIED_FILE = getSessionVerifiedFile(adminId);
     const isLoginOpen = adminId
       ? this.loginBrowserOpenMap.get(adminId)
       : this.loginBrowserOpen;
@@ -844,9 +1190,16 @@ export class YouTubeScraperService {
       // If redirected to Google login, session is invalid
       if (page.url().includes('accounts.google.com')) {
         logger.warn('Not logged in (redirected to Google login)');
+        const redirectUrl = page.url();
+        const pageTitle = await page.title().catch(() => '');
+        const bodySnippet = await page.evaluate(() => document.body?.innerText?.substring(0, 300)).catch(() => '') as string;
         await safeClosePage(page);
         await this.closeBrowser(adminId);
-        this.markSessionDisconnected('account_info_redirect', page.url(), adminId).catch(() => {});
+        this.markSessionDisconnected('account_info_redirect', redirectUrl, adminId, {
+          pageTitle,
+          bodySnippet,
+          trigger: 'extractAndCacheAccountInfo',
+        }).catch(() => {});
         return {};
       }
 
@@ -972,11 +1325,10 @@ export class YouTubeScraperService {
     const CHROME_USER_DATA_DIR = getChromeUserDataDir(adminId);
 
     try {
-      // ── CDP MODE: Chrome stays running, just verify via CDP ──
-      const cdpUrl = process.env.CHROME_CDP_URL || 'http://localhost:9222';
-      const realChrome = this.getRealChromePath();
+      // ── CDP MODE: only when CHROME_CDP_URL is explicitly set ──
+      const cdpUrl = process.env.CHROME_CDP_URL;
 
-      if (realChrome) {
+      if (cdpUrl) {
         // Real Chrome is still running with --remote-debugging-port=9222
         // Don't kill it — just connect and verify
         if (adminId) this.loginBrowserOpenMap.delete(adminId);
@@ -1318,6 +1670,14 @@ export class YouTubeScraperService {
         }, null, 2));
       } catch { /* ignore */ }
 
+      // Save plaintext cookies so real Chrome (CDP) can re-inject them with correct encryption.
+      // Playwright Chromium and Google Chrome use different cookie encryption keys on macOS,
+      // so cookies written by Playwright cannot be read by real Chrome and vice versa.
+      try {
+        fs.writeFileSync(getPendingCookiesFile(adminId), JSON.stringify(playwrightCookies, null, 2));
+        logger.info(`[importCookies] Saved ${playwrightCookies.length} cookies for CDP Chrome to pick up`);
+      } catch { /* ignore */ }
+
       logger.info(`[importCookies] Session verified! Channel: ${channelName}, Email: ${email || 'unknown'}`);
       return { loggedIn: true, channelName, email };
     } catch (err: any) {
@@ -1434,7 +1794,9 @@ export class YouTubeScraperService {
 
     const currentUrl = page.url();
     if (currentUrl.includes('accounts.google.com')) {
-      logger.warn(`Redirected to login: ${currentUrl}`);
+      const bodySnippet = await page.evaluate(() => document.body?.innerText?.substring(0, 200)).catch(() => '') as string;
+      logger.warn(`[Scrape] Redirected to login for channel ${channelId}: ${currentUrl}`);
+      logger.warn(`[Scrape] Page snippet: ${bodySnippet.substring(0, 200)}`);
       throw new Error('NOT_LOGGED_IN');
     }
 
@@ -1688,7 +2050,26 @@ export class YouTubeScraperService {
         await warmPage.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
         const warmUrl = warmPage.url();
         if (warmUrl.includes('accounts.google.com')) {
-          logger.error(`Session truly expired during warm-up: ${warmUrl}`);
+          const bodySnippet = await warmPage.evaluate(() => document.body?.innerText?.substring(0, 300)).catch(() => '') as string;
+          logger.error(`[WarmUp] Session expired — redirected to: ${warmUrl}`);
+          logger.error(`[WarmUp] Page snippet: ${bodySnippet.substring(0, 200)}`);
+          // Write to session error log immediately (scrapeAllKOCs will call markSessionDisconnected separately)
+          try {
+            const logDir = path.join(process.cwd(), 'logs', 'session-errors');
+            fs.mkdirSync(logDir, { recursive: true });
+            const now = new Date();
+            const dateStr = now.toISOString().replace('T', ' ').substring(0, 19);
+            const logFile = path.join(logDir, `${now.toISOString().substring(0, 10)}.log`);
+            fs.appendFileSync(logFile, [
+              `\n${'='.repeat(60)}`,
+              `[${dateStr}] WARMUP REDIRECT DETECTED`,
+              `  Admin   : ${adminId || 'default'}`,
+              `  Reason  : ${reason}`,
+              `  URL     : ${warmUrl}`,
+              `  Snippet : ${bodySnippet.substring(0, 300)}`,
+              '',
+            ].join('\n') + '\n');
+          } catch { /* ignore */ }
           throw new Error('NOT_LOGGED_IN');
         }
         await new Promise(r => setTimeout(r, 3000));
@@ -1778,7 +2159,14 @@ export class YouTubeScraperService {
           } catch (verifyErr: any) {
             if (verifyErr.message === 'NOT_LOGGED_IN') {
               logger.error('Session truly expired — stopping scrape.');
-              this.markSessionDisconnected('scrape_not_logged_in', undefined, adminId).catch(() => {});
+              const failedChannels = errors.filter(e => e.error === 'NOT_LOGGED_IN').map(e => e.channelId);
+              this.markSessionDisconnected('scrape_not_logged_in', undefined, adminId, {
+                trigger: 'scrapeAllKOCs',
+                batchIdx: String(batchIdx),
+                totalBatches: String(chunks.length),
+                failedChannels: failedChannels.join(', '),
+                verifyError: verifyErr.message,
+              }).catch(() => {});
               break;
             }
             sessionExpired = false;
@@ -1922,26 +2310,6 @@ export class YouTubeScraperService {
     })();
 
     return Promise.race([scrapePromise, timeoutPromise]);
-  }
-
-  /**
-   * Wait for YouTube Studio analytics page to fully render
-   */
-  private static async waitForAnalytics(page: Page): Promise<void> {
-    logger.info('Waiting for initial render (5s)...');
-    await page.waitForTimeout(5000);
-
-    try {
-      await page.waitForSelector('ytcp-table, .data-table, .entity-row, td', {
-        timeout: 30000,
-      });
-      logger.info('Found table/data element');
-    } catch {
-      logger.warn('Table selector not found after 30s, trying longer wait...');
-    }
-
-    logger.info('Waiting for data to populate (6s)...');
-    await page.waitForTimeout(6000);
   }
 
   // ============================================================

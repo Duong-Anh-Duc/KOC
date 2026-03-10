@@ -329,6 +329,10 @@ export const ytScraperApi = {
       }>;
       summary: { total: number; matched: number; mismatched: number; noData: number; errors: number };
     }>>('/yt-scraper/verify-pub-codes'),
+
+  getAutoLoginConfig: () => apiClient.get('/yt-scraper/auto-login-config'),
+  saveAutoLoginConfig: (data: { email?: string; password?: string; enabled?: boolean }) =>
+    apiClient.post('/yt-scraper/auto-login-config', data),
 };
 
 // ============================================================

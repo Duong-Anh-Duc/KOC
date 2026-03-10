@@ -77,7 +77,7 @@ export class YouTubeScraperController {
   static async verifySession(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const adminId = (req as AuthenticatedRequest).user?.userId;
-      const result = await YouTubeScraperService.closeLoginAndVerify(adminId);
+      const result = await YouTubeScraperService.openVerifyTab(adminId);
       // Sync to DB
       if (adminId) {
         await prisma.youTubeSession.upsert({
@@ -757,6 +757,71 @@ export class YouTubeScraperController {
           ? t('pubCode.verifyAllResult', summary)
           : `Verified ${summary.total} KOCs: ${summary.matched} matched, ${summary.mismatched} mismatched, ${summary.noData} no data, ${summary.errors} errors`,
         data: { results, summary },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/yt-scraper/auto-login-config
+   * Save Google credentials for auto-login
+   */
+  static async saveAutoLoginConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      if (!adminId) { res.status(403).json({ success: false, message: 'Admin required' }); return; }
+
+      const { email, password, enabled } = req.body;
+
+      const updateData: Record<string, unknown> = {};
+      if (typeof enabled === 'boolean') updateData.auto_login_enabled = enabled;
+      if (email !== undefined) updateData.google_email = email || null;
+      if (password !== undefined) {
+        updateData.google_password_enc = password ? YouTubeScraperService.encryptPassword(password) : null;
+      }
+
+      await prisma.youTubeSession.upsert({
+        where: { admin_id: adminId },
+        create: { admin_id: adminId, is_logged_in: false, chrome_profile: adminId, ...updateData },
+        update: updateData,
+      });
+
+      res.status(200).json({ success: true, message: 'Đã lưu cấu hình tự động đăng nhập' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/yt-scraper/auto-login-config
+   * Get current auto-login config (without password)
+   */
+  static async getAutoLoginConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminId = (req as AuthenticatedRequest).user?.userId;
+      if (!adminId) { res.status(403).json({ success: false, message: 'Admin required' }); return; }
+
+      const session = await prisma.youTubeSession.findUnique({
+        where: { admin_id: adminId },
+        select: {
+          google_email: true,
+          google_password_enc: true,
+          auto_login_enabled: true,
+          auto_login_result: true,
+          auto_login_at: true,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          email: session?.google_email || null,
+          hasPassword: !!session?.google_password_enc,
+          enabled: session?.auto_login_enabled ?? false,
+          lastResult: session?.auto_login_result || null,
+          lastAttempt: session?.auto_login_at || null,
+        },
       });
     } catch (error) {
       next(error);

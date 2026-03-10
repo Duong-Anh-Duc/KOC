@@ -395,6 +395,9 @@ export class EmailService {
         user: emailConfig.smtpUser,
         pass: emailConfig.smtpPass,
       },
+      connectionTimeout: 15000,  // 15s to establish connection
+      socketTimeout: 30000,      // 30s for each socket operation
+      greetingTimeout: 10000,    // 10s for SMTP greeting
     });
   }
 
@@ -430,7 +433,7 @@ export class EmailService {
   /**
    * Alert admin when YouTube Studio session expires
    */
-  static async sendSessionExpiredAlert(adminEmail: string): Promise<void> {
+  static async sendSessionExpiredAlert(adminEmail: string, retries = 2): Promise<void> {
     try {
       const transporter = await this.createTransporter();
       const emailConfig = await this.getConfig();
@@ -462,6 +465,11 @@ export class EmailService {
       logger.info(`[EmailService] Session expired alert sent to ${adminEmail}`);
     } catch (err: any) {
       logger.error(`[EmailService] Failed to send session alert: ${err.message}`);
+      if (retries > 0) {
+        logger.info(`[EmailService] Retrying session alert in 10s (${retries} left)...`);
+        await new Promise(r => setTimeout(r, 10000));
+        return this.sendSessionExpiredAlert(adminEmail, retries - 1);
+      }
     }
   }
 

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Page } from 'playwright';
 import prisma from '../config/database';
 import { ApiError } from '../middlewares';
@@ -121,6 +123,21 @@ export class SocialBladeService {
 
     if (page.url().includes('accounts.google.com')) {
       throw new Error('NOT_LOGGED_IN');
+    }
+
+    // Click through "unsupported browser" page if shown
+    await new Promise(r => setTimeout(r, 1500));
+    const bodyCheck = await page.evaluate('document.body.innerText').catch(() => '') as string;
+    if (bodyCheck.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodyCheck.includes('Go to YouTube Studio')) {
+      logger.warn(`⚠️ "Unsupported browser" page detected for ${label} — clicking through...`);
+      const link = page.locator('a:has-text("CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO"), a:has-text("Go to YouTube Studio")');
+      if (await link.count() > 0) {
+        await link.first().click();
+        await page.waitForLoadState('domcontentloaded').catch(() => {});
+        await new Promise(r => setTimeout(r, 3000));
+      } else {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+      }
     }
 
     // Wait for analytics table to fully render (longer wait for complex tables)
@@ -338,10 +355,12 @@ export class SocialBladeService {
   /**
    * Scrape both explore tables (by country + by day) for a channel
    */
-  static async scrapeChannelStats(channelId: string, adminId?: string): Promise<ChannelStats28dData> {
+  static async scrapeChannelStats(channelId: string, adminId?: string, channelName?: string): Promise<ChannelStats28dData> {
     const context = await YouTubeScraperService.getContext(false, adminId);
     const page = await context.newPage();
-    // Stealth scripts already injected at context level via addInitScript
+
+    let result: ChannelStats28dData | null = null;
+    let scrapeError: string | null = null;
 
     try {
       // 1. Scrape country table
@@ -354,14 +373,52 @@ export class SocialBladeService {
       const dayText = await this.scrapeExplorePage(page, dayUrl, `day stats [${channelId}]`);
       const dayData = this.parseDayExploreText(dayText);
 
-      return {
-        byCountry: countryData,
-        byDay: dayData,
-        scrapedAt: new Date().toISOString(),
-      };
+      result = { byCountry: countryData, byDay: dayData, scrapedAt: new Date().toISOString() };
+      return result;
+    } catch (err: any) {
+      scrapeError = err.message;
+      throw err;
     } finally {
       try { await page.close(); } catch { /* ignore */ }
+      this.write28DayLog(channelId, channelName, result, scrapeError);
     }
+  }
+
+  private static write28DayLog(channelId: string, channelName: string | undefined, data: ChannelStats28dData | null, error: string | null): void {
+    try {
+      const logsDir = path.join(process.cwd(), 'logs', '28days');
+      if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+      const label = (channelName || channelId).replace(/[^a-zA-Z0-9_\-\u00C0-\u024F\u0300-\u036f\p{L}]/gu, '_');
+      const dateTag = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const filePath = path.join(logsDir, `${label}_${dateTag}.log`);
+
+      const timestamp = new Date().toLocaleString('vi-VN');
+      const lines: string[] = [];
+      lines.push(`========================================`);
+      lines.push(`Thời gian   : ${timestamp}`);
+      lines.push(`Channel ID  : ${channelId}`);
+
+      if (error) {
+        lines.push(`Trạng thái  : ❌ THẤT BẠI`);
+        lines.push(`Lỗi         : ${error}`);
+      } else if (data) {
+        const t = data.byCountry.totals;
+        lines.push(`Trạng thái  : ✅ THÀNH CÔNG`);
+        lines.push(`Lượt xem    : ${(t.views ?? 0).toLocaleString()}`);
+        lines.push(`Giờ xem     : ${t.watchTimeHours ?? 0}`);
+        lines.push(`Doanh thu   : $${(t.estimatedRevenue ?? 0).toFixed(2)}`);
+        lines.push(`Ngày cào    : ${data.byDay.rows.length} ngày`);
+        if (data.byCountry.rows.length > 0) {
+          lines.push(`--- Theo quốc gia (top 5) ---`);
+          for (const r of data.byCountry.rows.slice(0, 5)) {
+            lines.push(`  ${(r.country ?? '').padEnd(20)} $${(r.estimatedRevenue ?? 0).toFixed(2)}`);
+          }
+        }
+      }
+      lines.push('');
+      fs.appendFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+    } catch { /* ignore log errors */ }
   }
 
   // ============================================================
@@ -375,7 +432,7 @@ export class SocialBladeService {
     const koc = await prisma.kOC.findUnique({ where: { id: kocId } });
     if (!koc) throw new ApiError(404, 'koc.notFound');
 
-    const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId);
+    const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId, koc.channel_name);
 
     const record = await prisma.channelStat.create({
       data: {
@@ -402,7 +459,7 @@ export class SocialBladeService {
     for (const koc of kocs) {
       try {
         logger.info(`🔄 Fetching stats for ${koc.channel_name}...`);
-        const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId);
+        const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId, koc.channel_name);
 
         const record = await prisma.channelStat.create({
           data: {
@@ -415,9 +472,16 @@ export class SocialBladeService {
 
         results.push(record);
         logger.info(`✅ 28d stats recorded for ${koc.channel_name} (${results.length}/${kocs.length})`);
-      } catch (error) {
+      } catch (error: any) {
         errors.push({ kocId: koc.id, channelName: koc.channel_name, error: String(error) });
         logger.error(`❌ Failed to record 28d stats for ${koc.channel_name}: ${error}`);
+        if (error?.message === 'NOT_LOGGED_IN') {
+          YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
+            trigger: 'SocialBladeService.recordAllStats',
+            failedChannel: koc.channel_name,
+          }).catch(() => {});
+          break;
+        }
       }
       // Delay between scrapes (3s)
       await new Promise(r => setTimeout(r, 3000));
@@ -452,7 +516,7 @@ export class SocialBladeService {
       });
 
       try {
-        const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId);
+        const stats = await this.scrapeChannelStats(koc.youtube_channel_id, adminId, koc.channel_name);
 
         await prisma.channelStat.create({
           data: {
@@ -465,9 +529,17 @@ export class SocialBladeService {
 
         results.push(koc.id);
         logger.info(`Stats recorded for ${koc.channel_name} (${results.length}/${total})`);
-      } catch (error) {
+      } catch (error: any) {
         errors.push({ kocId: koc.id, channelName: koc.channel_name, error: String(error) });
         logger.error(`Failed to record stats for ${koc.channel_name}: ${error}`);
+        if (error?.message === 'NOT_LOGGED_IN') {
+          YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
+            trigger: 'SocialBladeService.recordAllStatsWithProgress',
+            failedChannel: koc.channel_name,
+            channelIndex: String(i),
+          }).catch(() => {});
+          break;
+        }
       }
 
       if (i < kocs.length - 1) {

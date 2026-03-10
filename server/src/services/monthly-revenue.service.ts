@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import prisma from '../config/database';
 import logger from '../middlewares/logger.middleware';
 import type { MonthlyRevenueData, MonthlyRevenueRow } from '../types/stats.types';
@@ -34,7 +36,7 @@ export class MonthlyRevenueService {
     
     logger.info(`📊 Scraping monthly revenue for channel: ${cleanId}`);
 
-    const MAX_ATTEMPTS = 2;
+    const MAX_ATTEMPTS = 3;
     let lastError: Error = new Error('Unknown error');
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -66,18 +68,49 @@ export class MonthlyRevenueService {
           throw new Error('NOT_LOGGED_IN');
         }
 
-        // Wait for analytics to render
-        await new Promise(r => setTimeout(r, 6000));
+        // YouTube Studio shows "unsupported browser" page for headless/automated browsers.
+        // Detect and click through to proceed to Studio directly.
+        await new Promise(r => setTimeout(r, 2000));
+        const bodySnippet = await page.evaluate('document.body.innerText').catch(() => '') as string;
+        if (bodySnippet.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodySnippet.includes('Go to YouTube Studio')) {
+          logger.warn(`⚠️ "Unsupported browser" page detected — clicking through to Studio...`);
+          const link = page.locator('a:has-text("CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO"), a:has-text("Go to YouTube Studio")');
+          if (await link.count() > 0) {
+            await link.first().click();
+            await page.waitForLoadState('domcontentloaded').catch(() => {});
+            await new Promise(r => setTimeout(r, 3000));
+          } else {
+            // Fallback: navigate directly stripping the unsupported browser redirect
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+          }
+        }
 
-        // Extract text
-        const text = await Promise.race([
-          page.evaluate('document.body.innerText') as Promise<string>,
-          new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout extracting text')), 120000)
-          ),
-        ]);
+        // Wait for analytics to render, then retry up to 3x if content too short
+        let text = '';
+        for (let waitAttempt = 1; waitAttempt <= 3; waitAttempt++) {
+          await new Promise(r => setTimeout(r, waitAttempt === 1 ? 6000 : 5000));
+          text = await Promise.race([
+            page.evaluate('document.body.innerText') as Promise<string>,
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout extracting text')), 30000)
+            ),
+          ]);
+          if (text.length >= 1000) break;
+          logger.warn(`⚠️ Content too short (${text.length} chars), waiting longer... (${waitAttempt}/3)`);
+        }
 
         logger.info(`✓ Scraped monthly revenue page (${text.length} chars)`);
+        if (text.length < 500) {
+          // Dump raw content to errors folder for debugging
+          try {
+            const errDir = path.join(process.cwd(), 'errors');
+            if (!fs.existsSync(errDir)) fs.mkdirSync(errDir, { recursive: true });
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            fs.writeFileSync(path.join(errDir, `monthly_${cleanId}_${ts}.txt`), text, 'utf8');
+            logger.warn(`[Debug] Raw page content saved to errors/monthly_${cleanId}_${ts}.txt`);
+          } catch { /* ignore */ }
+          throw new Error(`Page content too short (${text.length} chars) — data not loaded`);
+        }
 
         // Navigate away to free memory
         try { await page.goto('about:blank', { waitUntil: 'commit', timeout: 5000 }); } catch { /* ignore */ }
@@ -450,12 +483,49 @@ export class MonthlyRevenueService {
   /**
    * Scrape and save monthly revenue for a single KOC
    */
-  static async scrapeAndSave(kocId: string, channelId: string, adminId?: string): Promise<MonthlyRevenueData> {
-    const data = await this.scrapeMonthlyRevenue(channelId, adminId);
-    await this.saveMonthlyRevenue(kocId, channelId, data);
-    // Auto-update matching open revenue cycles
-    await this.syncToCycles(kocId, data.months);
-    return data;
+  static async scrapeAndSave(kocId: string, channelId: string, adminId?: string, channelName?: string): Promise<MonthlyRevenueData> {
+    let data: MonthlyRevenueData | null = null;
+    let scrapeError: string | null = null;
+    try {
+      data = await this.scrapeMonthlyRevenue(channelId, adminId);
+      await this.saveMonthlyRevenue(kocId, channelId, data);
+      await this.syncToCycles(kocId, data.months);
+    } catch (err: any) {
+      scrapeError = err.message;
+      throw err;
+    } finally {
+      this.writeMonthlyLog(channelId, channelName, data, scrapeError);
+    }
+    return data!;
+  }
+
+  private static writeMonthlyLog(channelId: string, channelName: string | undefined, data: MonthlyRevenueData | null, error: string | null): void {
+    try {
+      const logsDir = path.join(process.cwd(), 'logs', 'monthly');
+      if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+      const label = (channelName || channelId).replace(/[^a-zA-Z0-9_\-\u00C0-\u024F\u0300-\u036f\p{L}]/gu, '_');
+      const year = new Date().getFullYear();
+      const filePath = path.join(logsDir, `${label}_${year}.log`);
+
+      const timestamp = new Date().toLocaleString('vi-VN');
+      const lines: string[] = [];
+      lines.push(`========================================`);
+      lines.push(`Thời gian   : ${timestamp}`);
+      lines.push(`Channel ID  : ${channelId}`);
+
+      if (error) {
+        lines.push(`Trạng thái  : ❌ THẤT BẠI`);
+        lines.push(`Lỗi         : ${error}`);
+      } else if (data) {
+        lines.push(`Trạng thái  : ✅ THÀNH CÔNG (${data.months.length} tháng)`);
+        for (const m of data.months) {
+          lines.push(`  ${m.monthKey.padEnd(8)} DT: $${(m.estimatedRevenue ?? 0).toFixed(2).padStart(10)}  Views: ${(m.views ?? 0).toLocaleString()}`);
+        }
+      }
+      lines.push('');
+      fs.appendFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+    } catch { /* ignore log errors */ }
   }
 
   /**
@@ -487,13 +557,26 @@ export class MonthlyRevenueService {
       if (onProgress) onProgress(i + 1, total, koc.channel_name);
       try {
         logger.info(`[${i + 1}/${total}] 📊 Scraping monthly revenue for ${koc.channel_name}`);
-        const data = await this.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId);
+        const data = await this.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId, koc.channel_name);
         results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
-        if (i < kocs.length - 1) await new Promise(r => setTimeout(r, 5000));
+        if (i < kocs.length - 1) {
+          // Random delay 8-15s to mimic human browsing (avoid fixed-interval bot pattern)
+          const delay = 8000 + Math.floor(Math.random() * 7000);
+          // Extra 30s pause every 10 channels to avoid sustained activity detection
+          const extraPause = (i + 1) % 10 === 0 ? 30000 : 0;
+          await new Promise(r => setTimeout(r, delay + extraPause));
+        }
       } catch (err: any) {
         logger.error(`❌ Failed for ${koc.channel_name}: ${err.message}`);
         errors.push({ kocId: koc.id, channelName: koc.channel_name, error: err.message });
-        if (err.message === 'NOT_LOGGED_IN') break;
+        if (err.message === 'NOT_LOGGED_IN') {
+          YouTubeScraperService.markSessionDisconnected('monthly_scrape_not_logged_in', undefined, adminId, {
+            trigger: 'MonthlyRevenueService.scrapeAllKOCs',
+            failedChannel: koc.channel_name,
+            channelIndex: String(i),
+          }).catch(() => {});
+          break;
+        }
       }
     }
 
