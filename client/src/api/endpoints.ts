@@ -475,3 +475,26 @@ export const kocPortalApi = {
       monthlyAnalytics: MonthlyRevenueAnalytics[];
     }>>('/koc-portal/my-stats'),
 };
+
+// ============================================================
+// GOLOGIN API
+// ============================================================
+export const gologinApi = {
+  /** Khởi động GoLogin profile và inject CDP URL cho scraper */
+  start: (profileId?: string) =>
+    apiClient.post<ApiResponse<{ wsUrl: string }>>('/gologin/start', profileId ? { profileId } : {}),
+
+  /** Dừng GoLogin profile */
+  stop: (stopLocal = false) =>
+    apiClient.post<ApiResponse>('/gologin/stop', { stopLocal }),
+
+  /** Trạng thái GoLogin profile hiện tại */
+  getStatus: () =>
+    apiClient.get<ApiResponse<{
+      isRunning: boolean;
+      profileId: string | null;
+      wsUrl: string | null;
+      cdpInjected: boolean;
+      orbitaPath: string | null;
+    }>>('/gologin/status'),
+};

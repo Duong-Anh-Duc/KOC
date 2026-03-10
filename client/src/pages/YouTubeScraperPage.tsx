@@ -13,6 +13,7 @@ import { useProgress } from '../hooks/useProgress';
 import {
     CreateRevenueBar,
     CreateRevenueResultModal,
+    GoLoginCard,
     LatestResultsTable,
     LoginStatusCard,
     ScrapeHistoryDrawer,
@@ -276,6 +277,8 @@ const YouTubeScraperPage: React.FC = () => {
             </Tooltip>
           </Space>
         </div>
+
+        <GoLoginCard />
 
         <LoginStatusCard
           statusData={statusData}
