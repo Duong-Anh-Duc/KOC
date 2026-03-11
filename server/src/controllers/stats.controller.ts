@@ -61,9 +61,17 @@ export class StatsController {
       });
 
       // Run in background
-      SocialBladeService.recordAllStatsWithProgress(taskId, adminId).catch(() => {
-        // Error handled inside service
-      });
+      (async () => {
+        try {
+          const { GemLoginService } = await import('../services/gemlogin.service');
+          await GemLoginService.ensureRunning(() =>
+            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+          );
+          await SocialBladeService.recordAllStatsWithProgress(taskId, adminId);
+        } catch {
+          // Error handled inside service
+        }
+      })();
     } catch (error) {
       next(error);
     }

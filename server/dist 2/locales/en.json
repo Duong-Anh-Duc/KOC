@@ -1,0 +1,156 @@
+{
+    "auth": {
+        "tokenRequired": "Authentication token is required",
+        "tokenExpired": "Token has expired",
+        "invalidToken": "Invalid authentication token",
+        "adminOnly": "Admin access required",
+        "authRequired": "Authentication required",
+        "loginSuccess": "Login successful",
+        "loginFailed": "Invalid email or password",
+        "registerSuccess": "User registered successfully",
+        "emailExists": "Email already exists",
+        "profileRetrieved": "Profile retrieved",
+        "unauthorized": "Unauthorized",
+        "userNotFound": "User not found",
+        "kocAccountExists": "This KOC already has a user account",
+        "kocAccountCreated": "KOC account created successfully",
+        "noKocLinked": "No KOC linked to this account",
+        "staffOnly": "Staff access required"
+    },
+    "kocPortal": {
+        "revenueRetrieved": "Revenue retrieved",
+        "statsRetrieved": "Stats retrieved"
+    },
+    "koc": {
+        "created": "KOC created successfully",
+        "updated": "KOC updated successfully",
+        "deleted": "KOC deleted successfully",
+        "notFound": "KOC not found",
+        "listRetrieved": "KOCs retrieved",
+        "activeRetrieved": "Active KOCs retrieved",
+        "retrieved": "KOC retrieved",
+        "notYours": "This KOC does not belong to you"
+    },
+    "revenue": {
+        "recordCreated": "Revenue record created",
+        "recordUpdated": "Revenue record updated",
+        "recordDeleted": "Revenue record deleted",
+        "recordApproved": "Revenue record approved",
+        "recordNotFound": "Revenue record not found",
+        "recordExists": "Revenue record already exists for this KOC and cycle",
+        "recordsRetrieved": "Revenue records retrieved",
+        "recordRetrieved": "Revenue record retrieved",
+        "bulkCreated": "{{count}} revenue records created/updated",
+        "cycleLocked": "Revenue cycle is locked",
+        "cannotDeleteFromLocked": "Cannot delete record from locked cycle",
+        "belowThreshold": "Cannot approve: Accumulated revenue below $100 threshold",
+        "calculationPreview": "Calculation preview",
+        "paymentStatusRetrieved": "Payment status retrieved",
+        "cycleNotFound": "Revenue cycle not found"
+    },
+    "cycle": {
+        "created": "Revenue cycle created",
+        "updated": "Revenue cycle updated",
+        "locked": "Revenue cycle locked",
+        "reopened": "Revenue cycle reopened",
+        "completed": "Revenue cycle completed",
+        "deleted": "Revenue cycle deleted",
+        "notFound": "Revenue cycle not found",
+        "notYours": "This revenue cycle does not belong to you",
+        "alreadyExists": "Revenue cycle for {{month}} already exists",
+        "retrieved": "Cycle retrieved",
+        "listRetrieved": "Cycles retrieved",
+        "mustLockFirst": "Cycle must be locked before completing",
+        "pendingRecords": "{{count}} records are still pending approval",
+        "onlyOpenCanDelete": "Only OPEN cycles can be deleted",
+        "alreadyOpen": "Cycle is already open",
+        "hasRecords": "Cannot delete cycle with existing records",
+        "exchangeRateFetched": "Exchange rate fetched successfully",
+        "scrapeComplete": "Scrape completed: {{created}} created, {{updated}} updated, {{skipped}} skipped, {{errors}} errors"
+    },
+    "stats": {
+        "retrieved": "Channel stats retrieved",
+        "fetched": "Channel stats fetched and saved",
+        "fetchAllResult": "Stats recorded: {{success}} success, {{failed}} failed",
+        "latestRetrieved": "Latest stats retrieved",
+        "fetchFailed": "Failed to fetch stats for channel: {{channelId}}",
+        "growthCalculated": "Growth calculated successfully",
+        "correlationCalculated": "Correlation calculated successfully"
+    },
+    "dashboard": {
+        "overview": "Dashboard overview",
+        "revenueTrend": "Revenue trend data"
+    },
+    "audit": {
+        "retrieved": "Audit logs retrieved"
+    },
+    "validation": {
+        "failed": "Validation failed",
+        "cycleIdRequired": "cycle_id is required"
+    },
+    "general": {
+        "serverError": "Internal server error",
+        "notFound": "Route {{method}} {{url}} not found",
+        "tooManyRequests": "Too many requests, please try again later"
+    },
+    "cron": {
+        "configRetrieved": "Cron configuration retrieved",
+        "configUpdated": "Cron configuration updated",
+        "historyRetrieved": "Cron run history retrieved",
+        "previewRetrieved": "Preview retrieved",
+        "jobStarted": "Cron job started",
+        "jobCompleted": "Cron job completed",
+        "monthNotCompleted": "Month {{month}} has not ended yet. Cannot create cycle.",
+        "monthInFuture": "Month {{month}} is in the future. Cannot create cycle."
+    },
+    "email": {
+        "configRetrieved": "Email configuration retrieved",
+        "configUpdated": "Email configuration updated",
+        "testSent": "Test email sent successfully",
+        "testFailed": "Failed to send test email",
+        "revenueSent": "Sent {{sent}} emails, {{failed}} failed, {{skipped}} skipped",
+        "cyclesRetrieved": "Cycles retrieved",
+        "emailRequired": "Email address is required",
+        "monthRequired": "Month is required (e.g. 01/2026)"
+    },
+    "ytScraper": {
+        "browserClosed": "Browser closed",
+        "scrapedChannels": "Scraped {{count}} channels, {{errors}} errors",
+        "notLoggedIn": "Not logged in to YouTube Studio. Please use /api/yt-scraper/login first",
+        "noActiveKocs": "No active KOCs with YouTube channel IDs",
+        "jobNotFound": "Job not found",
+        "autoConnectSuccess": "Auto-connected successfully - Ready to scrape",
+        "autoConnectFailed": "No session found. Please open browser to login to Google",
+        "latestResultsFound": "Found latest scrape data for {{count}} KOCs",
+        "historyFound": "Found {{count}} scrape records",
+        "noScrapeData": "No scrape data found for this KOC",
+        "cycleNotOpen": "Cycle is not OPEN",
+        "recordsCreated": "Created {{created}} records, skipped {{skipped}}",
+        "parseTestCompleted": "Parse test completed. Output saved to: {{path}}",
+        "kocNotFound": "KOC not found",
+        "scrapedMonthlyData": "Scraped {{count}} months of revenue data",
+        "monthlyDataRetrieved": "Monthly revenue data retrieved",
+        "noRevenueData": "No revenue data",
+        "recordAlreadyExists": "Record already exists",
+        "sessionReset": "Session reset successfully. Please log in again."
+    },
+    "pubCode": {
+        "matched": "PUB code matched",
+        "mismatched": "PUB code MISMATCH! Stored: {{stored}}, Scraped: {{scraped}}",
+        "noData": "Could not verify PUB code",
+        "verifyAllResult": "Verified {{total}} KOCs: {{matched}} matched, {{mismatched}} mismatched, {{noData}} no data, {{errors}} errors"
+    },
+    "youtubeAPI": {
+        "openAuthUrl": "Open this URL to authorize YouTube access",
+        "missingCodeOrChannel": "Missing code or channel ID",
+        "authSuccess": "Authorization Successful!",
+        "channelAuthorized": "Channel <strong>{{channelId}}</strong> has been authorized",
+        "closeWindow": "You can close this window and return to the app",
+        "authFailed": "Authorization Failed",
+        "missingDateRange": "Missing startDate or endDate",
+        "accessRevoked": "Access revoked successfully"
+    },
+    "progress": {
+        "taskStarted": "Task started"
+    }
+}

@@ -255,14 +255,14 @@ export class YouTubeScraperController {
     adminId?: string,
   ): Promise<void> {
     try {
-      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannels(channelIds, undefined, (channelId, idx, total) => {
+      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannelsParallel(channelIds, undefined, (channelId, idx, total) => {
         const koc = kocs.find(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id) === channelId);
         const percent = Math.round(((idx + 1) / total) * 100);
         ProgressService.emit(taskId, {
           step: idx + 1, total, percent,
           message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
         });
-      }, adminId);
+      }, adminId, channelIds.length);
 
       // Map results back to KOC info & save
       const enrichedResults = results.map(r => {
@@ -626,6 +626,7 @@ export class YouTubeScraperController {
       const t = (req as any).t;
       const adminId = (req as AuthenticatedRequest).user?.userId;
       const kocId = req.params.kocId as string;
+
       const koc = await prisma.kOC.findUnique({
         where: { id: kocId },
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true },
@@ -636,18 +637,30 @@ export class YouTubeScraperController {
         return;
       }
 
-      const data = await MonthlyRevenueService.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId);
+      // Trả taskId ngay — chạy scraping ngầm với SSE progress
+      const taskId = ProgressService.generateTaskId('monthly-scrape');
+      res.status(202).json({ success: true, message: 'Task started', data: { taskId } });
 
-      res.status(200).json({
-        success: true,
-        data: {
-          koc: { id: koc.id, name: koc.full_name, channel: koc.channel_name },
-          monthCount: data.months.length,
-          totals: data.totals,
-          months: data.months,
-          scrapedAt: data.scrapedAt,
-        },
-      });
+      (async () => {
+        try {
+          const { GemLoginService } = await import('../services/gemlogin.service');
+          await GemLoginService.ensureRunning(() =>
+            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+          );
+          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: `Đang cào: ${koc.channel_name}...` });
+          const data = await MonthlyRevenueService.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId, koc.channel_name);
+          ProgressService.complete(taskId, {
+            koc: { id: koc.id, name: koc.full_name, channel: koc.channel_name },
+            monthCount: data.months.length,
+            totals: data.totals,
+            months: data.months,
+            scrapedAt: data.scrapedAt,
+          });
+        } catch (err: any) {
+          logger.error(`monthly-scrape task ${taskId} failed: ${err.message}`);
+          ProgressService.error(taskId, err.message);
+        }
+      })();
     } catch (error) {
       next(error);
     }
@@ -674,6 +687,10 @@ export class YouTubeScraperController {
       // Run in background with progress
       (async () => {
         try {
+          const { GemLoginService } = await import('../services/gemlogin.service');
+          await GemLoginService.ensureRunning(() =>
+            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+          );
           const { results, errors } = await MonthlyRevenueService.scrapeAllKOCs(
             adminId,
             (current, total, channelName) => {

@@ -345,6 +345,11 @@ export class CycleController {
 
   private static async runCheckPubCodes(cycleId: number, taskId: string, userId: string | null): Promise<void> {
     try {
+      const { GemLoginService } = await import('../services/gemlogin.service');
+      await GemLoginService.ensureRunning(() =>
+        ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+      );
+
       // Get unique KOCs that have records in this cycle
       const records = await prisma.revenueRecord.findMany({
         where: { cycle_id: cycleId },
@@ -363,43 +368,36 @@ export class CycleController {
       }
       const kocs = Array.from(kocMap.values());
 
-      ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: `Kiểm tra mã Pub cho ${kocs.length} KOC...` });
+      ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: `Mở ${kocs.length} tab kiểm tra mã Pub...` });
 
-      const results: Array<{ koc: string; stored: string | null; scraped: string | null; matched: boolean | null; error?: string }> = [];
-      let matched = 0, mismatched = 0, noData = 0, errors = 0;
-
-      for (let i = 0; i < kocs.length; i++) {
-        const koc = kocs[i];
-        const percent = Math.round(((i + 1) / kocs.length) * 100);
-
-        ProgressService.emit(taskId, {
-          step: i + 1, total: kocs.length, percent,
-          message: `Checking ${koc.channel_name || koc.full_name} (${i + 1}/${kocs.length})`,
-        });
-
-        try {
-          const scrapedPubCode = await PubCodeService.scrapePubCode(koc.youtube_channel_id, userId || undefined);
-          const pubCodeMatch = scrapedPubCode && koc.pub_code ? scrapedPubCode === koc.pub_code : null;
-
-          // Update ALL revenue records for this KOC (across all cycles)
-          await prisma.revenueRecord.updateMany({
-            where: { koc_id: koc.id },
-            data: { scraped_pub_code: scrapedPubCode, pub_code_match: pubCodeMatch },
+      const { results: pubResults, summary } = await PubCodeService.checkPubCodesParallel(
+        kocs,
+        userId || undefined,
+        (current, total, name) => {
+          ProgressService.emit(taskId, {
+            step: current, total, percent: Math.round((current / total) * 100),
+            message: `Đã kiểm tra: ${name} (${current}/${total})`,
           });
+        },
+      );
 
-          results.push({ koc: koc.channel_name || koc.full_name, stored: koc.pub_code, scraped: scrapedPubCode, matched: pubCodeMatch });
-          if (pubCodeMatch === true) matched++;
-          else if (pubCodeMatch === false) mismatched++;
-          else noData++;
-        } catch (err: any) {
-          results.push({ koc: koc.channel_name || koc.full_name, stored: koc.pub_code, scraped: null, matched: null, error: err.message });
-          errors++;
-        }
-
-        if (i < kocs.length - 1) await new Promise(r => setTimeout(r, 1500));
+      // Update revenue records in DB
+      for (const r of pubResults) {
+        await prisma.revenueRecord.updateMany({
+          where: { koc_id: r.kocId },
+          data: { scraped_pub_code: r.scrapedPubCode, pub_code_match: r.matched },
+        });
       }
 
-      ProgressService.complete(taskId, { total: kocs.length, matched, mismatched, noData, errors, results });
+      const results = pubResults.map(r => ({
+        koc: r.kocName,
+        stored: r.storedPubCode,
+        scraped: r.scrapedPubCode,
+        matched: r.matched,
+        error: r.error,
+      }));
+
+      ProgressService.complete(taskId, { ...summary, results });
     } catch (error: any) {
       ProgressService.error(taskId, error.message);
     }
@@ -410,6 +408,11 @@ export class CycleController {
    */
   private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, kocIds?: string[]): Promise<void> {
     try {
+      const { GemLoginService } = await import('../services/gemlogin.service');
+      await GemLoginService.ensureRunning(() =>
+        ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+      );
+
       const kocs = await prisma.kOC.findMany({
         where: {
           status: 'ACTIVE',
@@ -449,9 +452,9 @@ export class CycleController {
         channelLabels.set(cId, koc.channel_name || koc.full_name || cId);
       }
 
-      // Scrape channels with progress callback — pass the cycle month so correct period is scraped
+      // Scrape channels in parallel — open one tab per KOC simultaneously
       const { results: scrapeResults, errors: scrapeErrors } =
-        await YouTubeScraperService.scrapeMultipleChannels(channelIds, month, (channelId, idx, total) => {
+        await YouTubeScraperService.scrapeMultipleChannelsParallel(channelIds, month, (channelId, idx, total) => {
           currentStep = idx + 1;
           const koc = channelToKocMap.get(channelId);
           const percent = Math.round((currentStep / totalSteps) * 100);
@@ -459,7 +462,7 @@ export class CycleController {
             step: currentStep, total: totalSteps, percent,
             message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
           });
-        }, userId || undefined, channelLabels);
+        }, userId || undefined, channelIds.length);
 
       // Save scrape results to DB
       for (const result of scrapeResults) {

@@ -1,0 +1,156 @@
+{
+    "auth": {
+        "tokenRequired": "Cần có token xác thực",
+        "tokenExpired": "Token đã hết hạn",
+        "invalidToken": "Token xác thực không hợp lệ",
+        "adminOnly": "Cần quyền quản trị viên",
+        "authRequired": "Yêu cầu xác thực",
+        "loginSuccess": "Đăng nhập thành công",
+        "loginFailed": "Email hoặc mật khẩu không đúng",
+        "registerSuccess": "Đăng ký người dùng thành công",
+        "emailExists": "Email đã tồn tại",
+        "profileRetrieved": "Lấy thông tin hồ sơ thành công",
+        "unauthorized": "Chưa xác thực",
+        "userNotFound": "Không tìm thấy người dùng",
+        "kocAccountExists": "KOC này đã có tài khoản",
+        "kocAccountCreated": "Tạo tài khoản KOC thành công",
+        "noKocLinked": "Không có KOC liên kết với tài khoản này",
+        "staffOnly": "Chỉ dành cho nhân viên"
+    },
+    "kocPortal": {
+        "revenueRetrieved": "Đã lấy doanh thu",
+        "statsRetrieved": "Đã lấy thống kê"
+    },
+    "koc": {
+        "created": "Tạo KOC thành công",
+        "updated": "Cập nhật KOC thành công",
+        "deleted": "Xóa KOC thành công",
+        "notFound": "Không tìm thấy KOC",
+        "listRetrieved": "Đã lấy danh sách KOC",
+        "activeRetrieved": "Đã lấy danh sách KOC đang hoạt động",
+        "retrieved": "Đã lấy thông tin KOC",
+        "notYours": "KOC này không thuộc quyền quản lý của bạn"
+    },
+    "revenue": {
+        "recordCreated": "Tạo bản ghi doanh thu thành công",
+        "recordUpdated": "Cập nhật bản ghi doanh thu thành công",
+        "recordDeleted": "Xóa bản ghi doanh thu thành công",
+        "recordApproved": "Phê duyệt bản ghi doanh thu thành công",
+        "recordNotFound": "Không tìm thấy bản ghi doanh thu",
+        "recordExists": "Bản ghi doanh thu đã tồn tại cho KOC và kỳ này",
+        "recordsRetrieved": "Đã lấy danh sách bản ghi doanh thu",
+        "recordRetrieved": "Đã lấy bản ghi doanh thu",
+        "bulkCreated": "Đã tạo/cập nhật {{count}} bản ghi doanh thu",
+        "cycleLocked": "Kỳ đối soát đã bị khóa",
+        "cannotDeleteFromLocked": "Không thể xóa bản ghi từ kỳ đã khóa",
+        "belowThreshold": "Không thể duyệt: Doanh thu tích lũy chưa đạt ngưỡng $100",
+        "calculationPreview": "Xem trước tính toán",
+        "paymentStatusRetrieved": "Đã lấy trạng thái thanh toán",
+        "cycleNotFound": "Không tìm thấy kỳ đối soát"
+    },
+    "cycle": {
+        "created": "Tạo kỳ đối soát thành công",
+        "updated": "Cập nhật kỳ đối soát thành công",
+        "locked": "Khóa kỳ đối soát thành công",
+        "reopened": "Mở lại kỳ đối soát thành công",
+        "completed": "Hoàn tất kỳ đối soát thành công",
+        "deleted": "Xóa kỳ đối soát thành công",
+        "notFound": "Không tìm thấy kỳ đối soát",
+        "notYours": "Kỳ đối soát này không thuộc về bạn",
+        "alreadyExists": "Kỳ đối soát cho tháng {{month}} đã tồn tại",
+        "retrieved": "Đã lấy thông tin kỳ đối soát",
+        "listRetrieved": "Đã lấy danh sách kỳ đối soát",
+        "mustLockFirst": "Cần khóa kỳ đối soát trước khi hoàn tất",
+        "pendingRecords": "Còn {{count}} bản ghi chưa được phê duyệt",
+        "onlyOpenCanDelete": "Chỉ có thể xóa kỳ đối soát đang mở",
+        "alreadyOpen": "Kỳ đối soát đã ở trạng thái mở",
+        "hasRecords": "Không thể xóa kỳ đối soát có bản ghi",
+        "exchangeRateFetched": "Lấy tỷ giá thành công",
+        "scrapeComplete": "Cào hoàn tất: {{created}} tạo mới, {{updated}} cập nhật, {{skipped}} bỏ qua, {{errors}} lỗi"
+    },
+    "stats": {
+        "retrieved": "Đã lấy thống kê kênh",
+        "fetched": "Đã lấy và lưu thống kê kênh",
+        "fetchAllResult": "Thống kê: {{success}} thành công, {{failed}} thất bại",
+        "latestRetrieved": "Đã lấy thống kê mới nhất",
+        "fetchFailed": "Lỗi khi lấy thống kê kênh: {{channelId}}",
+        "growthCalculated": "Tính toán tăng trưởng thành công",
+        "correlationCalculated": "Tính toán tương quan thành công"
+    },
+    "dashboard": {
+        "overview": "Tổng quan bảng điều khiển",
+        "revenueTrend": "Xu hướng doanh thu"
+    },
+    "audit": {
+        "retrieved": "Đã lấy nhật ký hệ thống"
+    },
+    "validation": {
+        "failed": "Xác thực dữ liệu thất bại",
+        "cycleIdRequired": "cycle_id là bắt buộc"
+    },
+    "general": {
+        "serverError": "Lỗi máy chủ nội bộ",
+        "notFound": "Không tìm thấy đường dẫn {{method}} {{url}}",
+        "tooManyRequests": "Quá nhiều yêu cầu, vui lòng thử lại sau"
+    },
+    "cron": {
+        "configRetrieved": "Đã lấy cấu hình cron",
+        "configUpdated": "Đã cập nhật cấu hình cron",
+        "historyRetrieved": "Đã lấy lịch sử chạy cron",
+        "previewRetrieved": "Đã lấy bản xem trước",
+        "jobStarted": "Đã bắt đầu công việc cron",
+        "jobCompleted": "Công việc cron hoàn thành",
+        "monthNotCompleted": "Tháng {{month}} chưa kết thúc. Không thể tạo chu kỳ.",
+        "monthInFuture": "Tháng {{month}} là tháng trong tương lai. Không thể tạo chu kỳ."
+    },
+    "email": {
+        "configRetrieved": "Đã lấy cấu hình email",
+        "configUpdated": "Đã cập nhật cấu hình email",
+        "testSent": "Email kiểm tra đã gửi thành công",
+        "testFailed": "Gửi email kiểm tra thất bại",
+        "revenueSent": "Đã gửi {{sent}} email, {{failed}} thất bại, {{skipped}} bỏ qua",
+        "cyclesRetrieved": "Đã lấy danh sách chu kỳ",
+        "emailRequired": "Địa chỉ email là bắt buộc",
+        "monthRequired": "Tháng là bắt buộc (VD: 01/2026)"
+    },
+    "ytScraper": {
+        "browserClosed": "Đã đóng trình duyệt",
+        "scrapedChannels": "Đã cào {{count}} kênh, {{errors}} lỗi",
+        "notLoggedIn": "Chưa đăng nhập YouTube Studio. Vui lòng đăng nhập tại /api/yt-scraper/login",
+        "noActiveKocs": "Không có KOC đang hoạt động với YouTube Channel ID",
+        "jobNotFound": "Không tìm thấy công việc",
+        "autoConnectSuccess": "Kết nối ẩn thành công - Sẵn sàng cào dữ liệu",
+        "autoConnectFailed": "Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google",
+        "latestResultsFound": "Đã tìm thấy dữ liệu cào mới nhất cho {{count}} KOC",
+        "historyFound": "Đã tìm thấy {{count}} bản ghi cào",
+        "noScrapeData": "Không tìm thấy dữ liệu cào cho KOC này",
+        "cycleNotOpen": "Kỳ đối soát không ở trạng thái MỞ",
+        "recordsCreated": "Đã tạo {{created}} bản ghi, bỏ qua {{skipped}}",
+        "parseTestCompleted": "Hoàn tất kiểm tra parse. Đã lưu đầu ra vào: {{path}}",
+        "kocNotFound": "Không tìm thấy KOC",
+        "scrapedMonthlyData": "Đã cào {{count}} tháng dữ liệu doanh thu",
+        "monthlyDataRetrieved": "Đã lấy dữ liệu doanh thu theo tháng",
+        "noRevenueData": "Không có dữ liệu doanh thu",
+        "recordAlreadyExists": "Bản ghi đã tồn tại",
+        "sessionReset": "Đặt lại phiên thành công. Vui lòng đăng nhập lại."
+    },
+    "youtubeAPI": {
+        "openAuthUrl": "Mở URL này để cấp quyền truy cập YouTube",
+        "missingCodeOrChannel": "Thiếu mã xác thực hoặc ID kênh",
+        "authSuccess": "Cấp quyền thành công!",
+        "channelAuthorized": "Kênh <strong>{{channelId}}</strong> đã được cấp quyền",
+        "closeWindow": "Bạn có thể đóng cửa sổ này và quay lại ứng dụng",
+        "authFailed": "Cấp quyền thất bại",
+        "missingDateRange": "Thiếu startDate hoặc endDate",
+        "accessRevoked": "Đã thu hồi quyền truy cập thành công"
+    },
+    "pubCode": {
+        "matched": "Mã PUB khớp",
+        "mismatched": "Mã PUB KHÔNG KHỚP! Đã lưu: {{stored}}, Đã cào: {{scraped}}",
+        "noData": "Không thể xác minh mã PUB",
+        "verifyAllResult": "Đã xác minh {{total}} KOC: {{matched}} khớp, {{mismatched}} không khớp, {{noData}} không có dữ liệu, {{errors}} lỗi"
+    },
+    "progress": {
+        "taskStarted": "Tác vụ đã bắt đầu"
+    }
+}

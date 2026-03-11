@@ -13,6 +13,7 @@ import { useProgress } from '../hooks/useProgress';
 import {
     CreateRevenueBar,
     CreateRevenueResultModal,
+    GemLoginCard,
     GoLoginCard,
     LatestResultsTable,
     LoginStatusCard,
@@ -277,6 +278,8 @@ const YouTubeScraperPage: React.FC = () => {
             </Tooltip>
           </Space>
         </div>
+
+        <GemLoginCard />
 
         <GoLoginCard />
 

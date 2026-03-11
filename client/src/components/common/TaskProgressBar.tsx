@@ -34,7 +34,7 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 1000,
+          zIndex: 2000,
           background: 'rgba(0, 0, 0, 0.45)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',

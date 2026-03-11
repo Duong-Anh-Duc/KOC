@@ -1,6 +1,7 @@
 import { Layout } from 'antd';
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useGemLoginAutoStart } from '../../hooks';
 import { useAppStore, useAuthStore } from '../../stores';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
@@ -10,6 +11,7 @@ const { Content } = Layout;
 const AppLayout: React.FC = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const gemLogin = useGemLoginAutoStart();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -21,7 +23,7 @@ const AppLayout: React.FC = () => {
     <Layout style={{ minHeight: '100vh' }}>
       <Sidebar />
       <Layout style={{ marginLeft: siderWidth, transition: 'margin-left 0.2s' }}>
-        <Navbar />
+        <Navbar gemLogin={gemLogin} />
         <Content
           style={{
             margin: 24,

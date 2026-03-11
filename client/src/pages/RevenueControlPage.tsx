@@ -109,59 +109,6 @@ const RevenueControlPage: React.FC = () => {
   const [scrapeResultOpen, setScrapeResultOpen] = useState(false);
   const [scrapeResultData, setScrapeResultData] = useState<any>(null);
 
-  // ---- Sequential per-KOC scraping helpers ----
-  const scrapeOneAndWait = useCallback((
-    cycleId: number,
-    kocId: string,
-    onChannelProgress: (percent: number, message: string) => void
-  ): Promise<any> => {
-    const apiBase = import.meta.env.VITE_API_URL || '/api';
-    return cycleApi.scrapeRevenue(cycleId, [kocId]).then((res) => {
-      const taskId: string | undefined = res.data?.data?.taskId;
-      if (!taskId) throw new Error('No taskId returned');
-      return new Promise<any>((resolve, reject) => {
-        const url = `${apiBase}/progress/${taskId}`;
-        const es = new EventSource(url);
-        const timer = setTimeout(() => { es.close(); reject(new Error('TIMEOUT')); }, 180000);
-        es.addEventListener('progress', (event: MessageEvent) => {
-          try {
-            const d = JSON.parse(event.data);
-            onChannelProgress(d.percent ?? 0, d.message ?? '');
-          } catch { /* ignore */ }
-        });
-        es.addEventListener('complete', (event: MessageEvent) => {
-          clearTimeout(timer); es.close();
-          try { const d = JSON.parse(event.data); resolve(d?.result ?? d); }
-          catch { resolve(null); }
-        });
-        es.addEventListener('error', () => { clearTimeout(timer); es.close(); reject(new Error('SSE error')); });
-      });
-    });
-  }, []);
-
-  // Merge array of per-channel batch results into one combined result
-  const mergeResults = useCallback((results: any[]): any => {
-    const combined: any = {
-      summary: { totalKOCs: 0, scraped: 0, recordsSkipped: 0, recordsCreated: 0, recordsUpdated: 0, autoApproved: 0, errors: 0 },
-      created: [] as any[],
-      updated: [] as any[],
-      errors: [] as any[],
-    };
-    for (const r of results) {
-      if (!r) continue;
-      if (r.error) { combined.summary.errors += 1; combined.errors.push({ error: r.error }); continue; }
-      combined.summary.totalKOCs += r.summary?.totalKOCs ?? 1;
-      combined.summary.scraped += r.summary?.scraped ?? 0;
-      combined.summary.recordsSkipped += r.summary?.recordsSkipped ?? 0;
-      combined.summary.recordsCreated += r.summary?.recordsCreated ?? 0;
-      combined.summary.recordsUpdated += r.summary?.recordsUpdated ?? 0;
-      combined.summary.autoApproved += r.summary?.autoApproved ?? 0;
-      if (Array.isArray(r.created)) combined.created.push(...r.created);
-      if (Array.isArray(r.updated)) combined.updated.push(...r.updated);
-      if (Array.isArray(r.errors)) combined.errors.push(...r.errors);
-    }
-    return combined;
-  }, []);
 
   // Scrape detail data (for country breakdown + history)
   const { data: scrapeResults } = useQuery({
@@ -250,45 +197,45 @@ const RevenueControlPage: React.FC = () => {
     if (ids.length === 0) return;
 
     setBatchProgress({ taskId: null, active: true, progress: { step: 0, total: ids.length, percent: 0, message: 'Chuẩn bị...' }, completed: false, result: null, error: null });
-    const allResults: any[] = [];
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
 
-    for (let i = 0; i < ids.length; i++) {
-      const kocId = ids[i];
-      const koc = activeKOCs.find((k) => k.id === kocId);
-      const kocName = koc?.full_name || kocId;
-      const basePercent = (i / ids.length) * 100;
-      const channelShare = 100 / ids.length;
+    try {
+      const res = await cycleApi.scrapeRevenue(cycleId, ids);
+      const taskId: string | undefined = res.data?.data?.taskId;
+      if (!taskId) throw new Error('No taskId returned');
 
-      setBatchProgress((prev) => ({
-        ...prev,
-        progress: { step: i + 1, total: ids.length, percent: basePercent, message: `(${i + 1}/${ids.length}) ${kocName}` },
-      }));
-
-      try {
-        const result = await scrapeOneAndWait(cycleId, kocId, (chPercent, chMsg) => {
-          setBatchProgress((prev) => ({
-            ...prev,
-            progress: {
-              step: i + 1,
-              total: ids.length,
-              percent: basePercent + (chPercent / 100) * channelShare,
-              message: `(${i + 1}/${ids.length}) ${kocName}${chMsg ? ': ' + chMsg : ''}`,
-            },
-          }));
+      const result = await new Promise<any>((resolve, reject) => {
+        const url = `${apiBase}/progress/${taskId}`;
+        const es = new EventSource(url);
+        const timer = setTimeout(() => { es.close(); reject(new Error('TIMEOUT')); }, 600000);
+        es.addEventListener('progress', (event: MessageEvent) => {
+          try {
+            const d = JSON.parse(event.data);
+            setBatchProgress((prev) => ({
+              ...prev,
+              progress: { step: d.step ?? 0, total: d.total ?? ids.length, percent: d.percent ?? 0, message: d.message ?? '' },
+            }));
+          } catch { /* ignore */ }
         });
-        allResults.push(result);
-      } catch (err: any) {
-        allResults.push({ error: String(err?.message ?? err), kocId });
-      }
-    }
+        es.addEventListener('complete', (event: MessageEvent) => {
+          clearTimeout(timer); es.close();
+          try { const d = JSON.parse(event.data); resolve(d?.result ?? d); }
+          catch { resolve(null); }
+        });
+        es.addEventListener('error', () => { clearTimeout(timer); es.close(); reject(new Error('SSE error')); });
+      });
 
-    const combined = mergeResults(allResults);
-    setBatchProgress({ taskId: null, active: false, progress: { step: ids.length, total: ids.length, percent: 100, message: 'Hoàn thành!' }, completed: true, result: combined, error: null });
-    setScrapeResultData(combined);
-    setScrapeResultOpen(true);
-    queryClient.invalidateQueries({ queryKey: ['cycles'] });
-    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
-  }, [activeKOCs, scrapeOneAndWait, mergeResults, queryClient]);
+      setBatchProgress({ taskId: null, active: false, progress: { step: ids.length, total: ids.length, percent: 100, message: 'Hoàn thành!' }, completed: true, result, error: null });
+      setScrapeResultData(result);
+      setScrapeResultOpen(true);
+      queryClient.invalidateQueries({ queryKey: ['cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      setBatchProgress((prev) => ({ ...prev, active: false, completed: true, error: msg }));
+      message.error(`Lỗi cào doanh thu: ${msg}`);
+    }
+  }, [activeKOCs, queryClient]);
 
   const handleCheckPubCodes = useCallback(async (cycleId: number) => {
     try {

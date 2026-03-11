@@ -121,9 +121,16 @@ export interface RevenueRecord {
   koc_tax_deduction: number;
   koc_receive_usd: number;
   koc_receive_vnd: number;
-  // Accumulated totals (sum of all unpaid previous months + this month)
+  // All fields recalculated from accumulated total (bank fee charged once on full amount)
   accumulated_revenue_usd: number;
+  accumulated_us_tax: number;
+  accumulated_bank_fee: number;
+  accumulated_net_revenue: number;
+  accumulated_company_share: number;
+  accumulated_koc_gross: number;
+  accumulated_koc_tax: number;
   accumulated_koc_usd: number;
+  accumulated_koc_vnd: number;
   // Which cycle finalized this payment (null = unpaid, own = paid here, other = absorbed into later cycle)
   paid_in_cycle_id: number | null;
   scraped_pub_code: string | null;

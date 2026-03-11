@@ -114,7 +114,7 @@ export class SocialBladeService {
       logger.warn(`⚠️ Page load warning for ${label}: ${err.message}`);
       // Try with domcontentloaded if networkidle fails
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 });
       } catch (retryErr: any) {
         logger.error(`❌ Page load failed for ${label}: ${retryErr.message}`);
         throw retryErr;
@@ -136,7 +136,7 @@ export class SocialBladeService {
         await page.waitForLoadState('domcontentloaded').catch(() => {});
         await new Promise(r => setTimeout(r, 3000));
       } else {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 }).catch(() => {});
       }
     }
 
@@ -155,7 +155,7 @@ export class SocialBladeService {
     const text = await Promise.race([
       page.evaluate('document.body.innerText') as Promise<string>,
       new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout extracting text')), 60000)
+        setTimeout(() => reject(new Error('Timeout extracting text')), 1800000)
       ),
     ]);
 

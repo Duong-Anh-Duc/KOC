@@ -10,7 +10,7 @@ import {
     SafetyCertificateOutlined,
     TeamOutlined
 } from '@ant-design/icons';
-import { Button, Card, Checkbox, Col, Dropdown, Empty, List, Modal, Row, Select, Space, Tag, Typography } from 'antd';
+import { Button, Card, Checkbox, Col, Dropdown, Empty, List, Modal, Row, Select, Space, Tag, Typography, message } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PaymentStatusMap, RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../../types';
@@ -107,6 +107,10 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   const { t } = useTranslation();
   const [selectKocModalOpen, setSelectKocModalOpen] = useState(false);
   const [selectedKocIds, setSelectedKocIds] = useState<string[]>([]);
+  const [gemLoginSelectOpen, setGemLoginSelectOpen] = useState(false);
+  const [gemLoginSelectedIds, setGemLoginSelectedIds] = useState<string[]>([]);
+
+  const gemLoginScraping = scrapeLoading || scrapeMonthlyLoading;
 
   // Modal: scrape monthly for selected KOCs
   const [monthlyModalOpen, setMonthlyModalOpen] = useState(false);
@@ -203,37 +207,35 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
                     menu={{
                       items: [
                         {
-                          key: 'all',
-                          label: t('revenue.scrapeAll', 'Cào tất cả KOC'),
+                          key: 'gem-all',
+                          label: 'Cào doanh thu — tất cả KOC',
                           icon: <CloudSyncOutlined />,
-                          onClick: () => onScrapeRevenue(selectedCycle.id),
+                          onClick: () => selectedCycle && onScrapeRevenue(selectedCycle.id, records.map(r => r.koc_id)),
                         },
                         {
-                          key: 'select',
-                          label: t('revenue.scrapeSelected', 'Chọn KOC để cào'),
+                          key: 'gem-select',
+                          label: 'Cào doanh thu — chọn KOC',
                           icon: <TeamOutlined />,
                           onClick: () => {
-                            setSelectedKocIds([]);
-                            setSelectKocModalOpen(true);
+                            setGemLoginSelectedIds(records.map(r => r.koc_id));
+                            setGemLoginSelectOpen(true);
                           },
                         },
                         { type: 'divider' },
                         {
-                          key: 'monthly-all',
-                          label: 'Cào tất cả dữ liệu tháng',
+                          key: 'gem-monthly-all',
+                          label: 'Cào dữ liệu tháng — tất cả KOC',
                           icon: <CalendarOutlined />,
-                          onClick: () => onScrapeMonthly(),
-                          disabled: scrapeMonthlyLoading,
+                          onClick: () => onScrapeMonthly(records.map(r => r.koc_id)),
                         },
                         {
-                          key: 'monthly-select',
-                          label: 'Chọn KOC cào dữ liệu tháng',
+                          key: 'gem-monthly-select',
+                          label: 'Cào dữ liệu tháng — chọn KOC',
                           icon: <TeamOutlined />,
                           onClick: () => {
                             setMonthlySelectedIds(records.map(r => r.koc_id));
                             setMonthlyModalOpen(true);
                           },
-                          disabled: scrapeMonthlyLoading,
                         },
                         { type: 'divider' },
                         {
@@ -245,12 +247,12 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
                         },
                       ],
                     }}
-                    disabled={scrapeLoading || scrapeMonthlyLoading || checkPubCodesLoading}
+                    disabled={gemLoginScraping || checkPubCodesLoading}
                   >
                     <Button
                       type="primary"
-                      icon={scrapeLoading ? <LoadingOutlined /> : <CloudSyncOutlined />}
-                      loading={scrapeLoading}
+                      icon={gemLoginScraping ? <LoadingOutlined /> : <CloudSyncOutlined />}
+                      loading={gemLoginScraping}
                     >
                       {t('revenue.updateRevenue')} <DownOutlined />
                     </Button>
@@ -452,6 +454,50 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
               >
                 <span style={{ fontWeight: 500 }}>{koc.full_name}</span>
                 <span style={{ color: '#888', marginLeft: 8 }}>({koc.channel_name})</span>
+              </Checkbox>
+            </List.Item>
+          )}
+        />
+      </Modal>
+
+      {/* GemLogin: Modal chọn KOC để cào doanh thu chu kỳ */}
+      <Modal
+        title={<Space><CloudSyncOutlined /> {`Cào doanh thu — Chọn KOC (${selectedCycle?.month})`}</Space>}
+        open={gemLoginSelectOpen}
+        onCancel={() => setGemLoginSelectOpen(false)}
+        onOk={() => {
+          if (selectedCycle && gemLoginSelectedIds.length > 0) {
+            onScrapeRevenue(selectedCycle.id, gemLoginSelectedIds);
+          }
+          setGemLoginSelectOpen(false);
+        }}
+        okText={`Cào ${gemLoginSelectedIds.length} KOC`}
+        okButtonProps={{ disabled: gemLoginSelectedIds.length === 0, icon: <CloudSyncOutlined /> }}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Checkbox
+            indeterminate={gemLoginSelectedIds.length > 0 && gemLoginSelectedIds.length < records.length}
+            checked={gemLoginSelectedIds.length === records.length && records.length > 0}
+            onChange={(e) => setGemLoginSelectedIds(e.target.checked ? records.map(r => r.koc_id) : [])}
+          >
+            Chọn tất cả ({records.length})
+          </Checkbox>
+        </div>
+        <List
+          size="small"
+          style={{ maxHeight: 400, overflowY: 'auto' }}
+          dataSource={records}
+          renderItem={(record) => (
+            <List.Item style={{ padding: '4px 0' }}>
+              <Checkbox
+                checked={gemLoginSelectedIds.includes(record.koc_id)}
+                onChange={(e) => {
+                  setGemLoginSelectedIds(prev =>
+                    e.target.checked ? [...prev, record.koc_id] : prev.filter(id => id !== record.koc_id)
+                  );
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>{record.koc?.full_name ?? record.koc_id}</span>
               </Checkbox>
             </List.Item>
           )}

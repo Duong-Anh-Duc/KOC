@@ -695,7 +695,7 @@ export class YouTubeScraperService {
       const ctx = browser.contexts()[0] ?? await browser.newContext();
       const page: Page = ctx.pages()[0] ?? await ctx.newPage();
 
-      await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 1800000 });
       await page.waitForTimeout(2000);
 
       const result = await this._extractVerifyResult(page, adminId);
@@ -715,7 +715,7 @@ export class YouTubeScraperService {
     try {
       const context = await this.getContext(true, adminId);
       page = await context.newPage();
-      await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 1800000 });
       await page.waitForTimeout(2000);
       const result = await this._extractVerifyResult(page, adminId);
       await safeClosePage(page);
@@ -793,6 +793,18 @@ export class YouTubeScraperService {
         const contexts = browser.contexts();
         const context: BrowserContext = contexts.length > 0 ? contexts[0] : await browser.newContext();
 
+        // Minimize browser window — chạy nền, không tự hiện lên foreground
+        try {
+          const cdpSession = await browser.newBrowserCDPSession();
+          const { targetInfos } = await cdpSession.send('Target.getTargets') as any;
+          const pageTarget = (targetInfos as any[]).find((t: any) => t.type === 'page');
+          if (pageTarget) {
+            const { windowId } = await cdpSession.send('Browser.getWindowForTarget', { targetId: pageTarget.targetId }) as any;
+            await cdpSession.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'minimized' } });
+          }
+          await cdpSession.detach().catch(() => {});
+        } catch { /* ignore — không phải Chrome hoặc API không hỗ trợ */ }
+
         context.on('close', () => {
           this.contexts.delete(key);
           this.stopKeepAlive(adminId);
@@ -806,8 +818,44 @@ export class YouTubeScraperService {
           Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
         }).catch(() => {});
         logger.info('[CDP] Connected to real Chrome — session is native, no detection risk');
+
+        // Inject pending cookies (saved by importCookies) — same as auto-CDP path
+        const pendingFile = getPendingCookiesFile(adminId);
+        if (fs.existsSync(pendingFile)) {
+          try {
+            const pending = JSON.parse(fs.readFileSync(pendingFile, 'utf-8'));
+            await context.addCookies(pending);
+            fs.unlinkSync(pendingFile);
+            logger.info(`[CDP] Injected ${pending.length} pending cookies into ${cdpUrl}`);
+          } catch (cookieErr: any) {
+            logger.warn(`[CDP] Failed to inject pending cookies: ${cookieErr.message}`);
+          }
+        }
+
         return context;
       } catch (err: any) {
+        // GemLogin mode: tự reconnect nếu browser bị đóng/crash
+        try {
+          const { GemLoginService } = await import('./gemlogin.service');
+          if (GemLoginService.getStatus().isRunning) {
+            logger.warn(`[CDP] Kết nối thất bại tại ${cdpUrl} — thử reconnect GemLogin...`);
+            const newCdpUrl = await GemLoginService.reconnect();
+            const { chromium: pw2 } = require('playwright');
+            const browser2 = await pw2.connectOverCDP(newCdpUrl, { timeout: 15000 });
+            const contexts2 = browser2.contexts();
+            const context2: BrowserContext = contexts2.length > 0 ? contexts2[0] : await browser2.newContext();
+            context2.on('close', () => { this.contexts.delete(key); this.stopKeepAlive(adminId); });
+            this.contexts.set(key, context2);
+            this.startKeepAlive(adminId);
+            await context2.addInitScript(() => {
+              Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            }).catch(() => {});
+            logger.info(`[GemLogin] Reconnect thành công tại ${newCdpUrl}`);
+            return context2;
+          }
+        } catch (reconnectErr: any) {
+          logger.error(`[GemLogin] Reconnect thất bại: ${reconnectErr.message}`);
+        }
         throw new Error(
           `[CDP] Cannot connect to Chrome at ${cdpUrl}. ` +
           `Make sure Chrome is running: use "Mở trình duyệt" to launch it. Error: ${err.message}`
@@ -902,7 +950,7 @@ export class YouTubeScraperService {
       ],
       viewport: { width: 1400, height: 900 },
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-      timeout: 120000,
+      timeout: 1800000,
       ignoreHTTPSErrors: true,
     });
 
@@ -1184,7 +1232,7 @@ export class YouTubeScraperService {
 
       await page.goto('https://studio.youtube.com', {
         waitUntil: 'domcontentloaded',
-        timeout: 30000,
+        timeout: 1800000,
       });
 
       // If redirected to Google login, session is invalid
@@ -1341,7 +1389,7 @@ export class YouTubeScraperService {
           process.env.CHROME_CDP_URL = cdpUrl;
           const context = await this.getContext(true, adminId);
           page = await context.newPage();
-          await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 1800000 });
           await page.waitForTimeout(2000);
 
           const url = page.url();
@@ -1397,14 +1445,14 @@ export class YouTubeScraperService {
           headless: true,
           executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
           args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
-          timeout: 30000,
+          timeout: 1800000,
           ignoreHTTPSErrors: true,
         });
 
         page = await tempContext.newPage();
         await page.goto('https://studio.youtube.com', {
           waitUntil: 'domcontentloaded',
-          timeout: 30000,
+          timeout: 1800000,
         });
         await page.waitForTimeout(3000);
 
@@ -1584,7 +1632,7 @@ export class YouTubeScraperService {
           '--disable-dev-shm-usage',
           '--disable-blink-features=AutomationControlled',
         ],
-        timeout: 30000,
+        timeout: 1800000,
         ignoreHTTPSErrors: true,
       });
 
@@ -1624,7 +1672,7 @@ export class YouTubeScraperService {
       page = await tempContext.newPage();
       await page.goto('https://studio.youtube.com', {
         waitUntil: 'domcontentloaded',
-        timeout: 30000,
+        timeout: 1800000,
       });
       await page.waitForTimeout(5000);
 
@@ -1716,7 +1764,15 @@ export class YouTubeScraperService {
     let timePeriodParam = 'time_period=minus_1_month';
 
     if (month) {
-      const [mm, yyyy] = month.split('/');
+      // Chấp nhận cả "MM/YYYY" lẫn "YYYY-MM"
+      let mm: string, yyyy: string;
+      if (month.includes('/')) {
+        [mm, yyyy] = month.split('/');
+      } else if (month.includes('-')) {
+        [yyyy, mm] = month.split('-');
+      } else {
+        mm = month; yyyy = String(new Date().getFullYear());
+      }
       const year = parseInt(yyyy, 10);
       const mon = parseInt(mm, 10);
 
@@ -1783,7 +1839,7 @@ export class YouTubeScraperService {
       logger.info('Navigating to revenue explore page...');
       // Use domcontentloaded instead of networkidle to avoid loading all resources
       // Short timeout (30s) — fail fast and let the caller handle retry
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 });
       logger.info(`Page loaded, current URL: ${page.url()}`);
     } catch (err: any) {
       logger.warn(
@@ -2047,7 +2103,7 @@ export class YouTubeScraperService {
           if (['image', 'font', 'media', 'stylesheet'].includes(type)) return route.abort();
           return route.continue();
         });
-        await warmPage.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await warmPage.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 1800000 });
         const warmUrl = warmPage.url();
         if (warmUrl.includes('accounts.google.com')) {
           const bodySnippet = await warmPage.evaluate(() => document.body?.innerText?.substring(0, 300)).catch(() => '') as string;
@@ -2679,5 +2735,258 @@ export class YouTubeScraperService {
     const cleaned = this.normalizeNumber(str);
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : Math.round(num * 1000000) / 1000000;
+  }
+
+  // ============================================================
+  // WINDOW HELPERS
+  // ============================================================
+
+  /**
+   * Minimize the GemLogin Chrome window so it stays in the background.
+   * Safe to call after opening new tabs — the window may jump to foreground
+   * when tabs are created, this pushes it back to minimized.
+   */
+  static async minimizeWindow(adminId?: string): Promise<void> {
+    try {
+      const key = adminId || '__default__';
+      const context = this.contexts.get(key);
+      if (!context) return;
+      const browser = (context as any).browser?.();
+      if (!browser) return;
+      const cdpSession = await browser.newBrowserCDPSession();
+      const { targetInfos } = await cdpSession.send('Target.getTargets') as any;
+      const pageTarget = (targetInfos as any[]).find((t: any) => t.type === 'page');
+      if (pageTarget) {
+        const { windowId } = await cdpSession.send('Browser.getWindowForTarget', { targetId: pageTarget.targetId }) as any;
+        await cdpSession.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'minimized' } });
+      }
+      await cdpSession.detach().catch(() => {});
+    } catch { /* ignore — CDP not available or not supported */ }
+  }
+
+  // ============================================================
+  // GEMLOGIN PARALLEL SCRAPE
+  // ============================================================
+
+  /**
+   * Cào song song tối ưu cho GemLogin:
+   * - Mở `batchSize` tab cùng lúc
+   * - Navigate tất cả đồng thời
+   * - Polling mỗi 4s: tab nào đạt > 1000 ký tự thì đánh dấu sẵn sàng
+   * - `waitMs` là timeout tối đa (default 150s); tab chưa đủ ký tự vẫn được extract
+   * - Extract + parse song song
+   * - Đóng tab, chuyển batch tiếp theo
+   */
+  static async scrapeMultipleChannelsParallel(
+    channelIds: string[],
+    month?: string,
+    onProgress?: (channelId: string, index: number, total: number) => void,
+    adminId?: string,
+    batchSize = 5,
+    waitMs = 1800000,
+  ): Promise<{
+    results: YouTubeAnalyticsData[];
+    errors: Array<{ channelId: string; error: string }>;
+  }> {
+    const results: YouTubeAnalyticsData[] = [];
+    const errors: Array<{ channelId: string; error: string }> = [];
+    const total = channelIds.length;
+
+    // JS extraction script — reuse từ scrapeRevenueExplore
+    const EXTRACT_JS = `(function() {
+      var SKIP_TAGS = new Set(['SCRIPT','STYLE','SVG','PATH','DEFS','USE']);
+      function rowText(el) {
+        if (SKIP_TAGS.has(el.tagName)) return '';
+        if (el.offsetParent === null) {
+          var cs = window.getComputedStyle(el);
+          if (cs.display === 'none') return '';
+        }
+        var parts = [];
+        for (var i = 0; i < el.childNodes.length; i++) {
+          var child = el.childNodes[i];
+          if (child.nodeType === 3) { var t = (child.textContent || '').trim(); if (t) parts.push(t); }
+          else if (child.nodeType === 1) { parts.push(rowText(child)); }
+        }
+        return parts.join(' ');
+      }
+      var scopes = ['ytd-analytics-multi-dimension-data-table-renderer','ytd-analytics-main-app','#analytics-content-container','main','#page-manager','ytd-app'];
+      for (var s = 0; s < scopes.length; s++) {
+        var el = document.querySelector(scopes[s]);
+        if (el) {
+          var rows = el.querySelectorAll('tr,[role="row"]');
+          if (rows.length > 3) return Array.from(rows).map(function(r){return rowText(r);}).join('\\n');
+        }
+      }
+      var all = document.querySelectorAll('tr,[role="row"]');
+      if (all.length > 3) return Array.from(all).map(function(r){return rowText(r);}).join('\\n');
+      return document.body.innerText;
+    })()`;
+
+    for (let batchStart = 0; batchStart < total; batchStart += batchSize) {
+      const batch = channelIds.slice(batchStart, batchStart + batchSize);
+      logger.info(`[Parallel] Batch ${Math.floor(batchStart / batchSize) + 1}: ${batch.length} kênh [${batch.join(', ')}]`);
+
+      const context = await this.getContext(true, adminId);
+      const pages: Page[] = [];
+
+      try {
+        // Bước 1: Mở tất cả tab cùng lúc + navigate song song
+        logger.info(`[Parallel] Mở ${batch.length} tab và navigate đồng thời...`);
+        await Promise.all(batch.map(async (channelId, i) => {
+          const page = await context.newPage();
+          pages[i] = page;
+
+          // Chặn resource nặng để tiết kiệm RAM
+          await page.route('**/*', (route) => {
+            const t = route.request().resourceType();
+            if (['image', 'font', 'media', 'stylesheet'].includes(t)) return route.abort();
+            return route.continue();
+          }).catch(() => {});
+
+          const url = this.buildRevenueExploreUrl(channelId, month);
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e) => {
+            logger.warn(`[Parallel] Navigate ${channelId} lỗi (tiếp tục chờ): ${e.message}`);
+          });
+          logger.info(`[Parallel] Tab ${i + 1}/${batch.length} đã load: ${channelId}`);
+        }));
+
+        // Giữ cửa sổ GemLogin ở nền — không hiện lên foreground khi mở tab
+        await this.minimizeWindow(adminId);
+
+        // Bước 2: Polling cho đến khi từng tab load XONG HOÀN TOÀN
+        // Điều kiện "xong": không còn spinner + có hàng Tổng + row count ổn định 2 lần liên tiếp
+        const POLL_INTERVAL_MS = 5000;
+        const deadlineMs = Date.now() + waitMs;
+        const tabReady = new Array(batch.length).fill(false);
+        const prevRowCount = new Array(batch.length).fill(0);
+
+        logger.info(`[Parallel] Polling ${batch.length} tab — đợi load xong hoàn toàn (timeout ${Math.round(waitMs / 1000)}s)...`);
+
+        while (tabReady.some((r: boolean) => !r) && Date.now() < deadlineMs) {
+          await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+          await Promise.all(batch.map(async (channelId, i) => {
+            if (tabReady[i]) return;
+            const page = pages[i];
+            if (!page) { tabReady[i] = true; return; }
+            try {
+              const result = await page.evaluate(() => {
+                // 1. Còn spinner / skeleton → chưa xong
+                const hasSpinner = !!(
+                  document.querySelector('ytd-ghost-card-renderer') ||
+                  document.querySelector('tp-yt-paper-spinner[active]') ||
+                  document.querySelector('[class*="loading-indicator"][style*="display: block"]') ||
+                  document.querySelector('ytd-analytics-loading-renderer')
+                );
+                if (hasSpinner) return { ready: false, reason: 'spinner', rows: 0 };
+
+                // 2. Tìm bảng analytics
+                const table =
+                  document.querySelector('ytd-analytics-multi-dimension-data-table-renderer') ||
+                  document.querySelector('ytd-analytics-main-app') ||
+                  document.querySelector('#analytics-content-container');
+                if (!table) return { ready: false, reason: 'no-table', rows: 0 };
+
+                const rows = table.querySelectorAll('tr, [role="row"]');
+                const rowCount = rows.length;
+                if (rowCount < 3) return { ready: false, reason: 'few-rows', rows: rowCount };
+
+                // 3. Phải có hàng "Tổng" / "Total" → dữ liệu đầy đủ
+                const text = (table as HTMLElement).innerText || '';
+                const hasTotal = /Tổng|Total/i.test(text);
+                if (!hasTotal) return { ready: false, reason: 'no-total', rows: rowCount };
+
+                return { ready: true, reason: 'ok', rows: rowCount };
+              }) as { ready: boolean; reason: string; rows: number };
+
+              if (result.ready) {
+                // Ổn định: row count giống lần poll trước → thực sự xong
+                if (result.rows === prevRowCount[i] && result.rows > 0) {
+                  tabReady[i] = true;
+                  logger.info(`[Parallel] ✓ Tab ${i + 1} (${channelId}) load xong: ${result.rows} rows (stable)`);
+                } else {
+                  prevRowCount[i] = result.rows;
+                  logger.info(`[Parallel] Tab ${i + 1} (${channelId}) có ${result.rows} rows, chờ ổn định...`);
+                }
+              } else {
+                prevRowCount[i] = 0;
+                logger.info(`[Parallel] Tab ${i + 1} (${channelId}) chưa xong: ${result.reason}`);
+              }
+            } catch { /* page đang load */ }
+          }));
+
+          const doneCount = (tabReady as boolean[]).filter(Boolean).length;
+          if (doneCount < batch.length) {
+            const timeLeft = Math.round((deadlineMs - Date.now()) / 1000);
+            logger.info(`[Parallel] ${doneCount}/${batch.length} tab xong, còn ${timeLeft}s...`);
+          }
+        }
+
+        tabReady.forEach((isReady: boolean, i: number) => {
+          if (!isReady) logger.warn(`[Parallel] Tab ${i + 1} (${batch[i]}) hết timeout — extract với dữ liệu hiện có`);
+        });
+
+        // Bước 3: Extract song song từ tất cả tab
+        logger.info(`[Parallel] Extract data từ ${batch.length} tab...`);
+        await Promise.all(batch.map(async (channelId, i) => {
+          const page = pages[i];
+          if (!page) {
+            errors.push({ channelId, error: 'Tab không tồn tại' });
+            return;
+          }
+          try {
+            // Kiểm tra login
+            const currentUrl = page.url();
+            if (currentUrl.includes('accounts.google.com')) {
+              errors.push({ channelId, error: 'NOT_LOGGED_IN' });
+              return;
+            }
+
+            // Scroll để kích hoạt lazy load (nếu cần)
+            await page.evaluate('window.scrollTo(0,400)').catch(() => {});
+            await new Promise(r => setTimeout(r, 300));
+
+            const rawText = await page.evaluate(EXTRACT_JS) as string;
+
+            if (!rawText || rawText.trim().length < 50) {
+              errors.push({ channelId, error: 'Không có dữ liệu (trang trống)' });
+              return;
+            }
+
+            const parsed = this.parseRevenueExploreText(rawText);
+            results.push({
+              channelId,
+              totals: parsed.totals,
+              countries: parsed.countries,
+              period: parsed.period,
+              rawText,
+              scrapedAt: new Date().toISOString(),
+            });
+
+            const idx = batchStart + i;
+            onProgress?.(channelId, idx, total);
+            logger.info(`[Parallel] ✓ ${channelId}: $${parsed.totals.estimatedRevenue}`);
+          } catch (err: any) {
+            errors.push({ channelId, error: err.message });
+            logger.warn(`[Parallel] ✗ ${channelId}: ${err.message}`);
+          }
+        }));
+
+      } finally {
+        // Đóng tất cả tab của batch
+        for (const page of pages) {
+          await safeClosePage(page);
+        }
+        logger.info(`[Parallel] Batch xong, đã đóng ${pages.length} tab`);
+      }
+
+      // Nghỉ 5s giữa các batch
+      if (batchStart + batchSize < total) {
+        logger.info('[Parallel] Nghỉ 5s trước batch tiếp theo...');
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+
+    logger.info(`[Parallel] Hoàn tất: ${results.length} thành công, ${errors.length} lỗi`);
+    return { results, errors };
   }
 }

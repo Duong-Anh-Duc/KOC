@@ -4,17 +4,18 @@ import {
     DollarOutlined,
     EyeOutlined,
     FieldTimeOutlined,
-    LoadingOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { Button, Modal, Progress, Space, Spin, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ytScraperApi } from '../../api/endpoints';
+import { useProgress } from '../../hooks/useProgress';
 import type { MonthlyRevenueAnalytics } from '../../types';
 import { formatUSD, getTableLocale } from '../../utils';
+import { TaskProgressBar } from '../common';
 
 const { Text } = Typography;
 
@@ -47,6 +48,14 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
     enabled: !!kocId && open,
   });
 
+  // SSE progress for scraping
+  const scrapeProgress = useProgress((result: unknown) => {
+    const data = result as any;
+    const monthCount = data?.monthCount || 0;
+    message.success(t('ytScraper.scrapeMonthlySuccess', { count: monthCount }));
+    queryClient.invalidateQueries({ queryKey: ['monthlyRevenue', kocId] });
+  });
+
   // Scrape monthly data mutation
   const scrapeMutation = useMutation({
     mutationFn: async () => {
@@ -54,14 +63,15 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
       return ytScraperApi.scrapeMonthlyRevenue(kocId);
     },
     onSuccess: (res) => {
-      const monthCount = res.data.data?.monthCount || 0;
-      message.success(t('ytScraper.scrapeMonthlySuccess', { count: monthCount }));
-      queryClient.invalidateQueries({ queryKey: ['monthlyRevenue', kocId] });
+      const taskId = res.data?.data?.taskId;
+      if (taskId) { scrapeProgress.reset(); scrapeProgress.startTask(taskId); }
     },
     onError: () => {
       message.error(t('ytScraper.scrapeMonthlyError'));
     },
   });
+
+  const isScraping = scrapeMutation.isPending || scrapeProgress.state.active;
 
   // Calculate totals from data
   const totals = React.useMemo(() => {
@@ -185,20 +195,37 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
       width={950}
       destroyOnClose
       footer={
-        <Space>
-          <Button
-            type="primary"
-            icon={scrapeMutation.isPending ? <LoadingOutlined /> : <CloudSyncOutlined />}
-            onClick={() => scrapeMutation.mutate()}
-            loading={scrapeMutation.isPending}
-          >
-            {t('ytScraper.scrapeMonthly')}
-          </Button>
-          <Button onClick={onClose}>{t('common.close')}</Button>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {isScraping && scrapeProgress.state.progress && (
+            <Progress
+              percent={scrapeProgress.state.progress.percent}
+              status="active"
+              strokeColor={{ from: '#ED8F3A', to: '#52c41a' }}
+              size="small"
+              format={() => `${scrapeProgress.state.progress!.step}/${scrapeProgress.state.progress!.total}`}
+            />
+          )}
+          <Space>
+            <Button
+              type="primary"
+              icon={<CloudSyncOutlined />}
+              onClick={() => scrapeMutation.mutate()}
+              loading={isScraping}
+            >
+              {t('ytScraper.scrapeMonthly')}
+            </Button>
+            <Button onClick={onClose}>{t('common.close')}</Button>
+          </Space>
         </Space>
       }
     >
-      <Spin spinning={isLoading || scrapeMutation.isPending} tip={scrapeMutation.isPending ? t('ytScraper.scrapeMonthlyLoading') : undefined}>
+      <Spin
+        spinning={isLoading || isScraping}
+        tip={isScraping
+          ? (scrapeProgress.state.progress?.message || t('ytScraper.scrapeMonthlyLoading'))
+          : undefined
+        }
+      >
         {/* Summary stats */}
         {totals && (
           <div style={{

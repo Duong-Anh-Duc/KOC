@@ -8,6 +8,10 @@ import { AuditDetailModal, AuditLogsHeader, AuditLogsTable } from '../components
 import { SummaryBar } from '../components/common';
 import type { AuditLog } from '../types';
 
+
+
+
+
 const AuditLogsPage: React.FC = () => {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);

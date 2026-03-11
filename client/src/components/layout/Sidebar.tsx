@@ -5,7 +5,8 @@ import {
     DollarOutlined,
     LineChartOutlined,
     MailOutlined,
-    TeamOutlined
+    TeamOutlined,
+    YoutubeOutlined
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Layout, Menu } from 'antd';

@@ -281,19 +281,7 @@ export const ytScraperApi = {
 
   /** Scrape monthly revenue for a specific KOC */
   scrapeMonthlyRevenue: (kocId: string) =>
-    apiClient.post<ApiResponse<{
-      koc: { id: string; name: string; channel: string };
-      monthCount: number;
-      totals: { views: number | null; watchTimeHours: number | null; avgWatchTime: string | null; estimatedRevenue: number | null };
-      months: Array<{
-        monthLabel: string; monthKey: string;
-        views: number | null; viewsPercent: number | null;
-        watchTimeHours: number | null; watchTimePercent: number | null;
-        avgWatchTime: string | null;
-        estimatedRevenue: number | null; revenuePercent: number | null;
-      }>;
-      scrapedAt: string;
-    }>>(`/yt-scraper/monthly/scrape/${kocId}`),
+    apiClient.post<ApiResponse<{ taskId: string }>>(`/yt-scraper/monthly/scrape/${kocId}`),
 
   /** Start background scrape of monthly revenue — returns taskId. Pass kocIds to limit scope. */
   scrapeAllMonthlyRevenue: (kocIds?: string[]) =>
@@ -497,4 +485,40 @@ export const gologinApi = {
       cdpInjected: boolean;
       orbitaPath: string | null;
     }>>('/gologin/status'),
+};
+
+// ============================================================
+// GEMLOGIN API
+// ============================================================
+export const gemloginApi = {
+  getStatus: () =>
+    apiClient.get<{
+      success: boolean;
+      isRunning: boolean;
+      activeProfileId: string | null;
+      apiUrl: string;
+      cdpInjected: boolean;
+    }>('/gemlogin/status'),
+
+  start: (profileId?: string) =>
+    apiClient.post<ApiResponse<{ wsUrl: string; cdpUrl: string; profileId: string }>>(
+      '/gemlogin/start',
+      { profileId: profileId || '1' },
+    ),
+
+  close: (profileId?: string) =>
+    apiClient.post<ApiResponse>('/gemlogin/close', profileId ? { profileId } : {}),
+
+  getProfiles: () =>
+    apiClient.get<ApiResponse<Array<{ id: string; name: string; [key: string]: unknown }>>>('/gemlogin/profiles'),
+
+  scrapeRevenue: (params?: {
+    profileId?: string; month?: string; closeAfter?: boolean;
+    batchSize?: number; waitSeconds?: number;
+    kocIds?: string[]; saveToDb?: boolean;
+  }) =>
+    apiClient.post<ApiResponse<{ taskId: string }>>('/gemlogin/scrape-revenue', params || {}),
+
+  runCron: (params?: { profileId?: string; closeAfter?: boolean }) =>
+    apiClient.post<ApiResponse<{ cycleMonth?: string }>>('/gemlogin/run-cron', params || {}),
 };

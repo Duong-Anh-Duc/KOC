@@ -12,6 +12,8 @@ const app = express();
 
 // Trust nginx reverse proxy — reads real client IP from X-Forwarded-For
 app.set('trust proxy', 1);
+// Disable ETag — prevents 304 Not Modified on frequently-polled API status endpoints
+app.set('etag', false);
 
 // ============================================================
 // SECURITY MIDDLEWARES

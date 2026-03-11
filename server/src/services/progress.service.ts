@@ -12,27 +12,49 @@ interface ProgressData {
 
 /**
  * SSE-based progress tracking service.
- * Allows long-running tasks to report progress to connected clients.
+ * Buffers events emitted before the client connects, then flushes on connect.
+ * Fixes race condition: server emits events before client SSE connection is ready.
  */
 export class ProgressService {
   private static clients = new Map<string, Response[]>();
   private static taskIdCounter = 0;
 
-  /** Generate a unique task ID */
+  /** Buffer: lưu tạm events khi chưa có client nào connect */
+  private static buffers = new Map<string, string[]>();
+
+  /** Auto-cleanup buffer sau 10 phút nếu không có client */
+  private static readonly BUFFER_TTL_MS = 10 * 60 * 1000;
+
   static generateTaskId(prefix = 'task'): string {
     this.taskIdCounter++;
     return `${prefix}_${Date.now()}_${this.taskIdCounter}`;
   }
 
-  /** Register an SSE client for a task */
+  /** Register an SSE client — flush buffered events immediately */
   static addClient(taskId: string, res: Response): void {
     const clients = this.clients.get(taskId) || [];
     clients.push(res);
     this.clients.set(taskId, clients);
-    logger.debug(`SSE client added for task ${taskId}, total clients: ${clients.length}`);
+
+    // Flush any events emitted before this client connected
+    const buffered = this.buffers.get(taskId);
+    if (buffered && buffered.length > 0) {
+      for (const payload of buffered) {
+        try { res.write(payload); } catch { /* disconnected */ }
+      }
+      // Nếu buffer chứa complete/error event → đóng connection luôn
+      const lastPayload = buffered[buffered.length - 1];
+      if (lastPayload.startsWith('event: complete') || lastPayload.startsWith('event: error')) {
+        try { res.end(); } catch { /* ignore */ }
+        this.clients.delete(taskId);
+        this.buffers.delete(taskId);
+        return;
+      }
+    }
+
+    logger.debug(`SSE client added for task ${taskId}, buffered: ${buffered?.length ?? 0}`);
   }
 
-  /** Remove an SSE client */
   static removeClient(taskId: string, res: Response): void {
     const clients = this.clients.get(taskId);
     if (clients) {
@@ -42,57 +64,70 @@ export class ProgressService {
     }
   }
 
-  /** Send progress update to all clients of a task */
+  /** Emit progress — buffer nếu chưa có client */
   static emit(taskId: string, data: ProgressData): void {
+    const payload = `event: progress\ndata: ${JSON.stringify(data)}\n\n`;
+
+    // Buffer luôn (để flush khi client connect muộn)
+    const buf = this.buffers.get(taskId) || [];
+    buf.push(payload);
+    this.buffers.set(taskId, buf);
+
+    // Gửi ngay nếu có client đang connected
     const clients = this.clients.get(taskId);
     if (clients && clients.length > 0) {
-      const payload = `event: progress\ndata: ${JSON.stringify(data)}\n\n`;
       for (const res of clients) {
-        try {
-          res.write(payload);
-        } catch {
-          // Client disconnected
-        }
+        try { res.write(payload); } catch { /* disconnected */ }
       }
     }
+
+    // Auto-cleanup buffer sau TTL
+    setTimeout(() => {
+      if (!this.clients.has(taskId)) this.buffers.delete(taskId);
+    }, this.BUFFER_TTL_MS);
   }
 
-  /** Send final completion event and close all clients */
+  /** Complete — buffer event rồi close clients */
   static complete(taskId: string, result?: any): void {
+    const payload = `event: complete\ndata: ${JSON.stringify({ step: 0, total: 0, percent: 100, message: 'Done', done: true, result })}\n\n`;
+
+    // Buffer để flush nếu client connect sau khi complete
+    const buf = this.buffers.get(taskId) || [];
+    buf.push(payload);
+    this.buffers.set(taskId, buf);
+
     const clients = this.clients.get(taskId);
     if (clients && clients.length > 0) {
-      const payload = `event: complete\ndata: ${JSON.stringify({ step: 0, total: 0, percent: 100, message: 'Done', done: true, result })}\n\n`;
       for (const res of clients) {
-        try {
-          res.write(payload);
-          res.end();
-        } catch {
-          // Client disconnected
-        }
+        try { res.write(payload); res.end(); } catch { /* disconnected */ }
       }
     }
     this.clients.delete(taskId);
-    logger.debug(`SSE task ${taskId} completed and cleaned up`);
+    logger.debug(`SSE task ${taskId} completed`);
+
+    // Cleanup buffer sau 30s (đủ thời gian cho client connect muộn)
+    setTimeout(() => this.buffers.delete(taskId), 30_000);
   }
 
-  /** Send error event and close all clients */
+  /** Error — buffer event rồi close clients */
   static error(taskId: string, errorMessage: string): void {
+    const payload = `event: error\ndata: ${JSON.stringify({ message: errorMessage })}\n\n`;
+
+    const buf = this.buffers.get(taskId) || [];
+    buf.push(payload);
+    this.buffers.set(taskId, buf);
+
     const clients = this.clients.get(taskId);
     if (clients && clients.length > 0) {
-      const payload = `event: error\ndata: ${JSON.stringify({ message: errorMessage })}\n\n`;
       for (const res of clients) {
-        try {
-          res.write(payload);
-          res.end();
-        } catch {
-          // Client disconnected
-        }
+        try { res.write(payload); res.end(); } catch { /* disconnected */ }
       }
     }
     this.clients.delete(taskId);
+
+    setTimeout(() => this.buffers.delete(taskId), 30_000);
   }
 
-  /** Check if any clients are listening to a task */
   static hasClients(taskId: string): boolean {
     const clients = this.clients.get(taskId);
     return !!clients && clients.length > 0;

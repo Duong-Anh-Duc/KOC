@@ -12,6 +12,7 @@ import revenueRoutes from './revenue.routes';
 import statsRoutes from './stats.routes';
 import youtubeApiRoutes from './youtube-api.routes';
 import gologinRoutes from './gologin.routes';
+import gemloginRoutes from './gemlogin.routes';
 import ytScraperRoutes from './youtube-scraper.routes';
 
 const router = Router();
@@ -30,6 +31,7 @@ router.use('/cron', cronRoutes);
 router.use('/email', emailRoutes);
 router.use('/progress', progressRoutes);
 router.use('/gologin', gologinRoutes);
+router.use('/gemlogin', gemloginRoutes);
 
 // Health check
 router.get('/health', (_req, res) => {

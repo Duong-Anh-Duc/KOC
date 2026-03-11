@@ -58,7 +58,7 @@ export class MonthlyRevenueService {
         await new Promise(r => setTimeout(r, 500));
 
         try {
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 });
         } catch (err: any) {
           logger.warn(`⚠️ Page load timeout (attempt ${attempt}), continuing...`, err.message);
         }
@@ -70,7 +70,7 @@ export class MonthlyRevenueService {
 
         // YouTube Studio shows "unsupported browser" page for headless/automated browsers.
         // Detect and click through to proceed to Studio directly.
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 3000));
         const bodySnippet = await page.evaluate('document.body.innerText').catch(() => '') as string;
         if (bodySnippet.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodySnippet.includes('Go to YouTube Studio')) {
           logger.warn(`⚠️ "Unsupported browser" page detected — clicking through to Studio...`);
@@ -78,25 +78,24 @@ export class MonthlyRevenueService {
           if (await link.count() > 0) {
             await link.first().click();
             await page.waitForLoadState('domcontentloaded').catch(() => {});
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 5000));
           } else {
-            // Fallback: navigate directly stripping the unsupported browser redirect
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 }).catch(() => {});
           }
         }
 
-        // Wait for analytics to render, then retry up to 3x if content too short
+        // Wait for analytics to render — retry tối đa 10 lần, mỗi lần 15s (tổng ~2.5 phút)
         let text = '';
-        for (let waitAttempt = 1; waitAttempt <= 3; waitAttempt++) {
-          await new Promise(r => setTimeout(r, waitAttempt === 1 ? 6000 : 5000));
+        for (let waitAttempt = 1; waitAttempt <= 10; waitAttempt++) {
+          await new Promise(r => setTimeout(r, waitAttempt === 1 ? 8000 : 15000));
           text = await Promise.race([
             page.evaluate('document.body.innerText') as Promise<string>,
             new Promise<string>((_, reject) =>
-              setTimeout(() => reject(new Error('Timeout extracting text')), 30000)
+              setTimeout(() => reject(new Error('Timeout extracting text')), 1800000)
             ),
           ]);
           if (text.length >= 1000) break;
-          logger.warn(`⚠️ Content too short (${text.length} chars), waiting longer... (${waitAttempt}/3)`);
+          logger.warn(`⚠️ Content too short (${text.length} chars), waiting longer... (${waitAttempt}/10)`);
         }
 
         logger.info(`✓ Scraped monthly revenue page (${text.length} chars)`);
@@ -551,35 +550,103 @@ export class MonthlyRevenueService {
     const results: Array<{ kocId: string; channelName: string; monthCount: number }> = [];
     const errors: Array<{ kocId: string; channelName: string; error: string }> = [];
     const total = kocs.length;
+    if (total === 0) return { results, errors };
 
-    for (let i = 0; i < kocs.length; i++) {
-      const koc = kocs[i];
-      if (onProgress) onProgress(i + 1, total, koc.channel_name);
-      try {
-        logger.info(`[${i + 1}/${total}] 📊 Scraping monthly revenue for ${koc.channel_name}`);
-        const data = await this.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId, koc.channel_name);
-        results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
-        if (i < kocs.length - 1) {
-          // Random delay 8-15s to mimic human browsing (avoid fixed-interval bot pattern)
-          const delay = 8000 + Math.floor(Math.random() * 7000);
-          // Extra 30s pause every 10 channels to avoid sustained activity detection
-          const extraPause = (i + 1) % 10 === 0 ? 30000 : 0;
-          await new Promise(r => setTimeout(r, delay + extraPause));
+    logger.info(`[Monthly Parallel] Mở ${total} tab cùng lúc...`);
+
+    // Bước 1: Lấy context một lần dùng chung
+    const context = await YouTubeScraperService.getContext(false, adminId);
+    const pages: any[] = new Array(total).fill(null);
+
+    try {
+      // Bước 2: Mở tất cả tab và navigate đồng thời
+      await Promise.all(kocs.map(async (koc, i) => {
+        const page = await context.newPage();
+        pages[i] = page;
+
+        await page.route('**/*', (route: any) => {
+          const t = route.request().resourceType();
+          if (['image', 'font', 'media', 'stylesheet'].includes(t)) return route.abort();
+          return route.continue();
+        }).catch(() => {});
+
+        const url = this.buildMonthlyRevenueUrl(koc.youtube_channel_id);
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e: any) => {
+          logger.warn(`[Monthly Parallel] Navigate ${koc.channel_name} lỗi: ${e.message}`);
+        });
+        logger.info(`[Monthly Parallel] Tab ${i + 1}/${total} đã load: ${koc.channel_name}`);
+      }));
+
+      // Giữ cửa sổ GemLogin ở nền — không hiện lên foreground khi mở tab
+      await YouTubeScraperService.minimizeWindow(adminId);
+
+      // Bước 3: Poll tất cả tab song song — đợi nội dung >= 1000 ký tự (tối đa 5 phút)
+      const POLL_MS = 5000;
+      const WAIT_LIMIT = Date.now() + 300000;
+      const pageReady = new Array(total).fill(false);
+
+      while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {
+        await new Promise(r => setTimeout(r, POLL_MS));
+        for (let i = 0; i < total; i++) {
+          if (pageReady[i] || !pages[i]) continue;
+          try {
+            const text: string = await pages[i].evaluate('document.body.innerText') as string;
+            if (text.length >= 1000) {
+              pageReady[i] = true;
+              logger.info(`[Monthly Parallel] Tab ${i + 1} (${kocs[i].channel_name}) sẵn sàng: ${text.length} chars`);
+            }
+          } catch { /* vẫn đang load */ }
         }
-      } catch (err: any) {
-        logger.error(`❌ Failed for ${koc.channel_name}: ${err.message}`);
-        errors.push({ kocId: koc.id, channelName: koc.channel_name, error: err.message });
-        if (err.message === 'NOT_LOGGED_IN') {
-          YouTubeScraperService.markSessionDisconnected('monthly_scrape_not_logged_in', undefined, adminId, {
-            trigger: 'MonthlyRevenueService.scrapeAllKOCs',
-            failedChannel: koc.channel_name,
-            channelIndex: String(i),
-          }).catch(() => {});
-          break;
-        }
+        const ready = pageReady.filter(Boolean).length;
+        logger.info(`[Monthly Parallel] ${ready}/${total} tab sẵn sàng`);
       }
+
+      // Bước 4: Extract + lưu song song
+      let progressCount = 0;
+      await Promise.allSettled(pages.map(async (page, i) => {
+        const koc = kocs[i];
+        try {
+          const text: string = await page.evaluate('document.body.innerText') as string;
+          if (text.length < 500) {
+            throw new Error(`Page content too short (${text.length} chars)`);
+          }
+          const parsed = this.parseMonthlyRevenueText(text);
+          const data: MonthlyRevenueData = {
+            channelId: YouTubeScraperService.cleanChannelId(koc.youtube_channel_id),
+            totals: parsed.totals,
+            months: parsed.months,
+            scrapedAt: new Date().toISOString(),
+          };
+          await this.saveMonthlyRevenue(koc.id, koc.youtube_channel_id, data);
+          await this.syncToCycles(koc.id, data.months);
+          this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, data, null);
+          progressCount++;
+          if (onProgress) onProgress(progressCount, total, koc.channel_name);
+          results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
+          logger.info(`[Monthly Parallel] ✓ ${koc.channel_name}: ${data.months.length} tháng`);
+        } catch (err: any) {
+          const errMsg: string = err.message ?? String(err);
+          logger.error(`[Monthly Parallel] ✗ ${koc.channel_name}: ${errMsg}`);
+          this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, null, errMsg);
+          errors.push({ kocId: koc.id, channelName: koc.channel_name, error: errMsg });
+          if (errMsg === 'NOT_LOGGED_IN') {
+            YouTubeScraperService.markSessionDisconnected('monthly_scrape_not_logged_in', undefined, adminId, {
+              trigger: 'MonthlyRevenueService.scrapeAllKOCs',
+              failedChannel: koc.channel_name,
+            }).catch(() => {});
+          }
+        } finally {
+          try { await page.close(); } catch { /* ignore */ }
+        }
+      }));
+    } catch (err: any) {
+      for (const page of pages) {
+        if (page) try { await page.close(); } catch { /* ignore */ }
+      }
+      throw err;
     }
 
+    logger.info(`[Monthly Parallel] Hoàn tất: ${results.length} thành công, ${errors.length} lỗi`);
     return { results, errors };
   }
 }

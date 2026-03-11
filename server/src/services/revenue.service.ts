@@ -214,6 +214,7 @@ export class RevenueService {
             channel_name: true,
             bank_account_number: true,
             bank_name: true,
+            base_rate: true,
           },
         },
         cycle: {
@@ -233,36 +234,53 @@ export class RevenueService {
 
     // Sum previous PENDING revenue per KOC
     const prevOriginalByKoc = new Map<string, number>();
-    const prevKocUsdByKoc = new Map<string, number>();
+    const prevUsTaxByKoc = new Map<string, number>();
     for (const r of prevPendingRecords) {
       prevOriginalByKoc.set(r.koc_id, (prevOriginalByKoc.get(r.koc_id) ?? 0) + Number(r.original_revenue_usd));
-      prevKocUsdByKoc.set(r.koc_id, (prevKocUsdByKoc.get(r.koc_id) ?? 0) + Number(r.koc_receive_usd));
+      prevUsTaxByKoc.set(r.koc_id, (prevUsTaxByKoc.get(r.koc_id) ?? 0) + Number(r.us_tax_deduction));
     }
 
-    // Inject computed accumulated into each record
+    // Recalculate ALL derived fields from accumulated total.
+    // Bank fee ($12 fixed) is charged once on the total, not per month.
     const enrichedRecords = records.map(r => {
       const prevOrig = prevOriginalByKoc.get(r.koc_id) ?? 0;
-      const prevKoc = prevKocUsdByKoc.get(r.koc_id) ?? 0;
+      const prevTax = prevUsTaxByKoc.get(r.koc_id) ?? 0;
+
+      const accRevenue = RevenueService.round2(prevOrig + Number(r.original_revenue_usd));
+      const accUsTax = RevenueService.round2(prevTax + Number(r.us_tax_deduction));
+
+      const accCalc = RevenueService.calculate({
+        originalRevenueUsd: accRevenue,
+        usTaxDeduction: accUsTax,
+        baseRate: Number((r.koc as any).base_rate ?? 0.8),
+        exchangeRate: Number(r.cycle.exchange_rate),
+      });
+
       return {
         ...r,
-        accumulated_revenue_usd: RevenueService.round2(prevOrig + Number(r.original_revenue_usd)),
-        accumulated_koc_usd: RevenueService.round2(prevKoc + Number(r.koc_receive_usd)),
+        accumulated_revenue_usd: accRevenue,
+        accumulated_us_tax: accCalc.us_tax_deduction,
+        accumulated_bank_fee: accCalc.bank_fee,
+        accumulated_net_revenue: accCalc.net_revenue,
+        accumulated_company_share: accCalc.company_share,
+        accumulated_koc_gross: accCalc.koc_share_gross,
+        accumulated_koc_tax: accCalc.koc_tax_deduction,
+        accumulated_koc_usd: accCalc.koc_receive_usd,
+        accumulated_koc_vnd: accCalc.koc_receive_vnd,
       };
     });
 
-    // Calculate totals
+    // Totals always use accumulated values
     const totals = enrichedRecords.reduce(
       (acc, r) => {
-        const monthly = Number(r.koc_receive_usd);
-        const accumulated = Number(r.accumulated_koc_usd ?? 0);
-        const kocPayout = accumulated > monthly + 0.001 ? accumulated : monthly;
         return {
           totalOriginal: acc.totalOriginal + Number(r.original_revenue_usd),
-          totalNetRevenue: acc.totalNetRevenue + Number(r.net_revenue),
-          totalCompanyShare: acc.totalCompanyShare + Number(r.company_share),
-          totalKocReceiveUsd: acc.totalKocReceiveUsd + monthly,
-          totalKocReceiveVnd: acc.totalKocReceiveVnd + Number(r.koc_receive_vnd),
-          totalAccumulatedKocUsd: acc.totalAccumulatedKocUsd + kocPayout,
+          totalNetRevenue: acc.totalNetRevenue + Number(r.accumulated_net_revenue),
+          totalCompanyShare: acc.totalCompanyShare + Number(r.accumulated_company_share),
+          totalKocReceiveUsd: acc.totalKocReceiveUsd + Number(r.accumulated_koc_usd),
+          totalKocReceiveVnd: acc.totalKocReceiveVnd + Number(r.accumulated_koc_vnd),
+          totalAccumulatedKocUsd: acc.totalAccumulatedKocUsd + Number(r.accumulated_koc_usd),
+          totalAccumulatedKocVnd: acc.totalAccumulatedKocVnd + Number(r.accumulated_koc_vnd),
         };
       },
       {
@@ -272,6 +290,7 @@ export class RevenueService {
         totalKocReceiveUsd: 0,
         totalKocReceiveVnd: 0,
         totalAccumulatedKocUsd: 0,
+        totalAccumulatedKocVnd: 0,
       }
     );
 

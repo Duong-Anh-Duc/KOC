@@ -1,13 +1,14 @@
 import {
   BulbOutlined,
   GlobalOutlined,
+  LoadingOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Avatar, Button, Dropdown, Layout, Space, Tag } from 'antd';
+import { Avatar, Button, Dropdown, Layout, Space, Tag, Tooltip } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLogout } from '../../hooks';
@@ -15,7 +16,11 @@ import { useAppStore, useAuthStore } from '../../stores';
 
 const { Header: AntHeader } = Layout;
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  gemLogin?: { isRunning: boolean; isStarting: boolean; activeProfileId?: string | null };
+}
+
+const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
   const { t, i18n } = useTranslation();
   const { sidebarCollapsed, toggleSidebar, locale, setLocale, darkMode, toggleDarkMode } = useAppStore();
   const user = useAuthStore((s) => s.user);
@@ -78,6 +83,19 @@ const Navbar: React.FC = () => {
       />
 
       <Space size="middle">
+        {/* GemLogin status badge — chỉ hiện cho staff */}
+        {gemLogin && (
+          <Tooltip title={gemLogin.isRunning ? `GemLogin đang chạy${gemLogin.activeProfileId ? ` — Profile ${gemLogin.activeProfileId}` : ''}` : 'GemLogin đang khởi động...'}>
+            <Tag
+              icon={gemLogin.isRunning ? <GlobalOutlined style={{ marginRight: 4 }} /> : <LoadingOutlined style={{ marginRight: 4 }} />}
+              color={gemLogin.isRunning ? 'success' : 'processing'}
+              style={{ cursor: 'default', userSelect: 'none' }}
+            >
+              {gemLogin.isRunning ? 'GemLogin' : 'Đang khởi động...'}
+            </Tag>
+          </Tooltip>
+        )}
+
         <Button
           type="text"
           icon={<BulbOutlined />}
