@@ -1,31 +1,14 @@
-import {
-    CalendarOutlined,
-    CheckCircleOutlined,
-    CloudSyncOutlined,
-    DollarOutlined,
-    DownOutlined,
-    LoadingOutlined,
-    LockOutlined,
-    PlusOutlined,
-    SafetyCertificateOutlined,
-    TeamOutlined
-} from '@ant-design/icons';
-import { Button, Card, Checkbox, Col, Dropdown, Empty, List, Modal, Row, Select, Space, Tag, Typography, message } from 'antd';
+import { Empty, Select, Space } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PaymentStatusMap, RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../../types';
-import { formatUSD, formatVND } from '../../utils';
-import { SummaryBar } from '../common';
 import { RevenueTable } from '../features';
-
-const { Text } = Typography;
-
-const statusColorMap: Record<string, string> = {
-  OPEN: 'blue',
-  LOCKED: 'orange',
-  COMPLETED: 'green',
-  PAYMENT_COMPLETED: 'green',
-};
+import AddKocModal from './AddKocModal';
+import GemLoginScrapeModal from './GemLoginScrapeModal';
+import RevenueSummary from './RevenueSummary';
+import RevenueToolbar from './RevenueToolbar';
+import ScrapeMonthlyModal from './ScrapeMonthlyModal';
+import SelectKocModal from './SelectKocModal';
 
 interface RevenueTabProps {
   cycles: RevenueCycle[] | undefined;
@@ -110,8 +93,6 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   const [gemLoginSelectOpen, setGemLoginSelectOpen] = useState(false);
   const [gemLoginSelectedIds, setGemLoginSelectedIds] = useState<string[]>([]);
 
-  const gemLoginScraping = scrapeLoading || scrapeMonthlyLoading;
-
   // Modal: scrape monthly for selected KOCs
   const [monthlyModalOpen, setMonthlyModalOpen] = useState(false);
   const [monthlySelectedIds, setMonthlySelectedIds] = useState<string[]>([]);
@@ -145,157 +126,45 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
       </Space>
 
       {selectedCycleId && totals && (
-        <SummaryBar
-          items={[
-            {
-              title: t('revenue.totalKOCs'),
-              value: records.length,
-              prefix: <TeamOutlined />,
-              valueStyle: { color: '#1677ff' },
-            },
-            {
-              title: t('revenue.originalRevenue'),
-              value: totals.totalOriginal || 0,
-              prefix: <DollarOutlined />,
-              precision: 2,
-              valueStyle: { color: '#fa8c16' },
-              formatter: (val) => formatUSD(Number(val)),
-            },
-            {
-              title: t('revenue.kocReceiveUsd'),
-              value: totals.totalKocReceiveUsd || 0,
-              precision: 2,
-              valueStyle: { color: '#1677ff' },
-              formatter: (val) => formatUSD(Number(val)),
-            },
-            {
-              title: t('revenue.kocReceiveVnd'),
-              value: totals.totalKocReceiveVnd || 0,
-              precision: 0,
-              valueStyle: { color: '#52c41a' },
-              formatter: (val) => formatVND(Number(val)),
-            },
-          ]}
+        <RevenueSummary
+          records={records}
+          totals={totals}
           loading={loadingRecords}
         />
       )}
 
-      {/* Cycle Info */}
+      {/* Cycle Info & Actions */}
       {selectedCycle && (
-        <Card size="small" style={{ marginBottom: 16 }}>
-          <Row gutter={16} align="middle">
-            <Col flex="auto">
-              <Space size="large">
-                <Text strong>
-                  {t('revenue.month')}: {selectedCycle.month}
-                </Text>
-                <Space size="small">
-                  <Text>
-                    {t('revenue.exchangeRate')}:{' '}
-                    <strong>{Number(selectedCycle.exchange_rate).toLocaleString()} {t('common.vndUsd')}</strong>
-                  </Text>
-                </Space>
-                <Tag color={statusColorMap[selectedCycle.status]}>
-                  {t(`status.${selectedCycle.status}`, selectedCycle.status)}
-                </Tag>
-              </Space>
-            </Col>
-            <Col>
-              <Space>
-                {!cycleLocked && (
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: 'gem-all',
-                          label: 'Cào doanh thu — tất cả KOC',
-                          icon: <CloudSyncOutlined />,
-                          onClick: () => selectedCycle && onScrapeRevenue(selectedCycle.id, records.map(r => r.koc_id)),
-                        },
-                        {
-                          key: 'gem-select',
-                          label: 'Cào doanh thu — chọn KOC',
-                          icon: <TeamOutlined />,
-                          onClick: () => {
-                            setGemLoginSelectedIds(records.map(r => r.koc_id));
-                            setGemLoginSelectOpen(true);
-                          },
-                        },
-                        { type: 'divider' },
-                        {
-                          key: 'gem-monthly-all',
-                          label: 'Cào dữ liệu tháng — tất cả KOC',
-                          icon: <CalendarOutlined />,
-                          onClick: () => onScrapeMonthly(records.map(r => r.koc_id)),
-                        },
-                        {
-                          key: 'gem-monthly-select',
-                          label: 'Cào dữ liệu tháng — chọn KOC',
-                          icon: <TeamOutlined />,
-                          onClick: () => {
-                            setMonthlySelectedIds(records.map(r => r.koc_id));
-                            setMonthlyModalOpen(true);
-                          },
-                        },
-                        { type: 'divider' },
-                        {
-                          key: 'check-pub-codes',
-                          label: 'Kiểm tra Mã Pub toàn chu kỳ',
-                          icon: <SafetyCertificateOutlined />,
-                          onClick: () => selectedCycle && onCheckPubCodes?.(selectedCycle.id),
-                          disabled: checkPubCodesLoading || !onCheckPubCodes,
-                        },
-                      ],
-                    }}
-                    disabled={gemLoginScraping || checkPubCodesLoading}
-                  >
-                    <Button
-                      type="primary"
-                      icon={gemLoginScraping ? <LoadingOutlined /> : <CloudSyncOutlined />}
-                      loading={gemLoginScraping}
-                    >
-                      {t('revenue.updateRevenue')} <DownOutlined />
-                    </Button>
-                  </Dropdown>
-                )}
-                {isAdmin && !cycleLocked && (
-                  <Button
-                    icon={addKocsLoading ? <LoadingOutlined /> : <PlusOutlined />}
-                    loading={addKocsLoading}
-                    onClick={() => {
-                      setAddKocSelectedIds(missingKOCs.map(k => k.id));
-                      setAddKocModalOpen(true);
-                    }}
-                    disabled={missingKOCs.length === 0}
-                    title={missingKOCs.length === 0 ? 'Tất cả KOC đã có trong chu kỳ' : undefined}
-                  >
-                    Thêm KOC ({missingKOCs.length})
-                  </Button>
-                )}
-                {isAdmin && selectedCycle.status === 'OPEN' && (
-                  <Button
-                    icon={<LockOutlined />}
-                    onClick={() => onLockCycle(selectedCycle.id)}
-                    loading={lockLoading}
-                  >
-                    {t('cycle.lock')}
-                  </Button>
-                )}
-                {isAdmin && selectedCycle.status === 'LOCKED' && (
-                  <Button
-                    type="primary"
-                    icon={<CheckCircleOutlined />}
-                    onClick={() => onCompleteCycle(selectedCycle.id)}
-                    loading={completeLoading}
-                    style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                  >
-                    {t('cycle.complete')}
-                  </Button>
-                )}
-              </Space>
-            </Col>
-          </Row>
-        </Card>
+        <RevenueToolbar
+          selectedCycle={selectedCycle}
+          cycleLocked={cycleLocked}
+          records={records}
+          isAdmin={isAdmin}
+          onScrapeRevenue={onScrapeRevenue}
+          scrapeLoading={scrapeLoading}
+          onScrapeMonthly={onScrapeMonthly}
+          scrapeMonthlyLoading={scrapeMonthlyLoading}
+          onCheckPubCodes={onCheckPubCodes}
+          checkPubCodesLoading={checkPubCodesLoading}
+          onLockCycle={onLockCycle}
+          lockLoading={lockLoading}
+          onCompleteCycle={onCompleteCycle}
+          completeLoading={completeLoading}
+          addKocsLoading={addKocsLoading}
+          missingKOCsCount={missingKOCs.length}
+          onOpenGemLoginSelect={() => {
+            setGemLoginSelectedIds(records.map(r => r.koc_id));
+            setGemLoginSelectOpen(true);
+          }}
+          onOpenMonthlyModal={() => {
+            setMonthlySelectedIds(records.map(r => r.koc_id));
+            setMonthlyModalOpen(true);
+          }}
+          onOpenAddKocModal={() => {
+            setAddKocSelectedIds(missingKOCs.map(k => k.id));
+            setAddKocModalOpen(true);
+          }}
+        />
       )}
 
       {/* Revenue Table */}
@@ -322,187 +191,52 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
         <Empty description={t('revenue.selectCycleFirst')} />
       )}
 
-      {/* KOC Selection Modal */}
-      <Modal
-        title={t('revenue.scrapeSelected', 'Chọn KOC để cào')}
+      {/* Modals */}
+      <SelectKocModal
         open={selectKocModalOpen}
         onCancel={() => setSelectKocModalOpen(false)}
-        onOk={() => {
-          if (selectedCycle && selectedKocIds.length > 0) {
-            onScrapeRevenue(selectedCycle.id, selectedKocIds);
-            setSelectKocModalOpen(false);
+        selectedKocIds={selectedKocIds}
+        setSelectedKocIds={setSelectedKocIds}
+        activeKOCs={activeKOCs}
+        onConfirm={(kocIds) => {
+          if (selectedCycle) {
+            onScrapeRevenue(selectedCycle.id, kocIds);
           }
         }}
-        okText={t('revenue.startScrape', 'Bắt đầu cào')}
-        okButtonProps={{ disabled: selectedKocIds.length === 0 }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Checkbox
-            indeterminate={selectedKocIds.length > 0 && selectedKocIds.length < (activeKOCs?.length || 0)}
-            checked={selectedKocIds.length > 0 && selectedKocIds.length === (activeKOCs?.length || 0)}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setSelectedKocIds(activeKOCs?.map(k => k.id) || []);
-              } else {
-                setSelectedKocIds([]);
-              }
-            }}
-          >
-            {t('common.selectAll', 'Chọn tất cả')} ({activeKOCs?.length || 0})
-          </Checkbox>
-        </div>
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-          <Checkbox.Group
-            value={selectedKocIds}
-            onChange={(vals) => setSelectedKocIds(vals as string[])}
-            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-          >
-            {activeKOCs?.map(koc => (
-              <Checkbox key={koc.id} value={koc.id}>
-                <span style={{ fontWeight: 500 }}>{koc.full_name}</span>
-                <span style={{ color: '#888', marginLeft: 8 }}>({koc.channel_name})</span>
-              </Checkbox>
-            ))}
-          </Checkbox.Group>
-        </div>
-      </Modal>
+      />
 
-      {/* Scrape monthly for selected KOCs modal */}
-      <Modal
-        title={`Chọn KOC để cào dữ liệu tháng (${records.length} KOC trong chu kỳ)`}
+      <ScrapeMonthlyModal
         open={monthlyModalOpen}
         onCancel={() => setMonthlyModalOpen(false)}
-        onOk={() => {
-          if (monthlySelectedIds.length > 0) {
-            onScrapeMonthly(monthlySelectedIds);
-            setMonthlyModalOpen(false);
-          }
-        }}
-        okText={`Cào ${monthlySelectedIds.length} KOC`}
-        okButtonProps={{ disabled: monthlySelectedIds.length === 0, icon: <CalendarOutlined /> }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Checkbox
-            indeterminate={monthlySelectedIds.length > 0 && monthlySelectedIds.length < records.length}
-            checked={monthlySelectedIds.length === records.length && records.length > 0}
-            onChange={(e) => setMonthlySelectedIds(e.target.checked ? records.map(r => r.koc_id) : [])}
-          >
-            Chọn tất cả ({records.length})
-          </Checkbox>
-        </div>
-        <List
-          size="small"
-          style={{ maxHeight: 400, overflowY: 'auto' }}
-          dataSource={records}
-          renderItem={(record) => {
-            const koc = activeKOCs?.find(k => k.id === record.koc_id);
-            return (
-              <List.Item style={{ padding: '4px 0' }}>
-                <Checkbox
-                  checked={monthlySelectedIds.includes(record.koc_id)}
-                  onChange={(e) => {
-                    setMonthlySelectedIds(prev =>
-                      e.target.checked ? [...prev, record.koc_id] : prev.filter(id => id !== record.koc_id)
-                    );
-                  }}
-                >
-                  <span style={{ fontWeight: 500 }}>{koc?.full_name || record.koc_id}</span>
-                  <span style={{ color: '#888', marginLeft: 8 }}>({koc?.channel_name || ''})</span>
-                </Checkbox>
-              </List.Item>
-            );
-          }}
-        />
-      </Modal>
+        monthlySelectedIds={monthlySelectedIds}
+        setMonthlySelectedIds={setMonthlySelectedIds}
+        records={records}
+        activeKOCs={activeKOCs}
+        onConfirm={(kocIds) => onScrapeMonthly(kocIds)}
+      />
 
-      {/* Add KOCs to cycle modal */}
-      <Modal
-        title={`Thêm KOC vào chu kỳ (${missingKOCs.length} KOC chưa có)`}
+      <AddKocModal
         open={addKocModalOpen}
         onCancel={() => setAddKocModalOpen(false)}
-        onOk={() => {
-          if (selectedCycle && addKocSelectedIds.length > 0) {
-            onAddKocsToCycle(selectedCycle.id, addKocSelectedIds);
-            setAddKocModalOpen(false);
+        addKocSelectedIds={addKocSelectedIds}
+        setAddKocSelectedIds={setAddKocSelectedIds}
+        missingKOCs={missingKOCs}
+        onConfirm={(kocIds) => {
+          if (selectedCycle) {
+            onAddKocsToCycle(selectedCycle.id, kocIds);
           }
         }}
-        okText={`Thêm ${addKocSelectedIds.length} KOC`}
-        okButtonProps={{ disabled: addKocSelectedIds.length === 0 }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Checkbox
-            indeterminate={addKocSelectedIds.length > 0 && addKocSelectedIds.length < missingKOCs.length}
-            checked={addKocSelectedIds.length === missingKOCs.length && missingKOCs.length > 0}
-            onChange={(e) => setAddKocSelectedIds(e.target.checked ? missingKOCs.map(k => k.id) : [])}
-          >
-            Chọn tất cả ({missingKOCs.length})
-          </Checkbox>
-        </div>
-        <List
-          size="small"
-          style={{ maxHeight: 400, overflowY: 'auto' }}
-          dataSource={missingKOCs}
-          renderItem={(koc) => (
-            <List.Item style={{ padding: '4px 0' }}>
-              <Checkbox
-                checked={addKocSelectedIds.includes(koc.id)}
-                onChange={(e) => {
-                  setAddKocSelectedIds(prev =>
-                    e.target.checked ? [...prev, koc.id] : prev.filter(id => id !== koc.id)
-                  );
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{koc.full_name}</span>
-                <span style={{ color: '#888', marginLeft: 8 }}>({koc.channel_name})</span>
-              </Checkbox>
-            </List.Item>
-          )}
-        />
-      </Modal>
+      />
 
-      {/* GemLogin: Modal chọn KOC để cào doanh thu chu kỳ */}
-      <Modal
-        title={<Space><CloudSyncOutlined /> {`Cào doanh thu — Chọn KOC (${selectedCycle?.month})`}</Space>}
+      <GemLoginScrapeModal
         open={gemLoginSelectOpen}
         onCancel={() => setGemLoginSelectOpen(false)}
-        onOk={() => {
-          if (selectedCycle && gemLoginSelectedIds.length > 0) {
-            onScrapeRevenue(selectedCycle.id, gemLoginSelectedIds);
-          }
-          setGemLoginSelectOpen(false);
-        }}
-        okText={`Cào ${gemLoginSelectedIds.length} KOC`}
-        okButtonProps={{ disabled: gemLoginSelectedIds.length === 0, icon: <CloudSyncOutlined /> }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Checkbox
-            indeterminate={gemLoginSelectedIds.length > 0 && gemLoginSelectedIds.length < records.length}
-            checked={gemLoginSelectedIds.length === records.length && records.length > 0}
-            onChange={(e) => setGemLoginSelectedIds(e.target.checked ? records.map(r => r.koc_id) : [])}
-          >
-            Chọn tất cả ({records.length})
-          </Checkbox>
-        </div>
-        <List
-          size="small"
-          style={{ maxHeight: 400, overflowY: 'auto' }}
-          dataSource={records}
-          renderItem={(record) => (
-            <List.Item style={{ padding: '4px 0' }}>
-              <Checkbox
-                checked={gemLoginSelectedIds.includes(record.koc_id)}
-                onChange={(e) => {
-                  setGemLoginSelectedIds(prev =>
-                    e.target.checked ? [...prev, record.koc_id] : prev.filter(id => id !== record.koc_id)
-                  );
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{record.koc?.full_name ?? record.koc_id}</span>
-              </Checkbox>
-            </List.Item>
-          )}
-        />
-      </Modal>
+        gemLoginSelectedIds={gemLoginSelectedIds}
+        setGemLoginSelectedIds={setGemLoginSelectedIds}
+        records={records}
+        selectedCycle={selectedCycle}
+        onConfirm={(cycleId, kocIds) => onScrapeRevenue(cycleId, kocIds)}
+      />
     </>
   );
 };

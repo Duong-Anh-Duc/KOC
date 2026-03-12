@@ -8,33 +8,55 @@ import {
     TeamOutlined,
     UnlockOutlined,
 } from '@ant-design/icons';
-import { Card, Col, Progress, Row, Tag, Tooltip, Typography } from 'antd';
+import { Card, Col, Grid, Progress, Row, Tag, Tooltip, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatUSD, formatVND } from '../../utils';
 
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 interface StatsCardsProps {
   overview: any;
   cycleSummary: any;
 }
 
-const iconBoxStyle = (bg: string): React.CSSProperties => ({
-  width: 48,
-  height: 48,
-  borderRadius: 12,
+const iconBoxStyle = (bg: string, small?: boolean): React.CSSProperties => ({
+  width: small ? 36 : 48,
+  height: small ? 36 : 48,
+  borderRadius: small ? 8 : 12,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   background: bg,
-  fontSize: 22,
+  fontSize: small ? 16 : 22,
   color: '#fff',
   flexShrink: 0,
 });
 
+/** Giá trị tự co font theo container — không bao giờ bẻ dòng */
+const ValueText: React.FC<{ color?: string; size: number; children: React.ReactNode }> = ({ color, size, children }) => (
+  <div style={{
+    fontSize: size,
+    fontWeight: 700,
+    color,
+    lineHeight: 1.2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  }}>
+    {children}
+  </div>
+);
+
 const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isCompact = !screens.xl;
+  const isSmall = !screens.md;
+
+  const vSize = isSmall ? 18 : isCompact ? 20 : 26;
+  const cardPad = isSmall ? '14px 12px' : '18px 20px';
 
   const pubCodeStats = overview?.pubCodeStats;
   const pubCodeMatchRate = pubCodeStats?.total > 0
@@ -43,88 +65,81 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
 
   return (
     <>
-      {/* Row 1: 4 KPI cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={iconBoxStyle('#52c41a')}>
+      {/* Row 1: 4 KPI cards — luôn 2 cột trên mobile, 4 cột trên lg+ */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        <Col xs={12} lg={6}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isSmall ? 8 : 14 }}>
+              <div style={iconBoxStyle('#52c41a', isCompact)}>
                 <TeamOutlined />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
                   {t('dashboard.activeKOCs')}
                 </Text>
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#52c41a', lineHeight: 1 }}>
-                  {overview?.activeKOCs || 0}
-                </span>
-                <span style={{ fontSize: 16, color: '#8c8c8c', fontWeight: 500 }}>
-                  {' '}/ {overview?.totalKOCs || 0}
-                </span>
+                <ValueText color="#52c41a" size={vSize}>
+                  {overview?.activeKOCs || 0} / {overview?.totalKOCs || 0}
+                </ValueText>
               </div>
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={iconBoxStyle('#fa8c16')}>
+        <Col xs={12} lg={6}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isSmall ? 8 : 14 }}>
+              <div style={iconBoxStyle('#fa8c16', isCompact)}>
                 <DollarOutlined />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
                   {t('dashboard.totalRevenue')}
                 </Text>
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#fa8c16', lineHeight: 1 }}>
+                <ValueText color="#fa8c16" size={vSize}>
                   {formatUSD(cycleSummary?.totalOriginal || 0)}
-                </span>
+                </ValueText>
                 {cycleSummary && (
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                    {t('dashboard.latestCycle')}: {cycleSummary.cycle.month}
-                  </Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{cycleSummary.cycle.month}</Text>
                 )}
               </div>
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={iconBoxStyle('#1677ff')}>
+        <Col xs={12} lg={6}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isSmall ? 8 : 14 }}>
+              <div style={iconBoxStyle('#1677ff', isCompact)}>
                 <DollarOutlined />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
                   {t('dashboard.kocPayVND')}
                 </Text>
-                <span style={{ fontSize: 24, fontWeight: 700, color: '#1677ff', lineHeight: 1 }}>
+                <ValueText color="#1677ff" size={isSmall ? 16 : isCompact ? 18 : 22}>
                   {formatVND(cycleSummary?.totalKocReceiveVnd || 0)}
-                </span>
+                </ValueText>
                 {cycleSummary && (
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                    ≈ {formatUSD(cycleSummary.totalKocReceiveUsd)}
-                  </Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>≈ {formatUSD(cycleSummary.totalKocReceiveUsd)}</Text>
                 )}
               </div>
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={iconBoxStyle('#722ed1')}>
+        <Col xs={12} lg={6}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isSmall ? 8 : 14 }}>
+              <div style={iconBoxStyle('#722ed1', isCompact)}>
                 <DollarOutlined />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
                   {t('dashboard.companyShare')}
                 </Text>
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#722ed1', lineHeight: 1 }}>
+                <ValueText color="#722ed1" size={vSize}>
                   {formatUSD(cycleSummary?.totalCompanyShare || 0)}
-                </span>
+                </ValueText>
               </div>
             </div>
           </Card>
@@ -132,13 +147,13 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
       </Row>
 
       {/* Row 2: Cycle status, PUB check, Exchange rate */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={24} sm={12} lg={8}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>
               {t('dashboard.cycleStatus')}
             </Text>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               <Tooltip title={t('status.OPEN')}>
                 <Tag icon={<UnlockOutlined />} color="green" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {overview?.cyclesByStatus?.OPEN || 0}
@@ -162,20 +177,17 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>
               {t('dashboard.pubCodeVerification')}
             </Text>
             <Progress
               percent={pubCodeMatchRate}
               status={pubCodeMatchRate >= 80 ? 'success' : pubCodeMatchRate >= 50 ? 'normal' : 'exception'}
-              strokeColor={{
-                '0%': '#108ee9',
-                '100%': '#87d068',
-              }}
-              style={{ marginBottom: 12 }}
+              strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
+              style={{ marginBottom: 10 }}
             />
-            <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+            <div style={{ display: 'flex', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
               <Tooltip title={t('dashboard.pubCodeMatched')}>
                 <Tag icon={<CheckCircleOutlined />} color="success" style={{ margin: 0 }}>
                   {pubCodeStats?.matched || 0}
@@ -196,25 +208,20 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card styles={{ body: { padding: '20px 24px' } }} style={{ height: '100%', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={iconBoxStyle('#1890ff')}>
+          <Card styles={{ body: { padding: cardPad } }} style={{ height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isSmall ? 8 : 14 }}>
+              <div style={iconBoxStyle('#1890ff', isCompact)}>
                 <SwapOutlined />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 2 }}>
                   {t('dashboard.currentExchangeRate')}
                 </Text>
-                <span style={{ fontSize: 24, fontWeight: 700, color: '#1890ff', lineHeight: 1 }}>
-                  {Number(overview?.latestExchangeRate || 0).toLocaleString('vi-VN')}
-                </span>
-                <span style={{ fontSize: 14, color: '#8c8c8c', fontWeight: 500, marginLeft: 6 }}>
-                  {t('common.vndUsd')}
-                </span>
+                <ValueText color="#1890ff" size={isSmall ? 18 : 22}>
+                  {Number(overview?.latestExchangeRate || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 13, color: '#8c8c8c', fontWeight: 500 }}>{t('common.vndUsd')}</span>
+                </ValueText>
                 {cycleSummary && (
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                    {t('dashboard.latestCycle')}: {cycleSummary.cycle.month}
-                  </Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{cycleSummary.cycle.month}</Text>
                 )}
               </div>
             </div>

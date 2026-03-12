@@ -20,7 +20,7 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ items, loading = false }) => {
   return (
     <Row gutter={[12, 12]} style={{ marginBottom: 16 }} wrap={false}>
       {items.map((item, index) => (
-        <Col flex="1" key={index} style={{ minWidth: 0 }}>
+        <Col flex="1" key={index} style={{ minWidth: 0, animationDelay: `${index * 0.08}s` }}>
           <Card loading={loading} size="small" styles={{ body: { padding: '10px 14px' } }}>
             <Statistic
               title={<span style={{ fontSize: 12 }}>{item.title}</span>}

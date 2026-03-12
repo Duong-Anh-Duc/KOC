@@ -8,11 +8,13 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Avatar, Button, Dropdown, Layout, Space, Tag, Tooltip } from 'antd';
+import { Avatar, Button, Dropdown, Grid, Layout, Space, Tag, Tooltip } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLogout } from '../../hooks';
 import { useAppStore, useAuthStore } from '../../stores';
+
+const { useBreakpoint } = Grid;
 
 const { Header: AntHeader } = Layout;
 
@@ -25,6 +27,8 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
   const { sidebarCollapsed, toggleSidebar, locale, setLocale, darkMode, toggleDarkMode } = useAppStore();
   const user = useAuthStore((s) => s.user);
   const handleLogout = useLogout();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const handleLanguageChange = (lang: 'vi' | 'en') => {
     setLocale(lang);
@@ -64,7 +68,7 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
   return (
     <AntHeader
       style={{
-        padding: '0 24px',
+        padding: isMobile ? '0 12px' : '0 24px',
         background: '#ED8F3A',
         display: 'flex',
         alignItems: 'center',
@@ -82,9 +86,9 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
         style={{ fontSize: 16, color: '#fff' }}
       />
 
-      <Space size="middle">
-        {/* GemLogin status badge — chỉ hiện cho staff */}
-        {gemLogin && (
+      <Space size={isMobile ? 'small' : 'middle'}>
+        {/* GemLogin status badge — ẩn trên mobile */}
+        {gemLogin && !isMobile && (
           <Tooltip title={gemLogin.isRunning ? `GemLogin đang chạy${gemLogin.activeProfileId ? ` — Profile ${gemLogin.activeProfileId}` : ''}` : 'GemLogin đang khởi động...'}>
             <Tag
               icon={gemLogin.isRunning ? <GlobalOutlined style={{ marginRight: 4 }} /> : <LoadingOutlined style={{ marginRight: 4 }} />}
@@ -104,16 +108,18 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
           title={darkMode ? t('common.lightMode') : t('common.darkMode')}
         />
 
-        <Dropdown menu={{ items: languageItems, selectedKeys: [locale] }} placement="bottomRight">
-          <Button type="text" icon={<GlobalOutlined />} style={{ color: '#fff' }}>
-            {locale === 'vi' ? 'VI' : 'EN'}
-          </Button>
-        </Dropdown>
+        {!isMobile && (
+          <Dropdown menu={{ items: languageItems, selectedKeys: [locale] }} placement="bottomRight">
+            <Button type="text" icon={<GlobalOutlined />} style={{ color: '#fff' }}>
+              {locale === 'vi' ? 'VI' : 'EN'}
+            </Button>
+          </Dropdown>
+        )}
 
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <Space style={{ cursor: 'pointer' }}>
             <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#fff', color: '#ED8F3A' }} />
-            <span style={{ fontWeight: 500, color: '#fff' }}>{user?.full_name}</span>
+            {!isMobile && <span style={{ fontWeight: 500, color: '#fff' }}>{user?.full_name}</span>}
             <Tag color={user?.role === 'ADMIN' ? 'red' : 'blue'}>{user?.role}</Tag>
           </Space>
         </Dropdown>

@@ -13,7 +13,7 @@ const EmailSettingsPage: React.FC = () => {
   return (
     <Spin spinning={isSendingEmail} tip={t('email.sendingEmails')} size="large" className="stats-page-spin">
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <Title level={3} style={{ margin: 0 }}>
             <MailOutlined style={{ marginRight: 8 }} />
             {t('menu.emailSettings')}

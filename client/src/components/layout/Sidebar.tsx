@@ -9,13 +9,14 @@ import {
     YoutubeOutlined
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Layout, Menu } from 'antd';
+import { Drawer, Grid, Layout, Menu } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore, useAuthStore } from '../../stores';
 
 const { Sider } = Layout;
+const { useBreakpoint } = Grid;
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -23,10 +24,11 @@ const Sidebar: React.FC = () => {
   const { t } = useTranslation();
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const user = useAuthStore((s) => s.user);
+  const screens = useBreakpoint();
 
   const isKOC = user?.role === 'KOC';
+  const isMobile = !screens.lg;
 
-  // KOC users see only their revenue page
   const kocMenuItems: MenuProps['items'] = [
     {
       key: '/my-revenue',
@@ -35,7 +37,6 @@ const Sidebar: React.FC = () => {
     },
   ];
 
-  // Admin/Accountant see the full menu
   const staffMenuItems: MenuProps['items'] = [
     {
       key: '/',
@@ -80,12 +81,66 @@ const Sidebar: React.FC = () => {
 
   const menuItems = isKOC ? kocMenuItems : staffMenuItems;
 
+  const handleMenuClick = ({ key }: { key: string }) => {
+    navigate(key);
+    if (isMobile) toggleSidebar();
+  };
+
+  const logo = (
+    <div
+      style={{
+        height: 64,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        padding: '0 16px',
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
+      <img src="/images/logo.jpg" alt={t('app.logoAlt')} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+      {(!sidebarCollapsed || isMobile) && (
+        <h2 style={{ color: '#fff', margin: 0, fontSize: 18, fontWeight: 600 }}>
+          {t('app.shortTitle')}
+        </h2>
+      )}
+    </div>
+  );
+
+  const menu = (
+    <Menu
+      theme="dark"
+      mode="inline"
+      selectedKeys={[location.pathname]}
+      items={menuItems}
+      onClick={handleMenuClick}
+      style={{ borderRight: 0, background: '#ED8F3A' }}
+    />
+  );
+
+  // Mobile: use Drawer overlay
+  if (isMobile) {
+    return (
+      <Drawer
+        placement="left"
+        open={!sidebarCollapsed}
+        onClose={toggleSidebar}
+        width={240}
+        closable={false}
+        styles={{ body: { padding: 0, background: '#ED8F3A' } }}
+      >
+        {logo}
+        {menu}
+      </Drawer>
+    );
+  }
+
+  // Desktop: fixed Sider
   return (
     <Sider
       trigger={null}
       collapsible
       collapsed={sidebarCollapsed}
-      breakpoint="lg"
       style={{
         overflow: 'auto',
         height: '100vh',
@@ -98,33 +153,8 @@ const Sidebar: React.FC = () => {
       }}
       theme="dark"
     >
-      <div
-        style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 12,
-          padding: '0 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-        }}
-      >
-        <img src="/images/logo.jpg" alt={t('app.logoAlt')} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-        {!sidebarCollapsed && (
-          <h2 style={{ color: '#fff', margin: 0, fontSize: 18, fontWeight: 600 }}>
-            {t('app.shortTitle')}
-          </h2>
-        )}
-      </div>
-
-      <Menu
-        theme="dark"
-        mode="inline"
-        selectedKeys={[location.pathname]}
-        items={menuItems}
-        onClick={({ key }) => navigate(key)}
-        style={{ borderRight: 0, background: '#ED8F3A' }}
-      />
+      {logo}
+      {menu}
     </Sider>
   );
 };

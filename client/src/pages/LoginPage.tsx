@@ -64,6 +64,7 @@ const LoginPage: React.FC = () => {
           : 'linear-gradient(135deg, #ED8F3A 0%, #f5a962 100%)',
         position: 'relative',
         overflow: 'hidden',
+        padding: '24px 16px',
       }}
     >
       {/* Background animated circles */}
@@ -113,7 +114,8 @@ const LoginPage: React.FC = () => {
       <Card
         className={`login-card ${isVisible ? 'login-card-visible' : ''}`}
         style={{
-          width: 400,
+          width: '100%',
+          maxWidth: 400,
           borderRadius: 16,
           padding: '32px 28px',
           boxShadow: darkMode
