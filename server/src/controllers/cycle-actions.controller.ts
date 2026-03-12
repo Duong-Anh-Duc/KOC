@@ -132,9 +132,9 @@ export class CycleActionsController {
       });
 
       // Run scrape in background with progress reporting
-      logger.info(`🚀 Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId}, kocIds: ${kocIds ? kocIds.length : 'all'})`);
+      logger.info(`Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId}, kocIds: ${kocIds ? kocIds.length : 'all'})`);
       CycleActionsController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null, kocIds).catch(err => {
-        logger.error(`❌ scrape-revenue task ${taskId} failed:`, err.message, err.stack);
+        logger.error(`scrape-revenue task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
     } catch (error: any) {
@@ -166,7 +166,7 @@ export class CycleActionsController {
       });
 
       CycleActionsController.runCheckPubCodes(cycleId, taskId, req.user?.userId || null).catch(err => {
-        logger.error(`❌ check-pub-codes task ${taskId} failed:`, err.message);
+        logger.error(`check-pub-codes task ${taskId} failed:`, err.message);
         ProgressService.error(taskId, err.message);
       });
     } catch (error) {
@@ -365,7 +365,7 @@ export class CycleActionsController {
               });
             }
           } catch (accErr: any) {
-            logger.warn(`⚠️ Failed to compute accumulated for ${koc.channel_name}: ${accErr.message}`);
+            logger.warn(`Failed to compute accumulated for ${koc.channel_name}: ${accErr.message}`);
           }
         } catch (error: any) {
           skipped.push({ koc: koc.channel_name, reason: error.message });

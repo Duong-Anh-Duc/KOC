@@ -17,4 +17,10 @@ export const authApi = {
 
   register: (data: { email: string; password: string; full_name: string; role?: string }) =>
     apiClient.post<ApiResponse<AuthUser>>('/auth/register', data),
+
+  updateProfile: (data: { full_name?: string; email?: string }) =>
+    apiClient.put<ApiResponse<AuthUser>>('/auth/profile', data),
+
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiClient.post<ApiResponse>('/auth/change-password', data),
 };

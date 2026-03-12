@@ -1,7 +1,9 @@
 import {
   BulbOutlined,
+  EditOutlined,
   GlobalOutlined,
   LoadingOutlined,
+  LockOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -9,10 +11,12 @@ import {
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Avatar, Button, Dropdown, Grid, Layout, Space, Tag, Tooltip } from 'antd';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLogout } from '../../hooks';
 import { useAppStore, useAuthStore } from '../../stores';
+import ChangePasswordModal from './ChangePasswordModal';
+import ProfileModal from './ProfileModal';
 
 const { useBreakpoint } = Grid;
 
@@ -29,6 +33,9 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
   const handleLogout = useLogout();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const handleLanguageChange = (lang: 'vi' | 'en') => {
     setLocale(lang);
@@ -50,10 +57,23 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
 
   const userMenuItems: MenuProps['items'] = [
     {
-      key: 'profile',
+      key: 'profile-info',
       icon: <UserOutlined />,
       label: user?.full_name || user?.email,
       disabled: true,
+    },
+    { type: 'divider' },
+    {
+      key: 'edit-profile',
+      icon: <EditOutlined />,
+      label: t('profile.editProfile'),
+      onClick: () => setProfileOpen(true),
+    },
+    {
+      key: 'change-password',
+      icon: <LockOutlined />,
+      label: t('profile.changePassword'),
+      onClick: () => setPasswordOpen(true),
     },
     { type: 'divider' },
     {
@@ -66,65 +86,69 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
   ];
 
   return (
-    <AntHeader
-      style={{
-        padding: isMobile ? '0 12px' : '0 24px',
-        background: '#ED8F3A',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 99,
-      }}
-    >
-      <Button
-        type="text"
-        icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-        onClick={toggleSidebar}
-        style={{ fontSize: 16, color: '#fff' }}
-      />
-
-      <Space size={isMobile ? 'small' : 'middle'}>
-        {/* GemLogin status badge — ẩn trên mobile */}
-        {gemLogin && !isMobile && (
-          <Tooltip title={gemLogin.isRunning ? `GemLogin đang chạy${gemLogin.activeProfileId ? ` — Profile ${gemLogin.activeProfileId}` : ''}` : 'GemLogin đang khởi động...'}>
-            <Tag
-              icon={gemLogin.isRunning ? <GlobalOutlined style={{ marginRight: 4 }} /> : <LoadingOutlined style={{ marginRight: 4 }} />}
-              color={gemLogin.isRunning ? 'success' : 'processing'}
-              style={{ cursor: 'default', userSelect: 'none' }}
-            >
-              {gemLogin.isRunning ? 'GemLogin' : 'Đang khởi động...'}
-            </Tag>
-          </Tooltip>
-        )}
-
+    <>
+      <AntHeader
+        style={{
+          padding: isMobile ? '0 12px' : '0 24px',
+          background: '#ED8F3A',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 99,
+        }}
+      >
         <Button
           type="text"
-          icon={<BulbOutlined />}
-          onClick={toggleDarkMode}
-          style={{ color: '#fff' }}
-          title={darkMode ? t('common.lightMode') : t('common.darkMode')}
+          icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          onClick={toggleSidebar}
+          style={{ fontSize: 16, color: '#fff' }}
         />
 
-        {!isMobile && (
-          <Dropdown menu={{ items: languageItems, selectedKeys: [locale] }} placement="bottomRight">
-            <Button type="text" icon={<GlobalOutlined />} style={{ color: '#fff' }}>
-              {locale === 'vi' ? 'VI' : 'EN'}
-            </Button>
-          </Dropdown>
-        )}
+        <Space size={isMobile ? 'small' : 'middle'}>
+          {gemLogin && !isMobile && (
+            <Tooltip title={gemLogin.isRunning ? `GemLogin running${gemLogin.activeProfileId ? ` — Profile ${gemLogin.activeProfileId}` : ''}` : 'GemLogin starting...'}>
+              <Tag
+                icon={gemLogin.isRunning ? <GlobalOutlined style={{ marginRight: 4 }} /> : <LoadingOutlined style={{ marginRight: 4 }} />}
+                color={gemLogin.isRunning ? 'success' : 'processing'}
+                style={{ cursor: 'default', userSelect: 'none' }}
+              >
+                {gemLogin.isRunning ? 'GemLogin' : t('common.loading')}
+              </Tag>
+            </Tooltip>
+          )}
 
-        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-          <Space style={{ cursor: 'pointer' }}>
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#fff', color: '#ED8F3A' }} />
-            {!isMobile && <span style={{ fontWeight: 500, color: '#fff' }}>{user?.full_name}</span>}
-            <Tag color={user?.role === 'ADMIN' ? 'red' : 'blue'}>{user?.role}</Tag>
-          </Space>
-        </Dropdown>
-      </Space>
-    </AntHeader>
+          <Button
+            type="text"
+            icon={<BulbOutlined />}
+            onClick={toggleDarkMode}
+            style={{ color: '#fff' }}
+            title={darkMode ? t('common.lightMode') : t('common.darkMode')}
+          />
+
+          {!isMobile && (
+            <Dropdown menu={{ items: languageItems, selectedKeys: [locale] }} placement="bottomRight">
+              <Button type="text" icon={<GlobalOutlined />} style={{ color: '#fff' }}>
+                {locale === 'vi' ? 'VI' : 'EN'}
+              </Button>
+            </Dropdown>
+          )}
+
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Space style={{ cursor: 'pointer' }}>
+              <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#fff', color: '#ED8F3A' }} />
+              {!isMobile && <span style={{ fontWeight: 500, color: '#fff' }}>{user?.full_name}</span>}
+              <Tag color={user?.role === 'ADMIN' ? 'red' : 'blue'}>{user?.role}</Tag>
+            </Space>
+          </Dropdown>
+        </Space>
+      </AntHeader>
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+    </>
   );
 };
 

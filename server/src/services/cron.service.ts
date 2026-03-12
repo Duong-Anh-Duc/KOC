@@ -5,7 +5,9 @@ import { CycleService } from './cycle.service';
 import { EmailService } from './email.service';
 import { ExchangeRateService } from './exchange-rate.service';
 import { MonthlyRevenueService } from './monthly-revenue.service';
+import { ProgressService } from './progress.service';
 import { RevenueService } from './revenue.service';
+import { SocialBladeService } from './socialblade.service';
 import { YouTubeScrapeResultService } from './youtube-scrape-result.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
@@ -497,5 +499,131 @@ export class CronService {
   static getSchedulerStatus(adminId?: string): { running: boolean } {
     const taskKey = adminId || '__default__';
     return { running: scheduledTasks.has(taskKey) };
+  }
+}
+
+/* ============================================================
+   STATS CRON — Auto-scrape YT channel analytics on schedule
+   ============================================================ */
+
+export interface StatsCronConfig {
+  enabled: boolean;
+  /** Cron expression (e.g. "0 2 * * 1" = 2 AM every Monday) */
+  schedule: string;
+  lastRunAt?: string;
+  lastRunResult?: string;
+  runHistory?: Array<{
+    runAt: string;
+    success: boolean;
+    message: string;
+  }>;
+}
+
+const STATS_CRON_KEY = 'cron_stats_scrape';
+const statsScheduledTasks = new Map<string, cron.ScheduledTask>();
+
+const DEFAULT_STATS_CONFIG: StatsCronConfig = {
+  enabled: false,
+  schedule: '0 2 * * 1', // 2:00 AM every Monday
+  runHistory: [],
+};
+
+export class StatsCronService {
+  static async getConfig(): Promise<StatsCronConfig> {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key: STATS_CRON_KEY },
+    });
+    if (!config) return { ...DEFAULT_STATS_CONFIG };
+    return config.value as unknown as StatsCronConfig;
+  }
+
+  static async updateConfig(newConfig: Partial<StatsCronConfig>): Promise<StatsCronConfig> {
+    const current = await this.getConfig();
+    const merged: StatsCronConfig = { ...current, ...newConfig };
+
+    await prisma.systemConfig.upsert({
+      where: { key: STATS_CRON_KEY },
+      update: { value: merged as any },
+      create: { key: STATS_CRON_KEY, value: merged as any },
+    });
+
+    await this.restartScheduler();
+    return merged;
+  }
+
+  static async runJob(adminId?: string): Promise<{ success: boolean; message: string }> {
+    logger.info('[StatsCron] Starting auto channel stats scrape...');
+    try {
+      const { GemLoginService } = await import('../services/gemlogin.service');
+      await GemLoginService.ensureRunning();
+
+      const taskId = ProgressService.generateTaskId('stats-cron');
+      await SocialBladeService.recordAllStatsWithProgress(taskId, adminId);
+
+      const msg = 'Channel stats auto-scrape completed';
+      logger.info(`[StatsCron] ${msg}`);
+      await this.addRunHistory(true, msg);
+      return { success: true, message: msg };
+    } catch (error: any) {
+      const msg = `Stats scrape failed: ${error.message}`;
+      logger.error(`[StatsCron] ${msg}`);
+      await this.addRunHistory(false, msg);
+      return { success: false, message: msg };
+    }
+  }
+
+  private static async addRunHistory(success: boolean, message: string) {
+    const config = await this.getConfig();
+    const history = config.runHistory || [];
+    history.unshift({ runAt: new Date().toISOString(), success, message });
+    if (history.length > 20) history.splice(20);
+
+    await prisma.systemConfig.upsert({
+      where: { key: STATS_CRON_KEY },
+      update: {
+        value: { ...config, lastRunAt: new Date().toISOString(), lastRunResult: message, runHistory: history } as any,
+      },
+      create: {
+        key: STATS_CRON_KEY,
+        value: { ...config, lastRunAt: new Date().toISOString(), lastRunResult: message, runHistory: history } as any,
+      },
+    });
+  }
+
+  static async startScheduler() {
+    const existing = statsScheduledTasks.get('stats');
+    if (existing) { existing.stop(); statsScheduledTasks.delete('stats'); }
+
+    const config = await this.getConfig();
+    if (!config.enabled) {
+      logger.info('[StatsCron] Scheduler disabled');
+      return;
+    }
+    if (!cron.validate(config.schedule)) {
+      logger.error(`[StatsCron] Invalid cron schedule: ${config.schedule}`);
+      return;
+    }
+
+    const task = cron.schedule(config.schedule, async () => {
+      logger.info('[StatsCron] Scheduled stats scrape triggered');
+      await this.runJob();
+    });
+
+    statsScheduledTasks.set('stats', task);
+    logger.info(`[StatsCron] Scheduler started with schedule: ${config.schedule}`);
+  }
+
+  static stopScheduler() {
+    const task = statsScheduledTasks.get('stats');
+    if (task) { task.stop(); statsScheduledTasks.delete('stats'); }
+  }
+
+  static async restartScheduler() {
+    this.stopScheduler();
+    await this.startScheduler();
+  }
+
+  static isRunning(): boolean {
+    return statsScheduledTasks.has('stats');
   }
 }

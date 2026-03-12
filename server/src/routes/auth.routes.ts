@@ -10,6 +10,8 @@ router.post('/login', validate(loginSchema), AuthController.login);
 
 // Protected
 router.get('/profile', authMiddleware, AuthController.getProfile);
+router.put('/profile', authMiddleware, AuthController.updateProfile);
+router.post('/change-password', authMiddleware, AuthController.changePassword);
 
 // Admin only
 router.post('/register', authMiddleware, adminOnly, validate(registerSchema), AuthController.register);

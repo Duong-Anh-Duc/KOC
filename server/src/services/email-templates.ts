@@ -66,7 +66,7 @@ function buildLowRevenueEmailHtml(data: RevenueEmailData): string {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border: 2px solid #f59e0b;">
                 <tr>
                   <td style="padding: 24px; text-align: center;">
-                    <p style="margin: 0 0 8px; font-size: 40px;">⚠️</p>
+                    <p style="margin: 0 0 8px; font-size: 40px;"></p>
                     <p style="margin: 0; font-size: 13px; color: #92400e; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Doanh thu chưa đạt ngưỡng</p>
                     <p style="margin: 12px 0 4px; font-size: 28px; color: #d97706; font-weight: 800;">${formatUsd(data.originalRevenue)}</p>
                     <p style="margin: 8px 0 0; font-size: 14px; color: #78350f; line-height: 1.6;">
@@ -85,7 +85,7 @@ function buildLowRevenueEmailHtml(data: RevenueEmailData): string {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f9ff; border-radius: 8px; border: 2px solid #3b82f6;">
                 <tr>
                   <td style="padding: 20px;">
-                    <p style="margin: 0 0 12px; font-size: 15px; color: #1e40af; font-weight: 600;">ℹ️ Thông tin quan trọng:</p>
+                    <p style="margin: 0 0 12px; font-size: 15px; color: #1e40af; font-weight: 600;">Thông tin quan trọng:</p>
                     <ul style="margin: 0; padding-left: 20px; color: #1e3a8a; font-size: 14px; line-height: 1.8;">
                       <li>Doanh thu dưới $100 sẽ được cộng dồn sang tháng tiếp theo</li>
                       <li>Khi tổng doanh thu đạt $100 trở lên, hệ thống sẽ tính toán các khoản khấu trừ và chia sẻ doanh thu</li>
@@ -104,7 +104,7 @@ function buildLowRevenueEmailHtml(data: RevenueEmailData): string {
                 <tr>
                   <td style="padding: 20px 24px; text-align: center;">
                     <p style="margin: 0; font-size: 15px; color: #ffffff; font-weight: 600; line-height: 1.6;">
-                      💪 Hãy tiếp tục cố gắng! Tháng sau sẽ tốt hơn!
+                      Hãy tiếp tục cố gắng! Tháng sau sẽ tốt hơn!
                     </p>
                   </td>
                 </tr>
@@ -217,7 +217,7 @@ export function buildRevenueEmailHtml(data: RevenueEmailData): string {
           <tr>
             <td style="padding: 0 40px 24px;">
               <h3 style="margin: 0 0 16px; color: #333333; font-size: 16px; font-weight: 700; padding-bottom: 8px; border-bottom: 2px solid #ED8F3A;">
-                📊 Chi tiết doanh thu
+                Chi tiết doanh thu
               </h3>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
                 <tr>
@@ -257,10 +257,10 @@ export function buildRevenueEmailHtml(data: RevenueEmailData): string {
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="font-size: 13px; color: #6b7280;">
-                          💱 Tỷ giá: <strong style="color: #333;">1 USD = ${data.exchangeRate.toLocaleString('vi-VN')} VND</strong>
+                          Tỷ giá: <strong style="color: #333;">1 USD = ${data.exchangeRate.toLocaleString('vi-VN')} VND</strong>
                         </td>
                         <td style="font-size: 13px; color: #6b7280; text-align: right;">
-                          📈 Tỷ lệ chia sẻ: <strong style="color: #333;">${(data.baseRate * 100).toFixed(0)}%</strong>
+                          Tỷ lệ chia sẻ: <strong style="color: #333;">${(data.baseRate * 100).toFixed(0)}%</strong>
                         </td>
                       </tr>
                     </table>

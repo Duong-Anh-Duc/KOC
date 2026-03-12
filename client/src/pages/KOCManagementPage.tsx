@@ -130,19 +130,19 @@ const KOCManagementPage: React.FC = () => {
         items={[
           {
             title: t('dashboard.totalKOCs'),
-            value: filteredKocs.length,
+            value: meta?.total || 0,
             prefix: <TeamOutlined />,
             valueStyle: { color: '#1677ff' },
           },
           {
             title: t('dashboard.activeKOCs'),
-            value: filteredKocs.filter((k) => k.status === 'ACTIVE').length,
+            value: (meta as any)?.activeCount || 0,
             prefix: <UserAddOutlined />,
             valueStyle: { color: '#52c41a' },
           },
           {
             title: t('dashboard.inactiveKOCs'),
-            value: filteredKocs.filter((k) => k.status === 'INACTIVE').length,
+            value: (meta as any)?.inactiveCount || 0,
             valueStyle: { color: '#faad14' },
           },
         ]}

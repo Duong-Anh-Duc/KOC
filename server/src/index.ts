@@ -3,7 +3,7 @@ import app from './app';
 import { config } from './config';
 import prisma from './config/database';
 import logger from './middlewares/logger.middleware';
-import { CronService } from './services/cron.service';
+import { CronService, StatsCronService } from './services/cron.service';
 import { ExchangeRateService } from './services/exchange-rate.service';
 import { YouTubeScraperService } from './services/youtube-scraper.service';
 
@@ -24,19 +24,24 @@ const startServer = async () => {
   try {
     // Test database connection
     await prisma.$connect();
-    logger.info('✅ Database connected successfully');
+    logger.info('Database connected successfully');
 
     const localIP = getLocalIP();
     app.listen(config.port, '0.0.0.0', () => {
-      logger.info(`🚀 Server running on port ${config.port}`);
-      logger.info(`📍 Environment: ${config.env}`);
-      logger.info(`🔗 API: http://localhost:${config.port}/api`);
-      logger.info(`🌐 Network API: http://${localIP}:${config.port}/api`);
-      logger.info(`❤️  Health: http://localhost:${config.port}/api/health`);
+      logger.info(`Server running on port ${config.port}`);
+      logger.info(`Environment: ${config.env}`);
+      logger.info(`API: http://localhost:${config.port}/api`);
+      logger.info(`Network API: http://${localIP}:${config.port}/api`);
+      logger.info(`Health: http://localhost:${config.port}/api/health`);
 
       // Start cron scheduler for all admins
       CronService.startAllSchedulers().catch(err => {
-        logger.warn('⚠️ Failed to start cron scheduler:', err.message);
+        logger.warn('Failed to start cron scheduler:', err.message);
+      });
+
+      // Start stats cron scheduler
+      StatsCronService.startScheduler().catch(err => {
+        logger.warn('Failed to start stats cron scheduler:', err.message);
       });
 
       // Start exchange rate auto-refresher (every 10 minutes)
@@ -44,12 +49,12 @@ const startServer = async () => {
 
       // Restore YouTube Studio sessions (launches headless browsers with keep-alive)
       YouTubeScraperService.initializePersistentSessions().catch(err => {
-        logger.warn('⚠️ Failed to initialize YouTube sessions:', err.message);
+        logger.warn('Failed to initialize YouTube sessions:', err.message);
       });
 
     });
   } catch (error) {
-    logger.error('❌ Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 };

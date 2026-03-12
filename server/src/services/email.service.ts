@@ -113,7 +113,7 @@ export class EmailService {
         subject: '[EBE CMS] Email kiểm tra',
         html: `
           <div style="padding: 40px; text-align: center; font-family: sans-serif;">
-            <h2 style="color: #ED8F3A;">✅ Kết nối email thành công!</h2>
+            <h2 style="color: #ED8F3A;">Kết nối email thành công!</h2>
             <p>Email này xác nhận rằng hệ thống EBE CMS đã được cấu hình SMTP chính xác.</p>
             <p style="color: #888; font-size: 13px;">Thời gian gửi: ${new Date().toLocaleString('vi-VN')}</p>
           </div>
@@ -141,19 +141,19 @@ export class EmailService {
       await transporter.sendMail({
         from: `"${emailConfig.fromName}" <${emailConfig.fromEmail}>`,
         to: adminEmail,
-        subject: '⚠️ [EBE CMS] Cookie YouTube Studio đã hết hạn',
+        subject: '[EBE CMS] Cookie YouTube Studio đã hết hạn',
         html: `
           <div style="font-family: sans-serif; max-width: 520px; margin: auto; padding: 32px;">
-            <h2 style="color: #ff4d4f;">⚠️ Phiên YouTube Studio đã hết hạn</h2>
+            <h2 style="color: #ff4d4f;">Phiên YouTube Studio đã hết hạn</h2>
             <p>Cookie kết nối với YouTube Studio đã hết hạn. Hệ thống <strong>không thể cào dữ liệu</strong> cho đến khi bạn đăng nhập lại.</p>
             <p style="margin-top: 24px;">Thời gian phát hiện: <strong>${new Date().toLocaleString('vi-VN')}</strong></p>
             <div style="margin-top: 28px; display: flex; gap: 12px;">
               <a href="${vncUrl}" style="background:#ED8F3A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
-                🖥️ Đăng nhập lại qua VNC
+                Đăng nhập lại qua VNC
               </a>
               &nbsp;&nbsp;
               <a href="${appUrl}/cron-settings" style="background:#1677ff;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
-                ⚙️ Vào trang cấu hình
+                Vào trang cấu hình
               </a>
             </div>
             <p style="margin-top: 32px; color: #888; font-size: 12px;">EBE CMS — Thông báo tự động</p>

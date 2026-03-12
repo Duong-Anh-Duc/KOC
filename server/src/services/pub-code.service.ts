@@ -29,7 +29,7 @@ export class PubCodeService {
     const url = this.buildMonetizationUrl(channelId);
     const cleanId = YouTubeScraperService.cleanChannelId(channelId);
     
-    logger.info(`🔍 Scraping pub code for channel: ${cleanId}`);
+    logger.info(`Scraping pub code for channel: ${cleanId}`);
 
     const context = await YouTubeScraperService.getContext(true, adminId);
     const page = await context.newPage();
@@ -40,7 +40,7 @@ export class PubCodeService {
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       } catch (err: any) {
-        logger.warn(`⚠️ Page load timeout for monetization page, continuing...`, err.message);
+        logger.warn(`Page load timeout for monetization page, continuing...`, err.message);
       }
 
       // Check login
@@ -57,17 +57,17 @@ export class PubCodeService {
           text = await page.evaluate('document.body.innerText') as string;
         } catch { break; }
         if (/pub-\d{10,20}/.test(text) || text.length >= 5000) break;
-        logger.info(`⏳ Waiting for monetization page to load (${text.length} chars)...`);
+        logger.info(`Waiting for monetization page to load (${text.length} chars)...`);
       }
 
       // Look for pub code pattern: "pub-XXXXXXXXXXXX" (digits after "pub-")
       const pubMatch = text.match(/pub-\d{10,20}/);
       if (pubMatch) {
-        logger.info(`✓ Found pub code: ${pubMatch[0]}`);
+        logger.info(`Found pub code: ${pubMatch[0]}`);
         return pubMatch[0];
       }
 
-      logger.warn(`⚠️ No pub code found on monetization page for ${cleanId}`);
+      logger.warn(`No pub code found on monetization page for ${cleanId}`);
       return null;
     } finally {
       try { await page.close(); } catch { /* ignore */ }
@@ -204,10 +204,10 @@ export class PubCodeService {
           const matched = scrapedPubCode && koc.pub_code ? scrapedPubCode === koc.pub_code : null;
 
           results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode, matched });
-          logger.info(`[PubCode Parallel] ✓ ${koc.full_name}: ${scrapedPubCode ?? 'không tìm thấy'}`);
+          logger.info(`[PubCode Parallel] ${koc.full_name}: ${scrapedPubCode ?? 'không tìm thấy'}`);
         } catch (err: any) {
           results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode: null, matched: null, error: err.message });
-          logger.error(`[PubCode Parallel] ✗ ${koc.full_name}: ${err.message}`);
+          logger.error(`[PubCode Parallel] ${koc.full_name}: ${err.message}`);
         } finally {
           progressCount++;
           if (onProgress) onProgress(progressCount, total, koc.full_name);

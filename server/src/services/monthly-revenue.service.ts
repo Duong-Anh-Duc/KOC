@@ -34,7 +34,7 @@ export class MonthlyRevenueService {
     const url = this.buildMonthlyRevenueUrl(channelId);
     const cleanId = YouTubeScraperService.cleanChannelId(channelId);
     
-    logger.info(`📊 Scraping monthly revenue for channel: ${cleanId}`);
+    logger.info(`Scraping monthly revenue for channel: ${cleanId}`);
 
     const MAX_ATTEMPTS = 3;
     let lastError: Error = new Error('Unknown error');
@@ -60,7 +60,7 @@ export class MonthlyRevenueService {
         try {
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 });
         } catch (err: any) {
-          logger.warn(`⚠️ Page load timeout (attempt ${attempt}), continuing...`, err.message);
+          logger.warn(`Page load timeout (attempt ${attempt}), continuing...`, err.message);
         }
 
         // Check login
@@ -73,7 +73,7 @@ export class MonthlyRevenueService {
         await new Promise(r => setTimeout(r, 3000));
         const bodySnippet = await page.evaluate('document.body.innerText').catch(() => '') as string;
         if (bodySnippet.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodySnippet.includes('Go to YouTube Studio')) {
-          logger.warn(`⚠️ "Unsupported browser" page detected — clicking through to Studio...`);
+          logger.warn(`"Unsupported browser" page detected — clicking through to Studio...`);
           const link = page.locator('a:has-text("CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO"), a:has-text("Go to YouTube Studio")');
           if (await link.count() > 0) {
             await link.first().click();
@@ -95,10 +95,10 @@ export class MonthlyRevenueService {
             ),
           ]);
           if (text.length >= 1000) break;
-          logger.warn(`⚠️ Content too short (${text.length} chars), waiting longer... (${waitAttempt}/10)`);
+          logger.warn(`Content too short (${text.length} chars), waiting longer... (${waitAttempt}/10)`);
         }
 
-        logger.info(`✓ Scraped monthly revenue page (${text.length} chars)`);
+        logger.info(`Scraped monthly revenue page (${text.length} chars)`);
         if (text.length < 500) {
           // Dump raw content to errors folder for debugging
           try {
@@ -134,7 +134,7 @@ export class MonthlyRevenueService {
         if (err.message === 'NOT_LOGGED_IN') throw err; // no retry for auth errors
 
         if (isCrash && attempt < MAX_ATTEMPTS) {
-          logger.warn(`📊 Monthly scrape attempt ${attempt} crashed — clearing context and retrying in 5s...`);
+          logger.warn(`Monthly scrape attempt ${attempt} crashed — clearing context and retrying in 5s...`);
           try { await page.close(); } catch { /* already dead */ }
           // Invalidate the corrupt context so getContext() creates a fresh one
           try {
@@ -157,7 +157,7 @@ export class MonthlyRevenueService {
   /**
    * Parse the monthly revenue explore page text.
    * Expected format (Vietnamese):
-   *   Ngày ↓ | Số lượt xem ⚠ | Thời gian xem (giờ) | Thời lượng xem trung bình | Doanh thu ước tính
+   *   Ngày ↓ | Số lượt xem | Thời gian xem (giờ) | Thời lượng xem trung bình | Doanh thu ước tính
    *   Tổng   | 106.766.532    | 441.649,8           | 0:27                      | 1.327,87 $
    *   Tháng 2 (đang diễn ra) | 2.729.250 2,6% | 12.646,8 2,9% | 0:31 | 24,98 $ 1,9%
    *   Tháng 1 | 7.215.190 6,8% | 35.540,2 8,1% | 0:33 | 81,96 $ 6,2%
@@ -400,7 +400,7 @@ export class MonthlyRevenueService {
       }
     }
 
-    logger.info(`💾 Saved ${saved.length} monthly revenue records for KOC ${kocId}`);
+    logger.info(`Saved ${saved.length} monthly revenue records for KOC ${kocId}`);
     return saved;
   }
 
@@ -514,10 +514,10 @@ export class MonthlyRevenueService {
       lines.push(`Channel ID  : ${channelId}`);
 
       if (error) {
-        lines.push(`Trạng thái  : ❌ THẤT BẠI`);
+        lines.push(`Trạng thái  : THẤT BẠI`);
         lines.push(`Lỗi         : ${error}`);
       } else if (data) {
-        lines.push(`Trạng thái  : ✅ THÀNH CÔNG (${data.months.length} tháng)`);
+        lines.push(`Trạng thái  : THÀNH CÔNG (${data.months.length} tháng)`);
         for (const m of data.months) {
           lines.push(`  ${m.monthKey.padEnd(8)} DT: $${(m.estimatedRevenue ?? 0).toFixed(2).padStart(10)}  Views: ${(m.views ?? 0).toLocaleString()}`);
         }
@@ -623,10 +623,10 @@ export class MonthlyRevenueService {
           progressCount++;
           if (onProgress) onProgress(progressCount, total, koc.channel_name);
           results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
-          logger.info(`[Monthly Parallel] ✓ ${koc.channel_name}: ${data.months.length} tháng`);
+          logger.info(`[Monthly Parallel] ${koc.channel_name}: ${data.months.length} tháng`);
         } catch (err: any) {
           const errMsg: string = err.message ?? String(err);
-          logger.error(`[Monthly Parallel] ✗ ${koc.channel_name}: ${errMsg}`);
+          logger.error(`[Monthly Parallel] ${koc.channel_name}: ${errMsg}`);
           this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, null, errMsg);
           errors.push({ kocId: koc.id, channelName: koc.channel_name, error: errMsg });
           if (errMsg === 'NOT_LOGGED_IN') {

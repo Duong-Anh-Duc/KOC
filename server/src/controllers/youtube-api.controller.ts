@@ -44,7 +44,7 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     res.send(`
       <html>
         <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-          <h1>✅ ${t ? t('youtubeAPI.authSuccess') : 'Authorization Successful!'}</h1>
+          <h1>${t ? t('youtubeAPI.authSuccess') : 'Authorization Successful!'}</h1>
           <p>${t ? t('youtubeAPI.channelAuthorized', { channelId }) : `Channel <strong>${channelId}</strong> has been authorized`}</p>
           <p>${t ? t('youtubeAPI.closeWindow') : 'You can close this window and return to the app'}</p>
           <script>
@@ -59,7 +59,7 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     res.status(500).send(`
       <html>
         <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-          <h1>❌ ${t ? t('youtubeAPI.authFailed') : 'Authorization Failed'}</h1>
+          <h1>${t ? t('youtubeAPI.authFailed') : 'Authorization Failed'}</h1>
           <p>${error.message}</p>
         </body>
       </html>

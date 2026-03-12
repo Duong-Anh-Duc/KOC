@@ -15,22 +15,22 @@ import { YouTubeScraperService } from '../services/youtube-scraper.service';
 async function main() {
   console.log('\n');
   console.log('╔════════════════════════════════════════════════════════════╗');
-  console.log('║       🌐 YouTube Studio One-Time Login Setup               ║');
+  console.log('║       YouTube Studio One-Time Login Setup               ║');
   console.log('╚════════════════════════════════════════════════════════════╝');
-  console.log('\n📋 Instructions:');
+  console.log('\nInstructions:');
   console.log('  1. A Chrome browser will open below');
   console.log('  2. Sign in with your Google account on YouTube Studio');
   console.log('  3. Your credentials will be saved automatically');
   console.log('  4. Close the browser when done');
-  console.log('\n⏱️  Waiting for login... (Timeout: 120 seconds)\n');
+  console.log('\n Waiting for login... (Timeout: 120 seconds)\n');
 
   try {
     // Open browser headful for user to login
     const result = await YouTubeScraperService.openLoginBrowser();
-    console.log(`✅ ${result.message}\n`);
+    console.log(`${result.message}\n`);
 
     // Wait for user to login (120 seconds max)
-    console.log('🔄 Waiting for authentication...');
+    console.log('Waiting for authentication...');
     
     let loginSuccess = false;
     const startTime = Date.now();
@@ -57,28 +57,28 @@ async function main() {
     console.log('\n');
     if (loginSuccess) {
       console.log('╔════════════════════════════════════════════════════════════╗');
-      console.log('║              ✅ Login Successful!                          ║');
+      console.log('║              Login Successful!                          ║');
       console.log('╚════════════════════════════════════════════════════════════╝');
-      console.log('\n✨ Your credentials have been saved.');
-      console.log('📦 You can now use the app to scrape YouTube data automatically!\n');
-      console.log('🎯 Next steps:');
+      console.log('\nYour credentials have been saved.');
+      console.log('You can now use the app to scrape YouTube data automatically!\n');
+      console.log('Next steps:');
       console.log('   • Go to YouTube Scraper page in the app');
       console.log('   • Click "Scrape All" to start scraping (no browser will open)\n');
       process.exit(0);
     } else {
       console.log('╔════════════════════════════════════════════════════════════╗');
-      console.log('║              ⏱️  Login Timeout!                             ║');
+      console.log('║               Login Timeout!                             ║');
       console.log('╚════════════════════════════════════════════════════════════╝');
-      console.log('\n❌ Login was not completed in 120 seconds.');
-      console.log('📝 Please try again: npm run yt-login\n');
+      console.log('\nLogin was not completed in 120 seconds.');
+      console.log('Please try again: npm run yt-login\n');
       process.exit(1);
     }
   } catch (error: any) {
     console.log('\n');
     console.log('╔════════════════════════════════════════════════════════════╗');
-    console.log('║              ❌ Error During Login Setup                   ║');
+    console.log('║              Error During Login Setup                   ║');
     console.log('╚════════════════════════════════════════════════════════════╝');
-    console.log(`\n⚠️  ${error.message}\n`);
+    console.log(`\n ${error.message}\n`);
     logger.error('YouTube Studio login setup failed:', error);
     process.exit(1);
   }

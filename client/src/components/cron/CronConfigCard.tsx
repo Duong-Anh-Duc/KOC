@@ -72,7 +72,7 @@ const CronConfigCard: React.FC<CronConfigCardProps> = ({
                   value={day}
                   onChange={onDayChange}
                   style={{ width: '100%' }}
-                  options={Array.from({ length: 28 }, (_, i) => ({
+                  options={Array.from({ length: 31 }, (_, i) => ({
                     value: i + 1,
                     label: `${t('cron.day')} ${i + 1}`,
                   }))}

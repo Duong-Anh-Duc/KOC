@@ -126,6 +126,47 @@ export class AuthService {
   }
 
   /**
+   * Update user profile (full_name, email)
+   */
+  static async updateProfile(userId: string, data: { full_name?: string; email?: string }) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ApiError(404, 'auth.userNotFound');
+
+    if (data.email && data.email !== user.email) {
+      const existing = await prisma.user.findUnique({ where: { email: data.email } });
+      if (existing) throw new ApiError(409, 'auth.emailExists');
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.full_name !== undefined ? { full_name: data.full_name } : {}),
+        ...(data.email !== undefined ? { email: data.email } : {}),
+      },
+      select: { id: true, email: true, full_name: true, role: true, is_active: true, koc_id: true, created_at: true },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Change password (requires current password)
+   */
+  static async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ApiError(404, 'auth.userNotFound');
+
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValid) throw new ApiError(400, 'auth.wrongCurrentPassword');
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: newHash },
+    });
+  }
+
+  /**
    * Get current user info
    */
   static async getProfile(userId: string) {

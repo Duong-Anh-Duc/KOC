@@ -13,5 +13,7 @@ router.get('/:kocId/growth', StatsController.getGrowth);
 router.get('/:kocId', StatsController.getHistory);
 router.post('/:kocId/fetch', StatsController.fetchStats);
 router.post('/fetch-all', StatsController.fetchAllStats);
+router.get('/cron-config', StatsController.getCronConfig);
+router.put('/cron-config', StatsController.updateCronConfig);
 
 export default router;

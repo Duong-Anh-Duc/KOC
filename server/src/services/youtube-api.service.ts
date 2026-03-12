@@ -69,7 +69,7 @@ class YouTubeAPIService {
     try {
       const data = await fs.readFile(TOKEN_PATH, 'utf-8');
       this.tokens = JSON.parse(data);
-      logger.info('✓ Loaded YouTube tokens');
+      logger.info('Loaded YouTube tokens');
     } catch (error) {
       logger.info('No existing YouTube tokens found');
       this.tokens = {};
@@ -102,7 +102,7 @@ class YouTubeAPIService {
     const { tokens } = await this.oauth2Client.getToken(code);
     this.tokens[channelId] = tokens as any;
     await this.saveTokens();
-    logger.info(`✓ Saved tokens for channel ${channelId}`);
+    logger.info(`Saved tokens for channel ${channelId}`);
   }
 
   /**
@@ -137,7 +137,7 @@ class YouTubeAPIService {
     const youtube = google.youtube({ version: 'v3', auth });
     const youtubeAnalytics = google.youtubeAnalytics({ version: 'v2', auth });
 
-    logger.info(`📊 Fetching analytics for ${channelId}...`);
+    logger.info(`Fetching analytics for ${channelId}...`);
 
     // Fetch overview metrics
     const overviewResponse = await youtubeAnalytics.reports.query({
@@ -291,7 +291,7 @@ class YouTubeAPIService {
   async revokeAccess(channelId: string): Promise<void> {
     delete this.tokens[channelId];
     await this.saveTokens();
-    logger.info(`✓ Revoked access for channel ${channelId}`);
+    logger.info(`Revoked access for channel ${channelId}`);
   }
 }
 

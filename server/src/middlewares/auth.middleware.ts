@@ -2,10 +2,10 @@ import { NextFunction, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { AuthenticatedRequest, JwtPayload } from '../types';
-
 /**
  * Middleware to verify JWT token and attach user to request
  */
+
 export const authMiddleware = (
   req: AuthenticatedRequest,
   res: Response,

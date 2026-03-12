@@ -5,7 +5,7 @@ import { config } from '../config';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('Seeding database...');
 
   // Create default admin (always upsert - safe on every restart)
   const hashedPassword = await bcrypt.hash(config.defaultAdmin.password, 12);
@@ -21,7 +21,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Admin created: ${admin.email}`);
+  console.log(`Admin created: ${admin.email}`);
 
   // Create demo admin (always upsert - safe on every restart)
   const demoAdminPassword = await bcrypt.hash('Admin@123456', 12);
@@ -36,13 +36,13 @@ async function main() {
     },
   });
 
-  console.log(`✅ Demo Admin created: ${demoAdmin.email}`);
-  console.log('🎉 Seeding completed!');
+  console.log(`Demo Admin created: ${demoAdmin.email}`);
+  console.log('Seeding completed!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed error:', e);
+    console.error('Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

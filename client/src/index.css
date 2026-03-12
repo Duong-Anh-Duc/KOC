@@ -123,9 +123,8 @@ html[data-theme='dark'] .ant-btn-text:not(:disabled):hover {
 
 /* ===== Card Hover Effects ===== */
 .ant-card {
-  transition: all 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
   border-radius: 12px !important;
-  overflow: hidden;
 }
 
 .ant-card:hover {
@@ -460,58 +459,49 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 
 /* ============================================================
    GLOBAL MOTION / ANIMATION SYSTEM
+   — Only safe animations that don't conflict with Ant Design
    ============================================================ */
 
-/* ----- Page transition ----- */
+/* ----- Page transition (wrapper component) ----- */
 .page-transition {
   opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: translateY(14px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 .page-transition.page-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* ----- Navbar slide-down entrance ----- */
-.ant-layout-header {
-  animation: navSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@keyframes navSlideDown {
-  from { transform: translateY(-100%); opacity: 0; }
-  to   { transform: translateY(0);     opacity: 1; }
-}
-
-/* ----- Sidebar menu item stagger entrance ----- */
+/* ----- Sidebar menu items stagger ----- */
 .ant-menu-item {
-  animation: menuSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: menuSlideIn 0.35s ease both;
 }
-.ant-menu-item:nth-child(1) { animation-delay: 0.05s; }
-.ant-menu-item:nth-child(2) { animation-delay: 0.1s;  }
-.ant-menu-item:nth-child(3) { animation-delay: 0.15s; }
-.ant-menu-item:nth-child(4) { animation-delay: 0.2s;  }
-.ant-menu-item:nth-child(5) { animation-delay: 0.25s; }
-.ant-menu-item:nth-child(6) { animation-delay: 0.3s;  }
-.ant-menu-item:nth-child(7) { animation-delay: 0.35s; }
-.ant-menu-item:nth-child(8) { animation-delay: 0.4s;  }
+.ant-menu-item:nth-child(1) { animation-delay: 0.04s; }
+.ant-menu-item:nth-child(2) { animation-delay: 0.08s; }
+.ant-menu-item:nth-child(3) { animation-delay: 0.12s; }
+.ant-menu-item:nth-child(4) { animation-delay: 0.16s; }
+.ant-menu-item:nth-child(5) { animation-delay: 0.20s; }
+.ant-menu-item:nth-child(6) { animation-delay: 0.24s; }
+.ant-menu-item:nth-child(7) { animation-delay: 0.28s; }
+.ant-menu-item:nth-child(8) { animation-delay: 0.32s; }
 
 @keyframes menuSlideIn {
-  from { transform: translateX(-20px); opacity: 0; }
+  from { transform: translateX(-16px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
 
-/* Menu item hover — icon bounce + slide indicator */
+/* Menu hover icon bounce */
 .ant-menu-item:hover .anticon {
-  animation: iconBounce 0.4s ease;
+  animation: iconBounce 0.35s ease;
 }
 @keyframes iconBounce {
   0%   { transform: scale(1); }
-  40%  { transform: scale(1.25); }
-  70%  { transform: scale(0.95); }
+  40%  { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
 
+/* Active menu indicator bar */
 .ant-menu-item-selected {
   position: relative;
 }
@@ -519,79 +509,61 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   content: '';
   position: absolute;
   left: 0;
-  top: 15%;
-  height: 70%;
+  top: 20%;
+  height: 60%;
   width: 4px;
   border-radius: 0 4px 4px 0;
   background: #fff;
-  animation: indicatorGrow 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: indicatorGrow 0.3s ease both;
 }
 @keyframes indicatorGrow {
   from { transform: scaleY(0); }
   to   { transform: scaleY(1); }
 }
 
-/* ----- Card stagger entrance ----- */
-.ant-card {
-  animation: cardEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* ----- Card stagger entrance (opacity only, no transform to avoid overflow issues) ----- */
+.ant-row > .ant-col:nth-child(1) > .ant-card { animation: cardFadeIn 0.4s ease 0.05s both; }
+.ant-row > .ant-col:nth-child(2) > .ant-card { animation: cardFadeIn 0.4s ease 0.10s both; }
+.ant-row > .ant-col:nth-child(3) > .ant-card { animation: cardFadeIn 0.4s ease 0.15s both; }
+.ant-row > .ant-col:nth-child(4) > .ant-card { animation: cardFadeIn 0.4s ease 0.20s both; }
+.ant-row > .ant-col:nth-child(5) > .ant-card { animation: cardFadeIn 0.4s ease 0.25s both; }
+.ant-row > .ant-col:nth-child(6) > .ant-card { animation: cardFadeIn 0.4s ease 0.30s both; }
+
+@keyframes cardFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* Stagger cards within a Row */
-.ant-row > .ant-col:nth-child(1) > .ant-card { animation-delay: 0.05s; }
-.ant-row > .ant-col:nth-child(2) > .ant-card { animation-delay: 0.12s; }
-.ant-row > .ant-col:nth-child(3) > .ant-card { animation-delay: 0.19s; }
-.ant-row > .ant-col:nth-child(4) > .ant-card { animation-delay: 0.26s; }
-.ant-row > .ant-col:nth-child(5) > .ant-card { animation-delay: 0.33s; }
-.ant-row > .ant-col:nth-child(6) > .ant-card { animation-delay: 0.40s; }
-
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(24px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ----- Stat number scale-in ----- */
+/* ----- Stat number pop-in ----- */
 .ant-statistic-content-value {
-  animation: valuePopIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  animation: valuePopIn 0.5s ease 0.2s both;
 }
 @keyframes valuePopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.7);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-/* ----- Status tag pulse for "running" indicators ----- */
+/* ----- Status tag pulse (green = running) ----- */
 .ant-tag-success,
 .ant-tag-green {
   animation: tagPulse 2.5s ease-in-out infinite;
 }
 @keyframes tagPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4); }
-  50%      { box-shadow: 0 0 0 6px rgba(82, 196, 26, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.35); }
+  50%      { box-shadow: 0 0 0 5px rgba(82, 196, 26, 0); }
 }
 
-.ant-tag-processing,
-.ant-tag-blue {
+.ant-tag-processing {
   animation: tagPulseBlue 2.5s ease-in-out infinite;
 }
 @keyframes tagPulseBlue {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.4); }
-  50%      { box-shadow: 0 0 0 6px rgba(22, 119, 255, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.35); }
+  50%      { box-shadow: 0 0 0 5px rgba(22, 119, 255, 0); }
 }
 
-/* ----- Table row entrance ----- */
+/* ----- Table row fade in ----- */
 .ant-table-tbody > tr {
-  animation: rowFadeIn 0.35s ease both;
+  animation: rowFadeIn 0.3s ease both;
 }
 .ant-table-tbody > tr:nth-child(1)  { animation-delay: 0.02s; }
 .ant-table-tbody > tr:nth-child(2)  { animation-delay: 0.04s; }
@@ -605,152 +577,58 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 .ant-table-tbody > tr:nth-child(10) { animation-delay: 0.20s; }
 
 @keyframes rowFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ----- Progress bar animated fill ----- */
-.ant-progress-bg {
-  animation: progressFill 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-  transform-origin: left;
+/* ----- Icon-only button wiggle on hover ----- */
+.ant-btn-icon-only:hover {
+  animation: iconBtnWiggle 0.35s ease;
 }
-@keyframes progressFill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
-
-/* ----- Button click ripple ----- */
-.ant-btn {
-  position: relative;
-  overflow: hidden;
-}
-.ant-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 10.01%);
-  transform: scale(10);
-  opacity: 0;
-  transition: transform 0.5s, opacity 0.6s;
-}
-.ant-btn:active::after {
-  transform: scale(0);
-  opacity: 1;
-  transition: 0s;
+@keyframes iconBtnWiggle {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(-6deg); }
+  50%  { transform: rotate(6deg); }
+  75%  { transform: rotate(-3deg); }
+  100% { transform: rotate(0deg); }
 }
 
-/* ----- Modal entrance ----- */
-.ant-modal-content {
-  animation: modalPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-@keyframes modalPop {
-  from {
-    opacity: 0;
-    transform: scale(0.85) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-/* ----- Drawer slide ----- */
-.ant-drawer-content {
-  animation: drawerSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@keyframes drawerSlide {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(0); }
-}
-
-/* ----- Dropdown / Popover entrance ----- */
-.ant-dropdown,
+/* ----- Popover entrance ----- */
 .ant-popover-inner {
-  animation: dropdownPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: dropdownPop 0.2s ease both;
 }
 @keyframes dropdownPop {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ----- Tooltip fade ----- */
-.ant-tooltip-inner {
-  animation: tooltipFade 0.2s ease both;
-}
-@keyframes tooltipFade {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ----- Notification slide ----- */
 .ant-notification-notice {
-  animation: notifSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: notifSlide 0.35s ease both;
 }
 @keyframes notifSlide {
-  from {
-    opacity: 0;
-    transform: translateX(80px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* ----- Spin icon smooth rotation ----- */
-.ant-spin-dot {
-  animation: spinPulse 1.2s ease-in-out infinite;
-}
-@keyframes spinPulse {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.15); }
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* ----- Avatar hover ----- */
 .ant-avatar {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .ant-avatar:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: scale(1.08);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* ----- Collapse / Accordion ----- */
-.ant-collapse-content {
-  animation: collapseOpen 0.3s ease both;
-}
-@keyframes collapseOpen {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ----- Switch toggle ----- */
+/* ----- Switch toggle glow ----- */
 .ant-switch {
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 .ant-switch:active {
-  box-shadow: 0 0 0 4px rgba(237, 143, 58, 0.2);
+  box-shadow: 0 0 0 3px rgba(237, 143, 58, 0.2);
 }
 
-/* ----- Tabs ink bar slide ----- */
-.ant-tabs-ink-bar {
-  transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* ----- Badge bounce on count change ----- */
+/* ----- Badge bounce ----- */
 .ant-badge-count {
   animation: badgeBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -759,55 +637,13 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   to   { transform: scale(1); }
 }
 
-/* ----- Skeleton shimmer enhancement ----- */
-.ant-skeleton-content .ant-skeleton-title,
-.ant-skeleton-content .ant-skeleton-paragraph > li {
-  background: linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 37%, rgba(0,0,0,0.06) 63%) !important;
-  background-size: 400% 100% !important;
-  animation: shimmer 1.4s ease infinite !important;
-}
-html[data-theme='dark'] .ant-skeleton-content .ant-skeleton-title,
-html[data-theme='dark'] .ant-skeleton-content .ant-skeleton-paragraph > li {
-  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.06) 63%) !important;
-  background-size: 400% 100% !important;
-}
-@keyframes shimmer {
-  0%   { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* ----- Floating action hint for icon-only buttons ----- */
-.ant-btn-icon-only:hover {
-  animation: iconBtnWiggle 0.4s ease;
-}
-@keyframes iconBtnWiggle {
-  0%   { transform: rotate(0deg); }
-  25%  { transform: rotate(-8deg); }
-  50%  { transform: rotate(8deg); }
-  75%  { transform: rotate(-4deg); }
-  100% { transform: rotate(0deg); }
-}
-
-/* ----- Smooth form field label float feel ----- */
-.ant-form-item-label {
-  transition: all 0.2s ease;
-}
-
-/* ----- Title entrance on pages ----- */
-.ant-typography h2,
-.ant-typography h3,
+/* ----- Title entrance ----- */
 h2, h3 {
-  animation: titleSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: titleSlide 0.4s ease both;
 }
 @keyframes titleSlide {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* ----- Reduce motion for accessibility ----- */

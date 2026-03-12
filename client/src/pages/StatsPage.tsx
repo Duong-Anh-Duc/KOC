@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statsApi } from '../api';
 import { SummaryBar, TaskProgressBar } from '../components/common';
-import { StatsDetailModal, StatsGrowthTable, StatsHeader, Top10Chart } from '../components/stats';
+import { StatsCronConfigModal, StatsDetailModal, StatsGrowthTable, StatsHeader, Top10Chart } from '../components/stats';
 import { useProgress } from '../hooks/useProgress';
+import { useAuthStore } from '../stores';
 import { toastError } from '../utils';
 
 /** Format large numbers: 6900000 → "6.9M", 31600 → "31.6K" */
@@ -18,6 +19,9 @@ const formatNumber = (val: number | null | undefined): string => {
 const StatsPage: React.FC = () => {
   const { t } = useTranslation();
   const [selectedKOC, setSelectedKOC] = useState<string | undefined>();
+  const [cronModalOpen, setCronModalOpen] = useState(false);
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'ADMIN';
 
   const { data: allGrowthData, isLoading: allLoading, refetch: refetchAll } = useQuery({
     queryKey: ['stats-growth-all'],
@@ -87,6 +91,7 @@ const StatsPage: React.FC = () => {
         onRefresh={() => refetchAll()}
         onFetchAll={handleFetchAll}
         fetchLoading={fetchAllStatsMutation.isPending || statsProgress.state.active}
+        onOpenCronConfig={isAdmin ? () => setCronModalOpen(true) : undefined}
       />
 
         <SummaryBar
@@ -133,6 +138,13 @@ const StatsPage: React.FC = () => {
           loading={detailLoading}
           onClose={() => setSelectedKOC(undefined)}
         />
+
+        {isAdmin && (
+          <StatsCronConfigModal
+            open={cronModalOpen}
+            onClose={() => setCronModalOpen(false)}
+          />
+        )}
       </div>
   );
 };

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { SocialBladeService } from '../services';
+import { StatsCronService } from '../services/cron.service';
 import { ProgressService } from '../services/progress.service';
 import { AuthenticatedRequest } from '../types';
 
@@ -151,6 +152,31 @@ export class StatsController {
         message: t ? t('stats.correlationCalculated') : 'Correlation data calculated',
         data,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /* ============================================================
+     STATS CRON CONFIG
+     ============================================================ */
+
+  /** GET /api/stats/cron-config */
+  static async getCronConfig(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const config = await StatsCronService.getConfig();
+      res.json({ success: true, data: { ...config, schedulerRunning: StatsCronService.isRunning() } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** PUT /api/stats/cron-config */
+  static async updateCronConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { enabled, schedule } = req.body;
+      const updated = await StatsCronService.updateConfig({ enabled, schedule });
+      res.json({ success: true, data: { ...updated, schedulerRunning: StatsCronService.isRunning() } });
     } catch (error) {
       next(error);
     }

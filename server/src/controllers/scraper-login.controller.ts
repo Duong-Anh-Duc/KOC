@@ -232,13 +232,13 @@ export class ScraperLoginController {
       if (hasSession) {
         res.status(200).json({
           success: true,
-          message: t ? t('ytScraper.autoConnectSuccess') : '✅ Kết nối ẩn thành công - Sẵn sàng cào dữ liệu',
+          message: t ? t('ytScraper.autoConnectSuccess') : 'Kết nối ẩn thành công - Sẵn sàng cào dữ liệu',
           data: { loggedIn: true, sessionValid: true },
         });
       } else {
         res.status(200).json({
           success: false,
-          message: t ? t('ytScraper.autoConnectFailed') : '❌ Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google.',
+          message: t ? t('ytScraper.autoConnectFailed') : 'Chưa có session. Vui lòng mở trình duyệt để đăng nhập Google.',
           data: { loggedIn: false, sessionValid: false },
         });
       }

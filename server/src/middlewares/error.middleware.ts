@@ -56,7 +56,7 @@ export const errorHandler = (
     return;
   }
 
-  console.error('❌ Unhandled Error:', err);
+  console.error('Unhandled Error:', err);
 
   const fallback = t ? t('general.serverError') : 'Internal server error';
   res.status(500).json({

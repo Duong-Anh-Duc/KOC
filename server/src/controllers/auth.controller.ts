@@ -62,6 +62,56 @@ export class AuthController {
   }
 
   /**
+   * PUT /api/auth/profile
+   */
+  static async updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const t = (req as any).t;
+      if (!req.user) { res.status(401).json({ success: false, message: 'Unauthorized' }); return; }
+
+      const { full_name, email } = req.body;
+      const updated = await AuthService.updateProfile(req.user.userId, { full_name, email });
+
+      res.status(200).json({
+        success: true,
+        message: t ? t('auth.profileUpdated') : 'Profile updated',
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/auth/change-password
+   */
+  static async changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const t = (req as any).t;
+      if (!req.user) { res.status(401).json({ success: false, message: 'Unauthorized' }); return; }
+
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        res.status(400).json({ success: false, message: t ? t('auth.missingFields') : 'Missing fields' });
+        return;
+      }
+      if (newPassword.length < 6) {
+        res.status(400).json({ success: false, message: t ? t('auth.passwordTooShort') : 'Password must be at least 6 characters' });
+        return;
+      }
+
+      await AuthService.changePassword(req.user.userId, currentPassword, newPassword);
+
+      res.status(200).json({
+        success: true,
+        message: t ? t('auth.passwordChanged') : 'Password changed successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * GET /api/auth/profile
    */
   static async getProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {

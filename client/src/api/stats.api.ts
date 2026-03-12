@@ -36,4 +36,22 @@ export const statsApi = {
       estimated_revenue_28d_num: number; likes_28d_num: number; shares_28d_num: number;
       has_data: boolean; last_recorded_at: string | null;
     }>>>('/stats/growth/all'),
+
+  // Stats cron config
+  getCronConfig: () =>
+    apiClient.get<ApiResponse<{
+      enabled: boolean;
+      schedule: string;
+      schedulerRunning: boolean;
+      lastRunAt?: string;
+      lastRunResult?: string;
+      runHistory?: Array<{ runAt: string; success: boolean; message: string }>;
+    }>>('/stats/cron-config'),
+
+  updateCronConfig: (data: { enabled?: boolean; schedule?: string }) =>
+    apiClient.put<ApiResponse<{
+      enabled: boolean;
+      schedule: string;
+      schedulerRunning: boolean;
+    }>>('/stats/cron-config', data),
 };

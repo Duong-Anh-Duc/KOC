@@ -106,12 +106,12 @@ export class SocialBladeService {
    * Navigate to an explore page and extract body text
    */
   private static async scrapeExplorePage(page: Page, url: string, label: string): Promise<string> {
-    logger.info(`📊 Scraping ${label}...`);
+    logger.info(`Scraping ${label}...`);
 
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
     } catch (err: any) {
-      logger.warn(`⚠️ Page load warning for ${label}: ${err.message}`);
+      logger.warn(`Page load warning for ${label}: ${err.message}`);
     }
 
     if (page.url().includes('accounts.google.com')) {
@@ -122,7 +122,7 @@ export class SocialBladeService {
     await new Promise(r => setTimeout(r, 1500));
     const bodyCheck = await page.evaluate('document.body.innerText').catch(() => '') as string;
     if (bodyCheck.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodyCheck.includes('Go to YouTube Studio')) {
-      logger.warn(`⚠️ "Unsupported browser" page detected for ${label} — clicking through...`);
+      logger.warn(`"Unsupported browser" page detected for ${label} — clicking through...`);
       const link = page.locator('a:has-text("CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO"), a:has-text("Go to YouTube Studio")');
       if (await link.count() > 0) {
         await link.first().click();
@@ -134,7 +134,7 @@ export class SocialBladeService {
     }
 
     // Poll mỗi 5s tối đa 3 phút — đợi bảng analytics load xong (có dòng "Tổng")
-    logger.info(`⏳ Polling ${label} for analytics table...`);
+    logger.info(`Polling ${label} for analytics table...`);
     let text = '';
     const deadline = Date.now() + 180000;
 
@@ -148,17 +148,17 @@ export class SocialBladeService {
       const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
       const hasTong = lines.some((l: string) => /^Tổng$|^Total$/i.test(l));
       if (hasTong) {
-        logger.info(`✓ Analytics table loaded for ${label} (${text.length} chars)`);
+        logger.info(`Analytics table loaded for ${label} (${text.length} chars)`);
         break;
       }
-      logger.info(`⏳ Waiting for table [${label}]... (${text.length} chars, no Tổng row yet)`);
+      logger.info(`Waiting for table [${label}]... (${text.length} chars, no Tổng row yet)`);
     }
 
     if (!text) {
       text = await page.evaluate('document.body.innerText').catch(() => '') as string;
     }
 
-    logger.info(`✓ ${label}: extracted ${text.length} chars`);
+    logger.info(`${label}: extracted ${text.length} chars`);
     return text;
   }
 
@@ -186,16 +186,16 @@ export class SocialBladeService {
     for (let i = 0; i < lines.length; i++) {
       if (/^(Tổng|Total)$/i.test(lines[i]) && i + 1 < lines.length && isValueLine(lines[i + 1])) {
         totalIdx = i;
-        logger.info(`✓ Found "Tổng" row at index ${i}: "${lines[i]}"`);
+        logger.info(`Found "Tổng" row at index ${i}: "${lines[i]}"`);
         break;
       }
     }
 
     if (totalIdx === -1) {
-      logger.warn('⚠️ Could not find "Tổng" row in country explore text');
-      logger.warn(`📄 Total lines: ${lines.length}`);
-      logger.warn(`📄 First 20 lines: ${lines.slice(0, 20).join(' | ')}`);
-      logger.warn(`📄 Lines containing "Tổng" or "Total": ${lines.filter(l => /tổng|total/i.test(l)).join(' | ')}`);
+      logger.warn('Could not find "Tổng" row in country explore text');
+      logger.warn(`Total lines: ${lines.length}`);
+      logger.warn(`First 20 lines: ${lines.slice(0, 20).join(' | ')}`);
+      logger.warn(`Lines containing "Tổng" or "Total": ${lines.filter(l => /tổng|total/i.test(l)).join(' | ')}`);
       return { totals: nullTotals, rows: [] };
     }
 
@@ -220,9 +220,9 @@ export class SocialBladeService {
       // Continue scanning even for non-value lines (don't break immediately)
     }
 
-    logger.info(`📊 Collected ${totalValues.length} total values: ${totalValues.join(' | ')}`);
+    logger.info(`Collected ${totalValues.length} total values: ${totalValues.join(' | ')}`);
     const totals = parseTotalRow(totalValues, COUNTRY_COL_SPECS);
-    logger.info(`📋 Country totals parsed: views=${totals.views}, subsGained=${totals.subscribersGained}, subsNet=${totals.subscribersNet}, revenue=${totals.estimatedRevenue}`);
+    logger.info(`Country totals parsed: views=${totals.views}, subsGained=${totals.subscribersGained}, subsNet=${totals.subscribersNet}, revenue=${totals.estimatedRevenue}`);
 
     // Parse country rows (start after last total value line)
     const rows: CountryStatsRow[] = [];
@@ -249,7 +249,7 @@ export class SocialBladeService {
       }
     }
 
-    logger.info(`📋 Parsed ${rows.length} country rows`);
+    logger.info(`Parsed ${rows.length} country rows`);
     return { totals: totals as CountryStatsTotals, rows };
   }
 
@@ -274,16 +274,16 @@ export class SocialBladeService {
     for (let i = 0; i < lines.length; i++) {
       if (/^(Tổng|Total)$/i.test(lines[i]) && i + 1 < lines.length && isValueLine(lines[i + 1])) {
         totalIdx = i;
-        logger.info(`✓ Found "Tổng" row at index ${i}: "${lines[i]}"`);
+        logger.info(`Found "Tổng" row at index ${i}: "${lines[i]}"`);
         break;
       }
     }
 
     if (totalIdx === -1) {
-      logger.warn('⚠️ Could not find "Tổng" row in day explore text');
-      logger.warn(`📄 Total lines: ${lines.length}`);
-      logger.warn(`📄 First 20 lines: ${lines.slice(0, 20).join(' | ')}`);
-      logger.warn(`📄 Lines containing "Tổng" or "Total": ${lines.filter(l => /tổng|total/i.test(l)).join(' | ')}`);
+      logger.warn('Could not find "Tổng" row in day explore text');
+      logger.warn(`Total lines: ${lines.length}`);
+      logger.warn(`First 20 lines: ${lines.slice(0, 20).join(' | ')}`);
+      logger.warn(`Lines containing "Tổng" or "Total": ${lines.filter(l => /tổng|total/i.test(l)).join(' | ')}`);
       return { totals: nullTotals, rows: [] };
     }
 
@@ -308,9 +308,9 @@ export class SocialBladeService {
       // Continue scanning even for non-value lines (don't break immediately)
     }
 
-    logger.info(`📊 Collected ${totalValues.length} total values: ${totalValues.join(' | ')}`);
+    logger.info(`Collected ${totalValues.length} total values: ${totalValues.join(' | ')}`);
     const totals = parseTotalRow(totalValues, DAY_COL_SPECS);
-    logger.info(`📋 Day totals parsed: views=${totals.views}, subsGained=${totals.subscribersGained}, subsNet=${totals.subscribersNet}, revenue=${totals.estimatedRevenue}`);
+    logger.info(`Day totals parsed: views=${totals.views}, subsGained=${totals.subscribersGained}, subsNet=${totals.subscribersNet}, revenue=${totals.estimatedRevenue}`);
 
     // Parse day rows (start after last total value line)
     const rows: DayStatsRow[] = [];
@@ -337,7 +337,7 @@ export class SocialBladeService {
       }
     }
 
-    logger.info(`📋 Parsed ${rows.length} day rows`);
+    logger.info(`Parsed ${rows.length} day rows`);
     return { totals: totals as DayStatsTotals, rows };
   }
 
@@ -393,11 +393,11 @@ export class SocialBladeService {
       lines.push(`Channel ID  : ${channelId}`);
 
       if (error) {
-        lines.push(`Trạng thái  : ❌ THẤT BẠI`);
+        lines.push(`Trạng thái  : THẤT BẠI`);
         lines.push(`Lỗi         : ${error}`);
       } else if (data) {
         const t = data.byCountry.totals;
-        lines.push(`Trạng thái  : ✅ THÀNH CÔNG`);
+        lines.push(`Trạng thái  : THÀNH CÔNG`);
         lines.push(`Lượt xem    : ${(t.views ?? 0).toLocaleString()}`);
         lines.push(`Giờ xem     : ${t.watchTimeHours ?? 0}`);
         lines.push(`Doanh thu   : $${(t.estimatedRevenue ?? 0).toFixed(2)}`);
@@ -447,7 +447,7 @@ export class SocialBladeService {
     const results: any[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
 
-    logger.info(`📊 Starting PARALLEL 28d stats for ${kocs.length} KOCs...`);
+    logger.info(`Starting PARALLEL 28d stats for ${kocs.length} KOCs...`);
 
     const context = await YouTubeScraperService.getContext(false, adminId);
 
@@ -477,7 +477,7 @@ export class SocialBladeService {
 
     // Check NOT_LOGGED_IN
     if (pages.some(p => p.error === 'NOT_LOGGED_IN')) {
-      logger.error('❌ NOT_LOGGED_IN detected — aborting');
+      logger.error('NOT_LOGGED_IN detected — aborting');
       YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
         trigger: 'SocialBladeService.recordAllStats_parallel',
       }).catch(() => {});
@@ -542,16 +542,16 @@ export class SocialBladeService {
         });
 
         results.push(record);
-        logger.info(`✅ 28d stats saved for ${entry.koc.channel_name} (${results.length}/${kocs.length})`);
+        logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${kocs.length})`);
       } catch (err: any) {
         errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
-        logger.error(`❌ Failed for ${entry.koc.channel_name}: ${err}`);
+        logger.error(`Failed for ${entry.koc.channel_name}: ${err}`);
       } finally {
         try { await entry.page.close(); } catch {}
       }
     }
 
-    logger.info(`📊 Stats completed: ${results.length} success, ${errors.length} failed`);
+    logger.info(`Stats completed: ${results.length} success, ${errors.length} failed`);
     return { success: results.length, failed: errors.length, errors };
   }
 
@@ -565,7 +565,7 @@ export class SocialBladeService {
     const results: string[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
 
-    logger.info(`📊 Starting PARALLEL 28d stats for ${total} KOCs (taskId: ${taskId})...`);
+    logger.info(`Starting PARALLEL 28d stats for ${total} KOCs (taskId: ${taskId})...`);
 
     ProgressService.emit(taskId, {
       step: 0,
@@ -589,7 +589,7 @@ export class SocialBladeService {
     }
 
     // Navigate all pages to country URLs simultaneously
-    logger.info(`📊 Navigating ${pages.length} pages to country explore URLs...`);
+    logger.info(`Navigating ${pages.length} pages to country explore URLs...`);
     await Promise.all(pages.map(async (entry) => {
       try {
         const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
@@ -620,7 +620,7 @@ export class SocialBladeService {
     // Check if any page hit NOT_LOGGED_IN
     const notLoggedIn = pages.find(p => p.error === 'NOT_LOGGED_IN');
     if (notLoggedIn) {
-      logger.error('❌ NOT_LOGGED_IN detected — aborting all tabs');
+      logger.error('NOT_LOGGED_IN detected — aborting all tabs');
       YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
         trigger: 'SocialBladeService.recordAllStatsWithProgress_parallel',
       }).catch(() => {});
@@ -633,7 +633,7 @@ export class SocialBladeService {
     }
 
     // Poll all pages until country tables are loaded
-    logger.info(`⏳ Polling ${pages.length} pages for country tables...`);
+    logger.info(`Polling ${pages.length} pages for country tables...`);
     const activePagesCountry = pages.filter(p => !p.error);
     await this.pollAllPagesForTable(activePagesCountry.map(p => ({ page: p.page, label: p.koc.channel_name })));
 
@@ -651,14 +651,14 @@ export class SocialBladeService {
           percent: Math.round((countryDone / (total * 2)) * 100),
           message: `Country data: ${entry.koc.channel_name} (${countryDone}/${total})`,
         });
-        logger.info(`✅ Country data extracted for ${entry.koc.channel_name}`);
+        logger.info(`Country data extracted for ${entry.koc.channel_name}`);
       } catch (err: any) {
         entry.error = `Country extract failed: ${err.message}`;
       }
     }
 
     // --- Phase 2: Navigate all pages to DAY URLs ---
-    logger.info(`📊 Navigating ${pages.length} pages to day explore URLs...`);
+    logger.info(`Navigating ${pages.length} pages to day explore URLs...`);
     await Promise.all(pages.map(async (entry) => {
       if (entry.error) return;
       try {
@@ -670,7 +670,7 @@ export class SocialBladeService {
     }));
 
     // Poll all pages until day tables are loaded
-    logger.info(`⏳ Polling ${pages.length} pages for day tables...`);
+    logger.info(`Polling ${pages.length} pages for day tables...`);
     const activePagesDays = pages.filter(p => !p.error);
     await this.pollAllPagesForTable(activePagesDays.map(p => ({ page: p.page, label: p.koc.channel_name })));
 
@@ -711,10 +711,10 @@ export class SocialBladeService {
           percent: Math.round(((total + doneCount) / (total * 2)) * 100),
           message: `Đã lưu: ${entry.koc.channel_name} (${results.length}/${total})`,
         });
-        logger.info(`✅ 28d stats saved for ${entry.koc.channel_name} (${results.length}/${total})`);
+        logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${total})`);
       } catch (err: any) {
         errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
-        logger.error(`❌ Failed to save stats for ${entry.koc.channel_name}: ${err}`);
+        logger.error(`Failed to save stats for ${entry.koc.channel_name}: ${err}`);
         this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, null, String(err));
       } finally {
         try { await entry.page.close(); } catch { /* ignore */ }
@@ -722,7 +722,7 @@ export class SocialBladeService {
     }
 
     const resultData = { success: results.length, failed: errors.length, errors };
-    logger.info(`📊 Stats completed: ${results.length} success, ${errors.length} failed`);
+    logger.info(`Stats completed: ${results.length} success, ${errors.length} failed`);
     ProgressService.complete(taskId, resultData);
     return resultData;
   }
@@ -745,7 +745,7 @@ export class SocialBladeService {
           const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
           const hasTong = lines.some((l: string) => /^Tổng$|^Total$/i.test(l));
           if (hasTong) {
-            logger.info(`✓ Table loaded for ${label}`);
+            logger.info(`Table loaded for ${label}`);
             pending.delete(idx);
           }
         } catch {
@@ -758,13 +758,13 @@ export class SocialBladeService {
 
       if (pending.size > 0) {
         const remaining = Array.from(pending).map(i => entries[i].label).join(', ');
-        logger.info(`⏳ Still waiting for ${pending.size} pages: ${remaining}`);
+        logger.info(`Still waiting for ${pending.size} pages: ${remaining}`);
       }
     }
 
     if (pending.size > 0) {
       const timedOut = Array.from(pending).map(i => entries[i].label).join(', ');
-      logger.warn(`⚠️ Timed out waiting for tables: ${timedOut}`);
+      logger.warn(`Timed out waiting for tables: ${timedOut}`);
     }
   }
 

@@ -41,9 +41,9 @@ export class ScraperJobsController {
       });
 
       // Run in background
-      logger.info(`🚀 Starting scrape-all task ${taskId} for ${channelIds.length} channels (admin: ${adminId})`);
+      logger.info(`Starting scrape-all task ${taskId} for ${channelIds.length} channels (admin: ${adminId})`);
       ScraperJobsController.runScrapeAll(kocs, channelIds, taskId, adminId).catch(err => {
-        logger.error(`❌ scrape-all task ${taskId} failed:`, err.message, err.stack);
+        logger.error(`scrape-all task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
     } catch (error: any) {

@@ -43,7 +43,7 @@ export class YouTubeScraperSchedulerService {
     };
 
     jobs.set(jobId, job);
-    logger.info(`📝 Created scrape job ${jobId} for ${channelIds.length} channels`);
+    logger.info(`Created scrape job ${jobId} for ${channelIds.length} channels`);
 
     // Start background job (don't await)
     this.executeJob(jobId);
@@ -70,7 +70,7 @@ export class YouTubeScraperSchedulerService {
 
     try {
       job.status = 'running';
-      logger.info(`🚀 Running job ${jobId}`);
+      logger.info(`Running job ${jobId}`);
 
       const { results, errors } = await YouTubeScraperService.scrapeMultipleChannelsParallel(job.channelIds, undefined, undefined, job.adminId, job.channelIds.length);
       job.results = results;
@@ -90,16 +90,16 @@ export class YouTubeScraperSchedulerService {
 
         if (batchItems.length > 0) {
           await YouTubeScrapeResultService.saveBatchResults(batchItems);
-          logger.info(`💾 Job ${jobId}: Saved ${batchItems.length} results to database`);
+          logger.info(`Job ${jobId}: Saved ${batchItems.length} results to database`);
         }
       }
 
-      logger.info(`✅ Job ${jobId} completed: ${results.length} success, ${errors.length} failed`);
+      logger.info(`Job ${jobId} completed: ${results.length} success, ${errors.length} failed`);
     } catch (error: any) {
       job.status = 'failed';
       job.completedAt = new Date();
       job.errors = [{ channelId: 'batch', error: error.message }];
-      logger.error(`❌ Job ${jobId} failed:`, error);
+      logger.error(`Job ${jobId} failed:`, error);
     }
   }
 
@@ -113,7 +113,7 @@ export class YouTubeScraperSchedulerService {
     for (const [jobId, job] of jobs) {
       if (now - job.startedAt.getTime() > maxAge && job.status !== 'running') {
         jobs.delete(jobId);
-        logger.info(`🗑️ Cleaned up old job ${jobId}`);
+        logger.info(`Cleaned up old job ${jobId}`);
       }
     }
   }

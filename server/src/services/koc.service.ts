@@ -34,7 +34,7 @@ export class KOCService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [data, total, activeCount, inactiveCount] = await Promise.all([
       prisma.kOC.findMany({
         where,
         skip,
@@ -42,6 +42,8 @@ export class KOCService {
         orderBy: { [query.sortBy || 'created_at']: query.sortOrder || 'desc' },
       }),
       prisma.kOC.count({ where }),
+      prisma.kOC.count({ where: { ...where, status: 'ACTIVE' } }),
+      prisma.kOC.count({ where: { ...where, status: 'INACTIVE' } }),
     ]);
 
     return {
@@ -51,6 +53,8 @@ export class KOCService {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+        activeCount,
+        inactiveCount,
       },
     };
   }
@@ -137,22 +141,22 @@ export class KOCService {
       status: KOCStatus;
     }>
   ) {
-    console.log('💾 KOCService.update - Input data:', JSON.stringify(data, null, 2));
-    console.log('💾 KOCService.update - min_payment in data:', data.min_payment, 'type:', typeof data.min_payment);
+    console.log('KOCService.update - Input data:', JSON.stringify(data, null, 2));
+    console.log('KOCService.update - min_payment in data:', data.min_payment, 'type:', typeof data.min_payment);
     
     const existing = await prisma.kOC.findUnique({ where: { id } });
     if (!existing) throw new ApiError(404, 'koc.notFound');
 
     const oldValue = { ...existing };
     // Note: admin ownership is checked at controller level
-    console.log('💾 KOCService.update - Old min_payment:', oldValue.min_payment);
+    console.log('KOCService.update - Old min_payment:', oldValue.min_payment);
 
     const updated = await prisma.kOC.update({
       where: { id },
       data,
     });
     
-    console.log('💾 KOCService.update - Updated min_payment:', updated.min_payment, 'type:', typeof updated.min_payment);
+    console.log('KOCService.update - Updated min_payment:', updated.min_payment, 'type:', typeof updated.min_payment);
 
     return { koc: updated, oldValue };
   }

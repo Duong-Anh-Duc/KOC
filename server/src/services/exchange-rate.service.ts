@@ -37,7 +37,7 @@ export class ExchangeRateService {
 
     const currentRate = this.cachedRate?.averageRate;
     if (!currentRate || currentRate <= 0) {
-      logger.warn(`⚠️ Cannot convert VND to USD: no valid exchange rate cached`);
+      logger.warn(`Cannot convert VND to USD: no valid exchange rate cached`);
       return null;
     }
 
@@ -54,7 +54,7 @@ export class ExchangeRateService {
     const run = async () => {
       // Skip if scraper Chromium is active to prevent OOM from concurrent instances
       if (YouTubeScraperService.isAnyScrapingActive()) {
-        logger.info('💱 [AutoRate] Skipping rate fetch — scraping in progress (avoiding concurrent Chromium OOM)');
+        logger.info('[AutoRate] Skipping rate fetch — scraping in progress (avoiding concurrent Chromium OOM)');
         return;
       }
       try {
@@ -94,22 +94,22 @@ export class ExchangeRateService {
           }
 
           logger.info(
-            `💱 [AutoRate] Cycle ${cycle.month}: ${currentRate.toLocaleString()} → ${newRate.toLocaleString()} VND/USD (${cycle.revenue_records.length} records updated)`,
+            `[AutoRate] Cycle ${cycle.month}: ${currentRate.toLocaleString()} → ${newRate.toLocaleString()} VND/USD (${cycle.revenue_records.length} records updated)`,
           );
         }
 
         if (openCycles.length === 0) {
-          logger.info(`💱 [AutoRate] Rate fetched: ${newRate.toLocaleString()} VND/USD (no open cycles to update)`);
+          logger.info(`[AutoRate] Rate fetched: ${newRate.toLocaleString()} VND/USD (no open cycles to update)`);
         }
       } catch (err: any) {
-        logger.warn('⚠️ [AutoRate] Failed to refresh exchange rate:', err.message);
+        logger.warn('[AutoRate] Failed to refresh exchange rate:', err.message);
       }
     };
 
     // Run immediately on startup, then every 30 minutes
     run();
     cron.schedule('*/30 * * * *', run);
-    logger.info('💱 Exchange rate auto-refresher started (every 30 minutes)');
+    logger.info('Exchange rate auto-refresher started (every 30 minutes)');
   }
 
   /**
@@ -120,7 +120,7 @@ export class ExchangeRateService {
   static async fetchRate(): Promise<ExchangeRateData> {
     let browser;
     try {
-      logger.info('💱 Fetching USD/VND exchange rate from MBBank (Playwright)...');
+      logger.info('Fetching USD/VND exchange rate from MBBank (Playwright)...');
 
       const isLinux = process.platform === 'linux';
       browser = await chromium.launch({
@@ -170,14 +170,14 @@ export class ExchangeRateService {
         throw new Error(`Invalid transfer buy rate: ${usdData.transferBuy}`);
       }
 
-      logger.info(`✅ Exchange rate fetched: 1 USD = ${transferBuyRate.toLocaleString()} VND (MBBank transfer buy)`);
+      logger.info(`Exchange rate fetched: 1 USD = ${transferBuyRate.toLocaleString()} VND (MBBank transfer buy)`);
       return {
         averageRate: transferBuyRate,
         source: this.MBBANK_URL,
         fetchedAt: new Date().toISOString(),
       };
     } catch (error: any) {
-      logger.error('❌ Failed to fetch exchange rate from MBBank:', error.message);
+      logger.error('Failed to fetch exchange rate from MBBank:', error.message);
       throw error;
     } finally {
       if (browser) await browser.close();

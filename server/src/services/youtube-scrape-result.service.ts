@@ -23,10 +23,10 @@ export class YouTubeScrapeResultService {
         },
       });
 
-      logger.info(`💾 Saved scrape result for KOC ${kocId} (channel: ${channelId})`);
+      logger.info(`Saved scrape result for KOC ${kocId} (channel: ${channelId})`);
       return result;
     } catch (error: any) {
-      logger.error(`❌ Failed to save scrape result for KOC ${kocId}:`, error.message);
+      logger.error(`Failed to save scrape result for KOC ${kocId}:`, error.message);
       throw error;
     }
   }
@@ -53,7 +53,7 @@ export class YouTubeScrapeResultService {
       }
     }
 
-    logger.info(`💾 Batch save: ${saved.length} saved, ${errors.length} errors`);
+    logger.info(`Batch save: ${saved.length} saved, ${errors.length} errors`);
     return { saved, errors };
   }
 
