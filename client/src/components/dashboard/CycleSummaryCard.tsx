@@ -1,8 +1,10 @@
 import { ArrowDownOutlined, ArrowUpOutlined, CalendarOutlined } from '@ant-design/icons';
-import { Card, Col, Row, Statistic, Tag } from 'antd';
+import { Card, Col, Row, Tag, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatVND } from '../../utils';
+import { formatUSD, formatVND } from '../../utils';
+
+const { Text } = Typography;
 
 interface CycleSummaryCardProps {
   cycleSummary: any;
@@ -16,11 +18,11 @@ const CycleSummaryCard: React.FC<CycleSummaryCardProps> = ({ cycleSummary, reven
 
   return (
     <Card
-      style={{ height: '100%' }}
+      style={{ height: '100%', borderRadius: 12 }}
       title={
-        <span>
-          <CalendarOutlined style={{ marginRight: 8 }} />
-          {t('dashboard.latestCycle')}: {cycleSummary.cycle.month}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CalendarOutlined />
+          <span>{t('dashboard.latestCycle')}: {cycleSummary.cycle.month}</span>
           <Tag
             color={
               cycleSummary.cycle.status === 'OPEN'
@@ -29,56 +31,61 @@ const CycleSummaryCard: React.FC<CycleSummaryCardProps> = ({ cycleSummary, reven
                   ? 'orange'
                   : 'green'
             }
-            style={{ marginLeft: 8 }}
           >
             {t(`status.${cycleSummary.cycle.status}`)}
           </Tag>
-        </span>
+        </div>
       }
     >
       <Row gutter={[16, 16]}>
-        <Col xs={12} lg={5}>
-          <Statistic title={t('dashboard.totalRevenue')} value={cycleSummary.totalOriginal} precision={2} prefix="$" />
+        <Col xs={12} md={6}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('dashboard.totalRevenue')}
+          </Text>
+          <span style={{ fontSize: 22, fontWeight: 700 }}>
+            {formatUSD(cycleSummary.totalOriginal)}
+          </span>
         </Col>
-        <Col xs={12} lg={5}>
-          <Statistic title={t('dashboard.netRevenue')} value={cycleSummary.totalNetRevenue} precision={2} prefix="$" />
+        <Col xs={12} md={6}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('dashboard.netRevenue')}
+          </Text>
+          <span style={{ fontSize: 22, fontWeight: 700 }}>
+            {formatUSD(cycleSummary.totalNetRevenue)}
+          </span>
         </Col>
-        <Col xs={12} lg={5}>
-          <Statistic
-            title={t('dashboard.kocPayUSD')}
-            value={cycleSummary.totalKocReceiveUsd}
-            precision={2}
-            prefix="$"
-            valueStyle={{ color: '#52c41a' }}
-          />
+        <Col xs={12} md={6}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('dashboard.kocPayUSD')}
+          </Text>
+          <span style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
+            {formatUSD(cycleSummary.totalKocReceiveUsd)}
+          </span>
         </Col>
-        <Col xs={12} lg={5}>
-          <Statistic
-            title={t('dashboard.kocPayVND')}
-            value={cycleSummary.totalKocReceiveVnd}
-            formatter={(val) => formatVND(Number(val))}
-            valueStyle={{ color: '#fa8c16' }}
-          />
-        </Col>
-        <Col xs={12} lg={4}>
-          <div>
-            <span style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14, whiteSpace: 'nowrap' }}>{t('dashboard.revenueGrowth')}</span>
-            <div style={{ marginTop: 8 }}>
-              {revenueGrowth != null && revenueGrowth !== 0 ? (
-                <Tag
-                  icon={revenueGrowth >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-                  color={revenueGrowth >= 0 ? 'success' : 'error'}
-                  style={{ fontSize: 16, padding: '4px 12px' }}
-                >
-                  {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth}%
-                </Tag>
-              ) : (
-                <Tag color="default" style={{ fontSize: 14, padding: '4px 12px' }}>—</Tag>
-              )}
-            </div>
-          </div>
+        <Col xs={12} md={6}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('dashboard.kocPayVND')}
+          </Text>
+          <span style={{ fontSize: 20, fontWeight: 700, color: '#fa8c16' }}>
+            {formatVND(cycleSummary.totalKocReceiveVnd)}
+          </span>
         </Col>
       </Row>
+
+      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Text type="secondary" style={{ fontSize: 13 }}>{t('dashboard.revenueGrowth')}:</Text>
+        {revenueGrowth != null && revenueGrowth !== 0 ? (
+          <Tag
+            icon={revenueGrowth >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+            color={revenueGrowth >= 0 ? 'success' : 'error'}
+            style={{ fontSize: 14, padding: '2px 10px', margin: 0 }}
+          >
+            {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth}%
+          </Tag>
+        ) : (
+          <Tag color="default" style={{ fontSize: 14, padding: '2px 10px', margin: 0 }}>—</Tag>
+        )}
+      </div>
     </Card>
   );
 };

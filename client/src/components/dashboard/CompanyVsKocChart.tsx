@@ -21,7 +21,7 @@ const CompanyVsKocChart: React.FC<CompanyVsKocChartProps> = ({ trendData, loadin
   };
 
   return (
-    <Card title={t('dashboard.companyShare') + ' ' + t('common.vs') + ' ' + t('dashboard.kocPayUSD')} loading={loading}>
+    <Card title={t('dashboard.companyShare') + ' ' + t('common.vs') + ' ' + t('dashboard.kocPayUSD')} loading={loading} style={{ borderRadius: 12 }}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={trendData || []}>
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} opacity={0.3} />

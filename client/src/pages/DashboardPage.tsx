@@ -41,13 +41,13 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: 0 }}>{t('menu.dashboard')}</h2>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{t('menu.dashboard')}</h2>
       </div>
 
       <StatsCards overview={overview} cycleSummary={cycleSummary} />
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         {cycleSummary && (
           <Col xs={24} xl={14}>
             <CycleSummaryCard cycleSummary={cycleSummary} revenueGrowth={revenueGrowth} />

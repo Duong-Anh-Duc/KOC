@@ -124,6 +124,8 @@ html[data-theme='dark'] .ant-btn-text:not(:disabled):hover {
 /* ===== Card Hover Effects ===== */
 .ant-card {
   transition: all 0.3s ease;
+  border-radius: 12px !important;
+  overflow: hidden;
 }
 
 .ant-card:hover {

@@ -28,8 +28,9 @@ const AppLayout: React.FC = () => {
           style={{
             margin: 24,
             padding: 24,
-            borderRadius: 8,
+            borderRadius: 12,
             minHeight: 360,
+            background: 'rgba(0,0,0,0.01)',
           }}
         >
           <Outlet />
