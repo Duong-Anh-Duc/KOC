@@ -109,16 +109,9 @@ export class SocialBladeService {
     logger.info(`📊 Scraping ${label}...`);
 
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
     } catch (err: any) {
       logger.warn(`⚠️ Page load warning for ${label}: ${err.message}`);
-      // Try with domcontentloaded if networkidle fails
-      try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 1800000 });
-      } catch (retryErr: any) {
-        logger.error(`❌ Page load failed for ${label}: ${retryErr.message}`);
-        throw retryErr;
-      }
     }
 
     if (page.url().includes('accounts.google.com')) {
@@ -140,32 +133,32 @@ export class SocialBladeService {
       }
     }
 
-    // Wait for analytics table to fully render (longer wait for complex tables)
-    logger.info(`⏳ Waiting for ${label} to fully load...`);
-    await new Promise(r => setTimeout(r, 10000));
+    // Poll mỗi 5s tối đa 3 phút — đợi bảng analytics load xong (có dòng "Tổng")
+    logger.info(`⏳ Polling ${label} for analytics table...`);
+    let text = '';
+    const deadline = Date.now() + 180000;
 
-    // Try to wait for table elements to appear
-    try {
-      await page.waitForSelector('[role="rowgroup"], table, [role="table"]', { timeout: 15000 });
-      logger.info(`✓ Table element found for ${label}`);
-    } catch (err) {
-      logger.warn(`⚠️ Table selector not found for ${label}, proceeding anyway`);
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        text = await page.evaluate('document.body.innerText') as string;
+      } catch { break; }
+
+      // Bảng đã load nếu có dòng "Tổng" (standalone, không phải "Tổng quan")
+      const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      const hasTong = lines.some((l: string) => /^Tổng$|^Total$/i.test(l));
+      if (hasTong) {
+        logger.info(`✓ Analytics table loaded for ${label} (${text.length} chars)`);
+        break;
+      }
+      logger.info(`⏳ Waiting for table [${label}]... (${text.length} chars, no Tổng row yet)`);
     }
 
-    const text = await Promise.race([
-      page.evaluate('document.body.innerText') as Promise<string>,
-      new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout extracting text')), 1800000)
-      ),
-    ]);
+    if (!text) {
+      text = await page.evaluate('document.body.innerText').catch(() => '') as string;
+    }
 
     logger.info(`✓ ${label}: extracted ${text.length} chars`);
-    
-    // Log first 500 chars for debugging
-    if (text.length > 0) {
-      logger.info(`📝 First 500 chars: ${text.substring(0, 500)}`);
-    }
-    
     return text;
   }
 
