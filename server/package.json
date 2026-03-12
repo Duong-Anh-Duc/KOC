@@ -4,7 +4,7 @@
   "description": "YouTube Revenue & KOC Management System - Backend",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "~/.nvm/versions/node/v20.19.4/bin/node node_modules/.bin/tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
