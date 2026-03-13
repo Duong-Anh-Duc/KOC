@@ -1,18 +1,19 @@
 /**
  * CDP Relay — chay tren Windows host de chuyen tiep ket noi CDP tu Docker container.
  *
- * Van de: GemLogin mo Chrome bind 127.0.0.1:PORT (chi chap nhan ket noi local).
- *         Docker container khong the goi 127.0.0.1 cua Windows host.
- *         Chrome CDP kiem tra Host header — chi chap nhan localhost/127.0.0.1.
+ * Van de:
+ *   1. GemLogin mo Chrome bind 127.0.0.1:PORT → Docker khong ket noi duoc.
+ *   2. Chrome CDP kiem tra Host header — chi chap nhan localhost/127.0.0.1.
+ *   3. /json/version tra ve webSocketDebuggerUrl: "ws://127.0.0.1:PORT/..."
+ *      → Playwright ket noi truc tiep ws://127.0.0.1:PORT → Docker ECONNREFUSED.
  *
- * Giai phap: HTTP reverse proxy rewrite Host header + WebSocket proxy cho CDP.
- *            Docker container goi host.docker.internal:19222 → relay (rewrite Host) → Chrome CDP.
+ * Giai phap: HTTP reverse proxy + WebSocket proxy:
+ *   - Rewrite Host header (Docker → Chrome chap nhan)
+ *   - Rewrite response body cua /json/* (thay 127.0.0.1:PORT → relay address)
+ *   - Proxy WebSocket connections cho CDP protocol
  *
  * Usage:
  *   node cdp-relay.js
- *
- * Backend tu dong goi POST http://host.docker.internal:19223/set?port=53624
- * de cap nhat target port khi GemLogin start.
  */
 
 const http = require('http');
@@ -22,7 +23,7 @@ let targetPort = 0;
 const LISTEN_PORT = 19222;   // CDP proxy port (Docker ket noi vao day)
 const CONTROL_PORT = 19223;  // HTTP API port (backend goi de cap nhat target)
 
-// ── HTTP Reverse Proxy (rewrite Host header cho Chrome CDP) ─────
+// ── HTTP Reverse Proxy ──────────────────────────────────────────
 const proxy = http.createServer((req, res) => {
   if (!targetPort) {
     console.log('[relay] Chua co target port — tu choi ket noi');
@@ -31,7 +32,8 @@ const proxy = http.createServer((req, res) => {
     return;
   }
 
-  console.log(`[relay] HTTP ${req.method} ${req.url} -> 127.0.0.1:${targetPort}`);
+  const isJsonEndpoint = req.url.startsWith('/json');
+  console.log(`[relay] HTTP ${req.method} ${req.url} -> 127.0.0.1:${targetPort}${isJsonEndpoint ? ' (rewrite response)' : ''}`);
 
   const options = {
     hostname: '127.0.0.1',
@@ -40,14 +42,48 @@ const proxy = http.createServer((req, res) => {
     method: req.method,
     headers: {
       ...req.headers,
-      host: `127.0.0.1:${targetPort}`,  // Rewrite Host header — Chrome CDP yeu cau localhost
+      host: `127.0.0.1:${targetPort}`,  // Chrome CDP yeu cau Host = localhost
     },
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
-    console.log(`[relay] HTTP ${req.url} <- ${proxyRes.statusCode}`);
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res);
+    // Neu la /json/* endpoint → buffer response va rewrite URLs
+    if (isJsonEndpoint) {
+      const chunks = [];
+      proxyRes.on('data', (chunk) => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        let body = Buffer.concat(chunks).toString('utf-8');
+
+        // Lay hostname tu request Host header (Docker gui host.docker.internal:19222)
+        const clientHost = (req.headers.host || '').split(':')[0] || 'host.docker.internal';
+
+        // Rewrite ws://127.0.0.1:PORT va ws://localhost:PORT → ws://CLIENT_HOST:RELAY_PORT
+        // Playwright se ket noi WebSocket qua relay thay vi truc tiep Chrome
+        body = body.replace(
+          /ws:\/\/(127\.0\.0\.1|localhost):\d+/g,
+          `ws://${clientHost}:${LISTEN_PORT}`
+        );
+        // Cung rewrite http:// URLs trong response
+        body = body.replace(
+          /http:\/\/(127\.0\.0\.1|localhost):\d+/g,
+          `http://${clientHost}:${LISTEN_PORT}`
+        );
+
+        console.log(`[relay] HTTP ${req.url} <- ${proxyRes.statusCode} (rewritten, host=${clientHost})`);
+
+        const headers = { ...proxyRes.headers };
+        headers['content-length'] = Buffer.byteLength(body).toString();
+        // Cho phep CORS
+        headers['access-control-allow-origin'] = '*';
+
+        res.writeHead(proxyRes.statusCode, headers);
+        res.end(body);
+      });
+    } else {
+      console.log(`[relay] HTTP ${req.url} <- ${proxyRes.statusCode}`);
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    }
   });
 
   proxyReq.on('error', (err) => {
@@ -81,9 +117,30 @@ proxy.on('upgrade', (req, clientSocket, head) => {
     serverSocket.write(rawReq);
     if (head.length > 0) serverSocket.write(head);
 
-    // Pipe 2 chieu
-    serverSocket.pipe(clientSocket);
-    clientSocket.pipe(serverSocket);
+    // Pipe 2 chieu — sau khi server gui response headers
+    let handshakeDone = false;
+    let buffer = Buffer.alloc(0);
+
+    serverSocket.on('data', (chunk) => {
+      if (handshakeDone) {
+        clientSocket.write(chunk);
+        return;
+      }
+
+      buffer = Buffer.concat([buffer, chunk]);
+      const headerEnd = buffer.indexOf('\r\n\r\n');
+      if (headerEnd === -1) return; // chua nhan het headers
+
+      // Gui response headers + phan data con lai cho client
+      handshakeDone = true;
+      clientSocket.write(buffer);
+      buffer = null;
+
+      // Chuyen sang pipe truc tiep
+      serverSocket.pipe(clientSocket);
+      clientSocket.pipe(serverSocket);
+      console.log(`[relay] WebSocket established for ${req.url}`);
+    });
   });
 
   serverSocket.on('error', (err) => {
@@ -99,6 +156,7 @@ proxy.listen(LISTEN_PORT, '0.0.0.0', () => {
   console.log(`[relay] HTTP/WebSocket proxy listening on 0.0.0.0:${LISTEN_PORT}`);
   console.log(`[relay] Control API on http://0.0.0.0:${CONTROL_PORT}`);
   console.log(`[relay] Waiting for target port...`);
+  console.log(`[relay] Response URLs auto-rewritten based on client Host header`);
 });
 
 // ── HTTP Control API ───────────────────────────────────────────
