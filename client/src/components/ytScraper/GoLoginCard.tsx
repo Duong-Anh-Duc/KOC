@@ -20,7 +20,7 @@ const GoLoginCard: React.FC = () => {
     refetchInterval: 5000,
   });
 
-  const status = statusRes?.data;
+  const status = statusRes?.data?.data;
 
   const startMutation = useMutation({
     mutationFn: () => gologinApi.start(),
