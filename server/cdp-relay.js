@@ -96,6 +96,7 @@ const proxy = http.createServer((req, res) => {
 });
 
 // ── WebSocket / Upgrade proxy (cho CDP WebSocket connections) ───
+// Dung raw TCP pipe de dam bao khong corrupt WebSocket frames.
 proxy.on('upgrade', (req, clientSocket, head) => {
   if (!targetPort) {
     console.log('[relay] Chua co target port — tu choi WebSocket');
@@ -107,40 +108,26 @@ proxy.on('upgrade', (req, clientSocket, head) => {
 
   const serverSocket = net.createConnection({ host: '127.0.0.1', port: targetPort }, () => {
     // Gui HTTP upgrade request voi Host header da rewrite
-    const headers = { ...req.headers, host: `127.0.0.1:${targetPort}` };
-    let rawReq = `${req.method} ${req.url} HTTP/1.1\r\n`;
+    const headers = Object.assign({}, req.headers, { host: `127.0.0.1:${targetPort}` });
+    let rawReq = `GET ${req.url} HTTP/1.1\r\n`;
     for (const [key, val] of Object.entries(headers)) {
-      rawReq += `${key}: ${val}\r\n`;
+      if (typeof val === 'string') {
+        rawReq += `${key}: ${val}\r\n`;
+      } else if (Array.isArray(val)) {
+        for (const v of val) rawReq += `${key}: ${v}\r\n`;
+      }
     }
     rawReq += '\r\n';
 
     serverSocket.write(rawReq);
-    if (head.length > 0) serverSocket.write(head);
+    if (head && head.length > 0) serverSocket.write(head);
 
-    // Pipe 2 chieu — sau khi server gui response headers
-    let handshakeDone = false;
-    let buffer = Buffer.alloc(0);
+    // Pipe 2 chieu ngay lap tuc — KHONG parse response
+    // Chrome gui 101 Switching Protocols → Playwright nhan truc tiep
+    serverSocket.pipe(clientSocket);
+    clientSocket.pipe(serverSocket);
 
-    serverSocket.on('data', (chunk) => {
-      if (handshakeDone) {
-        clientSocket.write(chunk);
-        return;
-      }
-
-      buffer = Buffer.concat([buffer, chunk]);
-      const headerEnd = buffer.indexOf('\r\n\r\n');
-      if (headerEnd === -1) return; // chua nhan het headers
-
-      // Gui response headers + phan data con lai cho client
-      handshakeDone = true;
-      clientSocket.write(buffer);
-      buffer = null;
-
-      // Chuyen sang pipe truc tiep
-      serverSocket.pipe(clientSocket);
-      clientSocket.pipe(serverSocket);
-      console.log(`[relay] WebSocket established for ${req.url}`);
-    });
+    console.log(`[relay] WebSocket piped for ${req.url}`);
   });
 
   serverSocket.on('error', (err) => {
