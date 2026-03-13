@@ -50,8 +50,12 @@ services:
       PORT: 3002
       NODE_ENV: production
       CORS_ORIGIN: http://localhost:8181
+      # GemLogin chay tren Windows host — dung host.docker.internal de container goi ra host
+      GEMLOGIN_API_URL: http://host.docker.internal:1010
     env_file:
       - ./server/.env.local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3002:3002"
       - "6080:6080"
