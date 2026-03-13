@@ -3,10 +3,10 @@
  *
  * Van de: GemLogin mo Chrome bind 127.0.0.1:PORT (chi chap nhan ket noi local).
  *         Docker container khong the goi 127.0.0.1 cua Windows host.
+ *         Chrome CDP kiem tra Host header — chi chap nhan localhost/127.0.0.1.
  *
- * Giai phap: Relay nay listen tren 0.0.0.0:19222 (tat ca interface)
- *            va proxy TCP den 127.0.0.1:TARGET_PORT (Chrome CDP).
- *            Docker container goi host.docker.internal:19222 → relay → Chrome CDP.
+ * Giai phap: HTTP reverse proxy rewrite Host header + WebSocket proxy cho CDP.
+ *            Docker container goi host.docker.internal:19222 → relay (rewrite Host) → Chrome CDP.
  *
  * Usage:
  *   node cdp-relay.js
@@ -15,29 +15,79 @@
  * de cap nhat target port khi GemLogin start.
  */
 
-const net = require('net');
 const http = require('http');
+const net = require('net');
 
 let targetPort = 0;
 const LISTEN_PORT = 19222;   // CDP proxy port (Docker ket noi vao day)
 const CONTROL_PORT = 19223;  // HTTP API port (backend goi de cap nhat target)
 
-// ── TCP Proxy ──────────────────────────────────────────────────
-const proxy = net.createServer((clientSocket) => {
+// ── HTTP Reverse Proxy (rewrite Host header cho Chrome CDP) ─────
+const proxy = http.createServer((req, res) => {
   if (!targetPort) {
     console.log('[relay] Chua co target port — tu choi ket noi');
+    res.writeHead(502);
+    res.end('No target port configured');
+    return;
+  }
+
+  console.log(`[relay] HTTP ${req.method} ${req.url} -> 127.0.0.1:${targetPort}`);
+
+  const options = {
+    hostname: '127.0.0.1',
+    port: targetPort,
+    path: req.url,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: `127.0.0.1:${targetPort}`,  // Rewrite Host header — Chrome CDP yeu cau localhost
+    },
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    console.log(`[relay] HTTP ${req.url} <- ${proxyRes.statusCode}`);
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.log(`[relay] HTTP proxy error: ${err.message}`);
+    res.writeHead(502);
+    res.end(`Proxy error: ${err.message}`);
+  });
+
+  req.pipe(proxyReq);
+});
+
+// ── WebSocket / Upgrade proxy (cho CDP WebSocket connections) ───
+proxy.on('upgrade', (req, clientSocket, head) => {
+  if (!targetPort) {
+    console.log('[relay] Chua co target port — tu choi WebSocket');
     clientSocket.destroy();
     return;
   }
 
+  console.log(`[relay] WebSocket upgrade ${req.url} -> 127.0.0.1:${targetPort}`);
+
   const serverSocket = net.createConnection({ host: '127.0.0.1', port: targetPort }, () => {
-    console.log(`[relay] ${clientSocket.remoteAddress} -> 127.0.0.1:${targetPort}`);
-    clientSocket.pipe(serverSocket);
+    // Gui HTTP upgrade request voi Host header da rewrite
+    const headers = { ...req.headers, host: `127.0.0.1:${targetPort}` };
+    let rawReq = `${req.method} ${req.url} HTTP/1.1\r\n`;
+    for (const [key, val] of Object.entries(headers)) {
+      rawReq += `${key}: ${val}\r\n`;
+    }
+    rawReq += '\r\n';
+
+    serverSocket.write(rawReq);
+    if (head.length > 0) serverSocket.write(head);
+
+    // Pipe 2 chieu
     serverSocket.pipe(clientSocket);
+    clientSocket.pipe(serverSocket);
   });
 
   serverSocket.on('error', (err) => {
-    console.log(`[relay] Target error: ${err.message}`);
+    console.log(`[relay] WebSocket target error: ${err.message}`);
     clientSocket.destroy();
   });
   clientSocket.on('error', () => serverSocket.destroy());
@@ -46,7 +96,7 @@ const proxy = net.createServer((clientSocket) => {
 });
 
 proxy.listen(LISTEN_PORT, '0.0.0.0', () => {
-  console.log(`[relay] TCP proxy listening on 0.0.0.0:${LISTEN_PORT}`);
+  console.log(`[relay] HTTP/WebSocket proxy listening on 0.0.0.0:${LISTEN_PORT}`);
   console.log(`[relay] Control API on http://0.0.0.0:${CONTROL_PORT}`);
   console.log(`[relay] Waiting for target port...`);
 });
