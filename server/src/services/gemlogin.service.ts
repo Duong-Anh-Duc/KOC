@@ -170,6 +170,42 @@ export class GemLoginService {
     return address;
   }
 
+  /**
+   * CDP Relay ports — relay chạy trên Windows host (node cdp-relay.js).
+   * RELAY_CDP_PORT: TCP proxy port, Docker container kết nối CDP qua đây.
+   * RELAY_CONTROL_PORT: HTTP API port, backend gọi /set?port=XXXX để cập nhật target.
+   */
+  private static readonly RELAY_CDP_PORT = 19222;
+  private static readonly RELAY_CONTROL_PORT = 19223;
+
+  /**
+   * Gọi CDP Relay control API để cập nhật target port.
+   * Relay chạy trên Windows host, listen 0.0.0.0:19223.
+   */
+  private static async setRelayTarget(port: number): Promise<boolean> {
+    const relayUrl = `http://host.docker.internal:${this.RELAY_CONTROL_PORT}/set?port=${port}`;
+    try {
+      const res = await fetch(relayUrl, { method: 'POST', signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        logger.info(`[GemLogin] Relay target cập nhật: 127.0.0.1:${port}`);
+        return true;
+      }
+      logger.warn(`[GemLogin] Relay trả về ${res.status}`);
+      return false;
+    } catch (err: any) {
+      logger.warn(`[GemLogin] Không thể kết nối Relay: ${err.message}. Đảm bảo đã chạy "node cdp-relay.js" trên Windows.`);
+      return false;
+    }
+  }
+
+  /**
+   * Trích xuất port từ remote_debugging_address (ví dụ: "127.0.0.1:53624" → 53624).
+   */
+  private static extractPort(addr: string): number {
+    const match = addr.match(/:(\d+)$/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+
   static async startProfile(profileId: string): Promise<StartProfileResult> {
     if (this.running) {
       throw new Error(`GemLogin đang chạy profile "${this.activeProfileId}". Đóng trước khi start mới.`);
@@ -187,7 +223,7 @@ export class GemLoginService {
       // Browser chưa chạy — gọi GemLogin API để mở browser
       logger.info(`[GemLogin] Gửi lệnh khởi động profile: ${profileId}`);
 
-      // Trong Docker: đợi response để lấy remote_debugging_address trực tiếp
+      // Trong Docker: đợi response để lấy remote_debugging_address, rồi dùng relay
       // Ngoài Docker: fire-and-forget rồi scan port
       if (inDocker) {
         try {
@@ -195,26 +231,54 @@ export class GemLoginService {
           logger.info(`[GemLogin] Start API trả về: ${JSON.stringify(raw)}`);
           const addr: string = raw?.data?.remote_debugging_address || raw?.remote_debugging_address || '';
           if (addr) {
-            const resolved = this.resolveHost(addr);
-            const testUrl = `http://${resolved}`;
-            logger.info(`[GemLogin] Dùng remote_debugging_address: ${testUrl}`);
-            // Đợi CDP sẵn sàng
-            const deadline = Date.now() + 30_000;
-            while (Date.now() < deadline) {
-              try {
-                const r = await fetch(`${testUrl}/json/version`, { signal: AbortSignal.timeout(2000) });
-                if (r.ok) { cdpUrl = testUrl; break; }
-              } catch { /* chưa sẵn sàng */ }
-              await new Promise(r => setTimeout(r, 2000));
+            const chromePort = this.extractPort(addr);
+            logger.info(`[GemLogin] Chrome CDP port: ${chromePort}`);
+
+            if (chromePort > 0) {
+              // Gọi relay control API để cập nhật target port
+              const relayOk = await this.setRelayTarget(chromePort);
+              if (relayOk) {
+                // Dùng relay fixed port làm CDP URL
+                const relayUrl = `http://host.docker.internal:${this.RELAY_CDP_PORT}`;
+                logger.info(`[GemLogin] Thử kết nối qua relay: ${relayUrl}`);
+                const deadline = Date.now() + 30_000;
+                while (Date.now() < deadline) {
+                  try {
+                    const r = await fetch(`${relayUrl}/json/version`, { signal: AbortSignal.timeout(2000) });
+                    if (r.ok) { cdpUrl = relayUrl; break; }
+                  } catch { /* relay chưa sẵn sàng */ }
+                  await new Promise(r => setTimeout(r, 2000));
+                }
+                if (cdpUrl) {
+                  logger.info(`[GemLogin] Kết nối qua relay thành công: ${cdpUrl}`);
+                } else {
+                  logger.warn('[GemLogin] Relay không trả lời CDP — kiểm tra cdp-relay.js');
+                }
+              }
+            }
+
+            // Fallback: thử kết nối trực tiếp qua host.docker.internal (nếu relay không hoạt động)
+            if (!cdpUrl) {
+              const resolved = this.resolveHost(addr);
+              const testUrl = `http://${resolved}`;
+              logger.info(`[GemLogin] Fallback: thử trực tiếp ${testUrl}`);
+              const deadline = Date.now() + 15_000;
+              while (Date.now() < deadline) {
+                try {
+                  const r = await fetch(`${testUrl}/json/version`, { signal: AbortSignal.timeout(2000) });
+                  if (r.ok) { cdpUrl = testUrl; break; }
+                } catch { /* chưa sẵn sàng */ }
+                await new Promise(r => setTimeout(r, 2000));
+              }
             }
           }
         } catch (err: any) {
           logger.warn(`[GemLogin] Start API lỗi: ${err.message}`);
         }
 
-        // Fallback: scan qua host.docker.internal
+        // Fallback cuối: scan qua host.docker.internal
         if (!cdpUrl) {
-          logger.info('[GemLogin] Fallback: scanning CDP trên host.docker.internal...');
+          logger.info('[GemLogin] Fallback cuối: scanning CDP trên host.docker.internal...');
           cdpUrl = await GemLoginService.discoverCdp(60_000);
         }
       } else {
@@ -231,7 +295,7 @@ export class GemLoginService {
     }
 
     if (!cdpUrl) {
-      throw new Error('[GemLogin] Không tìm thấy CDP port');
+      throw new Error('[GemLogin] Không tìm thấy CDP port. Nếu chạy Docker, đảm bảo đã chạy "node cdp-relay.js" trên Windows host.');
     }
 
     this.activeProfileId = profileId;
@@ -278,6 +342,15 @@ export class GemLoginService {
       } catch { /* not CDP */ }
       return null;
     };
+
+    // Khi chạy trong Docker, kiểm tra relay port trước (nhanh hơn full scan)
+    if (this.isDocker()) {
+      const relayUrl = await cdpCheck('host.docker.internal', this.RELAY_CDP_PORT);
+      if (relayUrl) {
+        logger.info(`[GemLogin] CDP found qua relay: ${relayUrl}`);
+        return relayUrl;
+      }
+    }
 
     // Khi chạy trong Docker, scan host.docker.internal (Windows/Mac host)
     const scanHosts = this.isDocker() ? ['host.docker.internal'] : ['127.0.0.1', '::1'];
