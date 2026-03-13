@@ -273,7 +273,7 @@ const RevenueControlPage: React.FC = () => {
         <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
-            {false && (
+            {isAdmin && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCycle}>
                 {t('cycle.create')}
               </Button>
