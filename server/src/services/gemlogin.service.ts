@@ -152,31 +152,86 @@ export class GemLoginService {
    * GemLogin giữ HTTP connection open trong suốt phiên browser → không bao giờ trả response.
    * Giải pháp: fire-and-forget start API, rồi tự scan CDP port.
    */
+  /**
+   * Detect if running inside Docker (container can't reach host via 127.0.0.1).
+   * When in Docker, use host.docker.internal to reach the Windows/Mac host.
+   */
+  private static isDocker(): boolean {
+    return !!process.env.GEMLOGIN_API_URL?.includes('host.docker.internal');
+  }
+
+  /**
+   * Replace 127.0.0.1 with host.docker.internal when running in Docker.
+   */
+  private static resolveHost(address: string): string {
+    if (this.isDocker()) {
+      return address.replace(/127\.0\.0\.1|localhost/g, 'host.docker.internal');
+    }
+    return address;
+  }
+
   static async startProfile(profileId: string): Promise<StartProfileResult> {
     if (this.running) {
       throw new Error(`GemLogin đang chạy profile "${this.activeProfileId}". Đóng trước khi start mới.`);
     }
+
+    const inDocker = this.isDocker();
 
     // Kiểm tra CDP đã sẵn sàng chưa (browser đang chạy từ trước)
     logger.info('[GemLogin] Kiểm tra CDP đã sẵn sàng chưa (browser có thể đang chạy)...');
     let cdpUrl = await GemLoginService.discoverCdp(5_000).catch(() => null);
 
     if (cdpUrl) {
-      // Browser đã đang chạy — không cần mở mới, không tốn thời gian, không hiện cửa sổ
       logger.info(`[GemLogin] CDP đã sẵn sàng: ${cdpUrl} — bỏ qua bước mở browser`);
     } else {
-      // Browser chưa chạy — fire-and-forget để GemLogin mở browser
-      logger.info(`[GemLogin] Gửi lệnh khởi động profile: ${profileId} (fire & forget)`);
-      request<unknown>('GET', `/api/profiles/start/${profileId}`, undefined, 300_000)
-        .then(raw => logger.info(`[GemLogin] Start API cuối cùng đã trả về: ${JSON.stringify(raw)}`))
-        .catch(err => logger.info(`[GemLogin] Start API kết thúc: ${err.message}`));
+      // Browser chưa chạy — gọi GemLogin API để mở browser
+      logger.info(`[GemLogin] Gửi lệnh khởi động profile: ${profileId}`);
 
-      // Đợi 2s để GemLogin kịp mở browser process
-      await new Promise(r => setTimeout(r, 2000));
+      // Trong Docker: đợi response để lấy remote_debugging_address trực tiếp
+      // Ngoài Docker: fire-and-forget rồi scan port
+      if (inDocker) {
+        try {
+          const raw = await request<any>('GET', `/api/profiles/start/${profileId}`, undefined, 300_000);
+          logger.info(`[GemLogin] Start API trả về: ${JSON.stringify(raw)}`);
+          const addr: string = raw?.data?.remote_debugging_address || raw?.remote_debugging_address || '';
+          if (addr) {
+            const resolved = this.resolveHost(addr);
+            const testUrl = `http://${resolved}`;
+            logger.info(`[GemLogin] Dùng remote_debugging_address: ${testUrl}`);
+            // Đợi CDP sẵn sàng
+            const deadline = Date.now() + 30_000;
+            while (Date.now() < deadline) {
+              try {
+                const r = await fetch(`${testUrl}/json/version`, { signal: AbortSignal.timeout(2000) });
+                if (r.ok) { cdpUrl = testUrl; break; }
+              } catch { /* chưa sẵn sàng */ }
+              await new Promise(r => setTimeout(r, 2000));
+            }
+          }
+        } catch (err: any) {
+          logger.warn(`[GemLogin] Start API lỗi: ${err.message}`);
+        }
 
-      // Scan port để tìm CDP URL (GemLogin mở Chrome với --remote-debugging-port ngẫu nhiên)
-      logger.info('[GemLogin] Scanning CDP port...');
-      cdpUrl = await GemLoginService.discoverCdp(90_000);
+        // Fallback: scan qua host.docker.internal
+        if (!cdpUrl) {
+          logger.info('[GemLogin] Fallback: scanning CDP trên host.docker.internal...');
+          cdpUrl = await GemLoginService.discoverCdp(60_000);
+        }
+      } else {
+        // Ngoài Docker: fire-and-forget + scan port như cũ
+        request<unknown>('GET', `/api/profiles/start/${profileId}`, undefined, 300_000)
+          .then(raw => logger.info(`[GemLogin] Start API cuối cùng đã trả về: ${JSON.stringify(raw)}`))
+          .catch(err => logger.info(`[GemLogin] Start API kết thúc: ${err.message}`));
+
+        await new Promise(r => setTimeout(r, 2000));
+
+        logger.info('[GemLogin] Scanning CDP port...');
+        cdpUrl = await GemLoginService.discoverCdp(90_000);
+      }
+    }
+
+    if (!cdpUrl) {
+      throw new Error('[GemLogin] Không tìm thấy CDP port');
     }
 
     this.activeProfileId = profileId;
@@ -224,8 +279,11 @@ export class GemLoginService {
       return null;
     };
 
+    // Khi chạy trong Docker, scan host.docker.internal (Windows/Mac host)
+    const scanHosts = this.isDocker() ? ['host.docker.internal'] : ['127.0.0.1', '::1'];
+
     while (Date.now() < deadline) {
-      for (const host of ['127.0.0.1', '::1']) {
+      for (const host of scanHosts) {
         // TCP scan 1024–65000 (batch 2000 song song)
         const openPorts: number[] = [];
         for (let start = 1024; start <= 65000 && Date.now() < deadline; start += 2000) {
