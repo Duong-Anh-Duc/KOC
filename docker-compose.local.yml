@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.local.yml  –  KOC Revenue Management (Local / Windows)
+#
+# Port map (tranh xung dot voi pms_client:8080, pms_postgres:5432):
+#   Frontend:    http://localhost:8181
+#   Backend API: http://localhost:3002/api
+#   noVNC:       http://localhost:6080
+#   PostgreSQL:  localhost:5435 (noi bo Docker dung 5432)
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up --build -d
+#
+# Stop:
+#   docker compose -f docker-compose.local.yml down
+#
+# Logs:
+#   docker compose -f docker-compose.local.yml logs -f
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: koc_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: koc_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - koc_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (Express + Prisma + Chromium) ─────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.local
+    container_name: koc_server
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/koc_db
+      PORT: 3002
+      NODE_ENV: production
+      CORS_ORIGIN: http://localhost:8181
+    env_file:
+      - ./server/.env.local
+    ports:
+      - "3002:3002"
+      - "6080:6080"
+    volumes:
+      - ./server/.chrome-data:/app/.chrome-data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Frontend (Vite build → nginx) ────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.local
+      args:
+        VITE_API_URL: http://localhost:3002/api
+        VITE_SERVER_URL: http://localhost:3002
+    container_name: koc_client
+    restart: unless-stopped
+    ports:
+      - "8181:80"
+    depends_on:
+      - server
+
+volumes:
+  koc_postgres_data:
