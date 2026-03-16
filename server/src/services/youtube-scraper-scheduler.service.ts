@@ -72,7 +72,7 @@ export class YouTubeScraperSchedulerService {
       job.status = 'running';
       logger.info(`Running job ${jobId}`);
 
-      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannelsParallel(job.channelIds, undefined, undefined, job.adminId, job.channelIds.length);
+      const { results, errors } = await YouTubeScraperService.scrapeMultipleChannelsParallel(job.channelIds, undefined, undefined, job.adminId);
       job.results = results;
       job.errors = errors;
       job.status = 'completed';

@@ -140,84 +140,91 @@ export class PubCodeService {
     const total = kocs.length;
     if (total === 0) return { results, summary: { total: 0, matched: 0, mismatched: 0, noData: 0, errors: 0 } };
 
-    logger.info(`[PubCode Parallel] Mở ${total} tab cùng lúc...`);
+    const BATCH_SIZE = 3;
+    logger.info(`[PubCode Parallel] Tổng ${total} KOC, mỗi batch ${BATCH_SIZE} tab...`);
 
     const context = await YouTubeScraperService.getContext(true, adminId);
-    const pages: any[] = new Array(total).fill(null);
+    let progressCount = 0;
 
     try {
-      // Bước 1: Mở tất cả tab và navigate đồng thời
-      await Promise.all(kocs.map(async (koc, i) => {
-        const page = await context.newPage();
-        pages[i] = page;
+      for (let batchStart = 0; batchStart < total; batchStart += BATCH_SIZE) {
+        const batchKocs = kocs.slice(batchStart, batchStart + BATCH_SIZE);
+        const batchLen = batchKocs.length;
+        const pages: any[] = new Array(batchLen).fill(null);
 
-        await page.route('**/*', (route: any) => {
-          const t = route.request().resourceType();
-          if (['image', 'font', 'media', 'stylesheet'].includes(t)) return route.abort();
-          return route.continue();
-        }).catch(() => {});
+        logger.info(`[PubCode Parallel] Batch ${Math.floor(batchStart / BATCH_SIZE) + 1}: ${batchLen} tab [${batchKocs.map(k => k.full_name).join(', ')}]`);
 
-        const url = this.buildMonetizationUrl(koc.youtube_channel_id);
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch((e: any) => {
-          logger.warn(`[PubCode Parallel] Navigate ${koc.full_name} lỗi: ${e.message}`);
-        });
-        logger.info(`[PubCode Parallel] Tab ${i + 1}/${total} đã load: ${koc.full_name}`);
-      }));
+        // Bước 1: Mở tab và navigate
+        await Promise.all(batchKocs.map(async (koc, i) => {
+          const page = await context.newPage();
+          pages[i] = page;
 
-      // Giữ cửa sổ GemLogin ở nền — không hiện lên foreground khi mở tab
-      await YouTubeScraperService.minimizeWindow(adminId);
+          await page.route('**/*', (route: any) => {
+            const t = route.request().resourceType();
+            if (['image', 'font', 'media', 'stylesheet'].includes(t)) return route.abort();
+            return route.continue();
+          }).catch(() => {});
 
-      // Bước 2: Poll đến khi pub code xuất hiện HOẶC trang load đủ nội dung
-      // Monetization page load AdSense section lazily — cần đợi đủ lâu
-      const POLL_MS = 5000;
-      const WAIT_LIMIT = Date.now() + 300000; // tối đa 5 phút
-      const pageReady = new Array(total).fill(false);
+          const url = this.buildMonetizationUrl(koc.youtube_channel_id);
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch((e: any) => {
+            logger.warn(`[PubCode Parallel] Navigate ${koc.full_name} lỗi: ${e.message}`);
+          });
+          logger.info(`[PubCode Parallel] Tab ${batchStart + i + 1}/${total} đã load: ${koc.full_name}`);
+        }));
 
-      while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {
-        await new Promise(r => setTimeout(r, POLL_MS));
-        for (let i = 0; i < total; i++) {
-          if (pageReady[i] || !pages[i]) continue;
+        await YouTubeScraperService.minimizeWindow(adminId);
+
+        // Bước 2: Poll đến khi pub code xuất hiện
+        const POLL_MS = 5000;
+        const WAIT_LIMIT = Date.now() + 300000;
+        const pageReady = new Array(batchLen).fill(false);
+
+        while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {
+          await new Promise(r => setTimeout(r, POLL_MS));
+          for (let i = 0; i < batchLen; i++) {
+            if (pageReady[i] || !pages[i]) continue;
+            try {
+              const text: string = await pages[i].evaluate('document.body.innerText') as string;
+              if (/pub-\d{10,20}/.test(text) || text.length >= 5000) {
+                pageReady[i] = true;
+              }
+            } catch { /* vẫn đang load */ }
+          }
+          const ready = pageReady.filter(Boolean).length;
+          logger.info(`[PubCode Parallel] Batch: ${ready}/${batchLen} tab sẵn sàng`);
+          if (ready === batchLen) break;
+        }
+
+        // Bước 3: Extract và đóng tab
+        await Promise.allSettled(pages.map(async (page, i) => {
+          const koc = batchKocs[i];
+          const cleanId = YouTubeScraperService.cleanChannelId(koc.youtube_channel_id);
           try {
-            const text: string = await pages[i].evaluate('document.body.innerText') as string;
-            // Sẵn sàng nếu tìm thấy pub code, hoặc trang đã load đủ (>=5000 ký tự)
-            if (/pub-\d{10,20}/.test(text) || text.length >= 5000) {
-              pageReady[i] = true;
-            }
-          } catch { /* vẫn đang load */ }
+            if (page.url().includes('accounts.google.com')) throw new Error('NOT_LOGGED_IN');
+
+            const text: string = await page.evaluate('document.body.innerText') as string;
+            const pubMatch = text.match(/pub-\d{10,20}/);
+            const scrapedPubCode = pubMatch ? pubMatch[0] : null;
+            const matched = scrapedPubCode && koc.pub_code ? scrapedPubCode === koc.pub_code : null;
+
+            results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode, matched });
+            logger.info(`[PubCode Parallel] ${koc.full_name}: ${scrapedPubCode ?? 'không tìm thấy'}`);
+          } catch (err: any) {
+            results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode: null, matched: null, error: err.message });
+            logger.error(`[PubCode Parallel] ${koc.full_name}: ${err.message}`);
+          } finally {
+            progressCount++;
+            if (onProgress) onProgress(progressCount, total, koc.full_name);
+            try { await page.close(); } catch { /* ignore */ }
+          }
+        }));
+
+        // Delay giữa các batch
+        if (batchStart + BATCH_SIZE < total) {
+          await new Promise(r => setTimeout(r, 3000));
         }
-        const ready = pageReady.filter(Boolean).length;
-        logger.info(`[PubCode Parallel] ${ready}/${total} tab sẵn sàng`);
-        if (ready === total) break;
       }
-
-      // Bước 3: Extract song song
-      let progressCount = 0;
-      await Promise.allSettled(pages.map(async (page, i) => {
-        const koc = kocs[i];
-        const cleanId = YouTubeScraperService.cleanChannelId(koc.youtube_channel_id);
-        try {
-          if (page.url().includes('accounts.google.com')) throw new Error('NOT_LOGGED_IN');
-
-          const text: string = await page.evaluate('document.body.innerText') as string;
-          const pubMatch = text.match(/pub-\d{10,20}/);
-          const scrapedPubCode = pubMatch ? pubMatch[0] : null;
-          const matched = scrapedPubCode && koc.pub_code ? scrapedPubCode === koc.pub_code : null;
-
-          results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode, matched });
-          logger.info(`[PubCode Parallel] ${koc.full_name}: ${scrapedPubCode ?? 'không tìm thấy'}`);
-        } catch (err: any) {
-          results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode: null, matched: null, error: err.message });
-          logger.error(`[PubCode Parallel] ${koc.full_name}: ${err.message}`);
-        } finally {
-          progressCount++;
-          if (onProgress) onProgress(progressCount, total, koc.full_name);
-          try { await page.close(); } catch { /* ignore */ }
-        }
-      }));
     } catch (err: any) {
-      for (const page of pages) {
-        if (page) try { await page.close(); } catch { /* ignore */ }
-      }
       throw err;
     }
 

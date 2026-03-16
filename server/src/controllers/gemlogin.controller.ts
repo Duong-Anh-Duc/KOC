@@ -137,7 +137,6 @@ export class GemLoginController {
     const profileId: string = req.body?.profileId || process.env.GEMLOGIN_PROFILE_ID || '1';
     const month: string | undefined = req.body?.month;
     const closeAfter: boolean = req.body?.closeAfter === true;
-    const batchSize: number = req.body?.batchSize || 5;
     const waitSeconds: number = req.body?.waitSeconds || 1800;
     const kocIds: string[] | undefined = Array.isArray(req.body?.kocIds) && req.body.kocIds.length > 0 ? req.body.kocIds : undefined;
     const saveToDb: boolean = req.body?.saveToDb !== false;
@@ -197,7 +196,7 @@ export class GemLoginController {
             });
           },
           adminId,
-          channelIds.length,
+          undefined,
           waitSeconds * 1000,
         );
 

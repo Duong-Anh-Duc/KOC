@@ -76,7 +76,7 @@ export class ScraperJobsController {
           step: idx + 1, total, percent,
           message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
         });
-      }, adminId, channelIds.length);
+      }, adminId);
 
       // Map results back to KOC info & save
       const enrichedResults = results.map(r => {

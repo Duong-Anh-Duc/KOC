@@ -266,7 +266,7 @@ export class CronService {
             .filter(id => id && id.length > 0);
 
           const { results: scrapeResults, errors: scrapeErrors } =
-            await YouTubeScraperService.scrapeMultipleChannelsParallel(channelIds, undefined, undefined, effectiveAdminId, channelIds.length);
+            await YouTubeScraperService.scrapeMultipleChannelsParallel(channelIds, undefined, undefined, effectiveAdminId);
 
           // Map channels to KOCs
           const channelToKocMap = new Map<string, typeof kocs[0]>();

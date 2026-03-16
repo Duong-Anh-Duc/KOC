@@ -293,7 +293,7 @@ export class CycleActionsController {
             step: currentStep, total: totalSteps, percent,
             message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
           });
-        }, userId || undefined, channelIds.length);
+        }, userId || undefined);
 
       // Save scrape results to DB
       for (const result of scrapeResults) {

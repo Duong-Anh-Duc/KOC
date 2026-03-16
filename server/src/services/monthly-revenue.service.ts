@@ -552,97 +552,105 @@ export class MonthlyRevenueService {
     const total = kocs.length;
     if (total === 0) return { results, errors };
 
-    logger.info(`[Monthly Parallel] Mở ${total} tab cùng lúc...`);
+    const BATCH_SIZE = 3;
+    logger.info(`[Monthly Parallel] Tổng ${total} KOC, mỗi batch ${BATCH_SIZE} tab...`);
 
-    // Bước 1: Lấy context một lần dùng chung
     const context = await YouTubeScraperService.getContext(false, adminId);
-    const pages: any[] = new Array(total).fill(null);
+    let progressCount = 0;
 
     try {
-      // Bước 2: Mở tất cả tab và navigate đồng thời
-      await Promise.all(kocs.map(async (koc, i) => {
-        const page = await context.newPage();
-        pages[i] = page;
+      for (let batchStart = 0; batchStart < total; batchStart += BATCH_SIZE) {
+        const batchKocs = kocs.slice(batchStart, batchStart + BATCH_SIZE);
+        const batchLen = batchKocs.length;
+        const pages: any[] = new Array(batchLen).fill(null);
 
-        await page.route('**/*', (route: any) => {
-          const t = route.request().resourceType();
-          if (['image', 'font', 'media', 'stylesheet'].includes(t)) return route.abort();
-          return route.continue();
-        }).catch(() => {});
+        logger.info(`[Monthly Parallel] Batch ${Math.floor(batchStart / BATCH_SIZE) + 1}: ${batchLen} tab [${batchKocs.map(k => k.channel_name).join(', ')}]`);
 
-        const url = this.buildMonthlyRevenueUrl(koc.youtube_channel_id);
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e: any) => {
-          logger.warn(`[Monthly Parallel] Navigate ${koc.channel_name} lỗi: ${e.message}`);
-        });
-        logger.info(`[Monthly Parallel] Tab ${i + 1}/${total} đã load: ${koc.channel_name}`);
-      }));
+        // Mở tab và navigate
+        await Promise.all(batchKocs.map(async (koc, i) => {
+          const page = await context.newPage();
+          pages[i] = page;
 
-      // Giữ cửa sổ GemLogin ở nền — không hiện lên foreground khi mở tab
-      await YouTubeScraperService.minimizeWindow(adminId);
+          await page.route('**/*', (route: any) => {
+            const t = route.request().resourceType();
+            if (['image', 'font', 'media', 'stylesheet'].includes(t)) return route.abort();
+            return route.continue();
+          }).catch(() => {});
 
-      // Bước 3: Poll tất cả tab song song — đợi nội dung >= 1000 ký tự (tối đa 5 phút)
-      const POLL_MS = 5000;
-      const WAIT_LIMIT = Date.now() + 300000;
-      const pageReady = new Array(total).fill(false);
+          const url = this.buildMonthlyRevenueUrl(koc.youtube_channel_id);
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e: any) => {
+            logger.warn(`[Monthly Parallel] Navigate ${koc.channel_name} lỗi: ${e.message}`);
+          });
+          logger.info(`[Monthly Parallel] Tab ${batchStart + i + 1}/${total} đã load: ${koc.channel_name}`);
+        }));
 
-      while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {
-        await new Promise(r => setTimeout(r, POLL_MS));
-        for (let i = 0; i < total; i++) {
-          if (pageReady[i] || !pages[i]) continue;
+        await YouTubeScraperService.minimizeWindow(adminId);
+
+        // Poll đợi nội dung
+        const POLL_MS = 5000;
+        const WAIT_LIMIT = Date.now() + 300000;
+        const pageReady = new Array(batchLen).fill(false);
+
+        while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {
+          await new Promise(r => setTimeout(r, POLL_MS));
+          for (let i = 0; i < batchLen; i++) {
+            if (pageReady[i] || !pages[i]) continue;
+            try {
+              const text: string = await pages[i].evaluate('document.body.innerText') as string;
+              if (text.length >= 1000) {
+                pageReady[i] = true;
+                logger.info(`[Monthly Parallel] Tab ${batchStart + i + 1} (${batchKocs[i].channel_name}) sẵn sàng: ${text.length} chars`);
+              }
+            } catch { /* vẫn đang load */ }
+          }
+          const ready = pageReady.filter(Boolean).length;
+          logger.info(`[Monthly Parallel] Batch: ${ready}/${batchLen} tab sẵn sàng`);
+        }
+
+        // Extract + lưu và đóng tab
+        await Promise.allSettled(pages.map(async (page, i) => {
+          const koc = batchKocs[i];
           try {
-            const text: string = await pages[i].evaluate('document.body.innerText') as string;
-            if (text.length >= 1000) {
-              pageReady[i] = true;
-              logger.info(`[Monthly Parallel] Tab ${i + 1} (${kocs[i].channel_name}) sẵn sàng: ${text.length} chars`);
+            const text: string = await page.evaluate('document.body.innerText') as string;
+            if (text.length < 500) {
+              throw new Error(`Page content too short (${text.length} chars)`);
             }
-          } catch { /* vẫn đang load */ }
-        }
-        const ready = pageReady.filter(Boolean).length;
-        logger.info(`[Monthly Parallel] ${ready}/${total} tab sẵn sàng`);
-      }
+            const parsed = this.parseMonthlyRevenueText(text);
+            const data: MonthlyRevenueData = {
+              channelId: YouTubeScraperService.cleanChannelId(koc.youtube_channel_id),
+              totals: parsed.totals,
+              months: parsed.months,
+              scrapedAt: new Date().toISOString(),
+            };
+            await this.saveMonthlyRevenue(koc.id, koc.youtube_channel_id, data);
+            await this.syncToCycles(koc.id, data.months);
+            this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, data, null);
+            progressCount++;
+            if (onProgress) onProgress(progressCount, total, koc.channel_name);
+            results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
+            logger.info(`[Monthly Parallel] ${koc.channel_name}: ${data.months.length} tháng`);
+          } catch (err: any) {
+            const errMsg: string = err.message ?? String(err);
+            logger.error(`[Monthly Parallel] ${koc.channel_name}: ${errMsg}`);
+            this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, null, errMsg);
+            errors.push({ kocId: koc.id, channelName: koc.channel_name, error: errMsg });
+            if (errMsg === 'NOT_LOGGED_IN') {
+              YouTubeScraperService.markSessionDisconnected('monthly_scrape_not_logged_in', undefined, adminId, {
+                trigger: 'MonthlyRevenueService.scrapeAllKOCs',
+                failedChannel: koc.channel_name,
+              }).catch(() => {});
+            }
+          } finally {
+            try { await page.close(); } catch { /* ignore */ }
+          }
+        }));
 
-      // Bước 4: Extract + lưu song song
-      let progressCount = 0;
-      await Promise.allSettled(pages.map(async (page, i) => {
-        const koc = kocs[i];
-        try {
-          const text: string = await page.evaluate('document.body.innerText') as string;
-          if (text.length < 500) {
-            throw new Error(`Page content too short (${text.length} chars)`);
-          }
-          const parsed = this.parseMonthlyRevenueText(text);
-          const data: MonthlyRevenueData = {
-            channelId: YouTubeScraperService.cleanChannelId(koc.youtube_channel_id),
-            totals: parsed.totals,
-            months: parsed.months,
-            scrapedAt: new Date().toISOString(),
-          };
-          await this.saveMonthlyRevenue(koc.id, koc.youtube_channel_id, data);
-          await this.syncToCycles(koc.id, data.months);
-          this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, data, null);
-          progressCount++;
-          if (onProgress) onProgress(progressCount, total, koc.channel_name);
-          results.push({ kocId: koc.id, channelName: koc.channel_name, monthCount: data.months.length });
-          logger.info(`[Monthly Parallel] ${koc.channel_name}: ${data.months.length} tháng`);
-        } catch (err: any) {
-          const errMsg: string = err.message ?? String(err);
-          logger.error(`[Monthly Parallel] ${koc.channel_name}: ${errMsg}`);
-          this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, null, errMsg);
-          errors.push({ kocId: koc.id, channelName: koc.channel_name, error: errMsg });
-          if (errMsg === 'NOT_LOGGED_IN') {
-            YouTubeScraperService.markSessionDisconnected('monthly_scrape_not_logged_in', undefined, adminId, {
-              trigger: 'MonthlyRevenueService.scrapeAllKOCs',
-              failedChannel: koc.channel_name,
-            }).catch(() => {});
-          }
-        } finally {
-          try { await page.close(); } catch { /* ignore */ }
+        // Delay giữa các batch
+        if (batchStart + BATCH_SIZE < total) {
+          await new Promise(r => setTimeout(r, 3000));
         }
-      }));
-    } catch (err: any) {
-      for (const page of pages) {
-        if (page) try { await page.close(); } catch { /* ignore */ }
       }
+    } catch (err: any) {
       throw err;
     }
 

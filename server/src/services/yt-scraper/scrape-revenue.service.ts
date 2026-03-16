@@ -1044,7 +1044,7 @@ export async function scrapeMultipleChannelsParallel(
   month?: string,
   onProgress?: (channelId: string, index: number, total: number) => void,
   adminId?: string,
-  batchSize = 5,
+  batchSize = 3,
   waitMs = 1800000,
 ): Promise<{
   results: YouTubeAnalyticsData[];
