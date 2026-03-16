@@ -440,114 +440,124 @@ export class SocialBladeService {
   }
 
   /**
-   * Fetch and save 28d stats for all active KOCs (parallel — opens all tabs at once)
+   * Fetch and save 28d stats for all active KOCs (batch 3 tabs at a time)
    */
   static async recordAllStats(adminId?: string) {
     const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) } });
     const results: any[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
+    const BATCH_SIZE = 3;
 
-    logger.info(`Starting PARALLEL 28d stats for ${kocs.length} KOCs...`);
+    logger.info(`Starting 28d stats for ${kocs.length} KOCs, batch ${BATCH_SIZE} tabs...`);
 
     const context = await YouTubeScraperService.getContext(false, adminId);
 
-    // Open all pages
-    const pages: { koc: typeof kocs[0]; page: Page; countryData?: { totals: CountryStatsTotals; rows: CountryStatsRow[] }; dayData?: { totals: DayStatsTotals; rows: DayStatsRow[] }; error?: string }[] = [];
-    for (const koc of kocs) {
-      try {
-        const page = await context.newPage();
-        pages.push({ koc, page });
-      } catch (err: any) {
-        errors.push({ kocId: koc.id, channelName: koc.channel_name, error: `Failed to open page: ${err.message}` });
-      }
-    }
+    for (let batchStart = 0; batchStart < kocs.length; batchStart += BATCH_SIZE) {
+      const batchKocs = kocs.slice(batchStart, batchStart + BATCH_SIZE);
+      logger.info(`[28d Stats] Batch ${Math.floor(batchStart / BATCH_SIZE) + 1}: ${batchKocs.map(k => k.channel_name).join(', ')}`);
 
-    // Navigate all to country URLs
-    await Promise.all(pages.map(async (entry) => {
-      try {
-        const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
-        await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-        if (entry.page.url().includes('accounts.google.com')) {
-          entry.error = 'NOT_LOGGED_IN';
+      const pages: { koc: typeof kocs[0]; page: Page; countryData?: { totals: CountryStatsTotals; rows: CountryStatsRow[] }; dayData?: { totals: DayStatsTotals; rows: DayStatsRow[] }; error?: string }[] = [];
+      for (const koc of batchKocs) {
+        try {
+          const page = await context.newPage();
+          pages.push({ koc, page });
+        } catch (err: any) {
+          errors.push({ kocId: koc.id, channelName: koc.channel_name, error: `Failed to open page: ${err.message}` });
         }
-      } catch (err: any) {
-        entry.error = err.message;
       }
-    }));
 
-    // Check NOT_LOGGED_IN
-    if (pages.some(p => p.error === 'NOT_LOGGED_IN')) {
-      logger.error('NOT_LOGGED_IN detected — aborting');
-      YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
-        trigger: 'SocialBladeService.recordAllStats_parallel',
-      }).catch(() => {});
-      for (const entry of pages) { try { await entry.page.close(); } catch {} }
-      return { success: 0, failed: kocs.length, errors: [{ kocId: '', channelName: '', error: 'NOT_LOGGED_IN' }] };
-    }
+      // Navigate to country URLs
+      await Promise.all(pages.map(async (entry) => {
+        try {
+          const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+          if (entry.page.url().includes('accounts.google.com')) {
+            entry.error = 'NOT_LOGGED_IN';
+          }
+        } catch (err: any) {
+          entry.error = err.message;
+        }
+      }));
 
-    // Poll country tables
-    await this.pollAllPagesForTable(pages.filter(p => !p.error).map(p => ({ page: p.page, label: p.koc.channel_name })));
-
-    // Extract country data
-    for (const entry of pages) {
-      if (entry.error) continue;
-      try {
-        const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
-        entry.countryData = this.parseCountryExploreText(text);
-      } catch (err: any) {
-        entry.error = `Country extract failed: ${err.message}`;
+      // Check NOT_LOGGED_IN
+      if (pages.some(p => p.error === 'NOT_LOGGED_IN')) {
+        logger.error('NOT_LOGGED_IN detected — aborting');
+        YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
+          trigger: 'SocialBladeService.recordAllStats_parallel',
+        }).catch(() => {});
+        for (const entry of pages) { try { await entry.page.close(); } catch {} }
+        return { success: 0, failed: kocs.length, errors: [{ kocId: '', channelName: '', error: 'NOT_LOGGED_IN' }] };
       }
-    }
 
-    // Navigate all to day URLs
-    await Promise.all(pages.map(async (entry) => {
-      if (entry.error) return;
-      try {
-        const url = this.buildDayExploreUrl(entry.koc.youtube_channel_id);
-        await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-      } catch (err: any) {
-        entry.error = `Day navigate failed: ${err.message}`;
+      // Poll country tables
+      await this.pollAllPagesForTable(pages.filter(p => !p.error).map(p => ({ page: p.page, label: p.koc.channel_name })));
+
+      // Extract country data
+      for (const entry of pages) {
+        if (entry.error) continue;
+        try {
+          const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
+          entry.countryData = this.parseCountryExploreText(text);
+        } catch (err: any) {
+          entry.error = `Country extract failed: ${err.message}`;
+        }
       }
-    }));
 
-    // Poll day tables
-    await this.pollAllPagesForTable(pages.filter(p => !p.error).map(p => ({ page: p.page, label: p.koc.channel_name })));
+      // Navigate to day URLs
+      await Promise.all(pages.map(async (entry) => {
+        if (entry.error) return;
+        try {
+          const url = this.buildDayExploreUrl(entry.koc.youtube_channel_id);
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+        } catch (err: any) {
+          entry.error = `Day navigate failed: ${err.message}`;
+        }
+      }));
 
-    // Extract day data and save
-    for (const entry of pages) {
-      if (entry.error) {
-        errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: entry.error });
-        try { await entry.page.close(); } catch {}
-        continue;
+      // Poll day tables
+      await this.pollAllPagesForTable(pages.filter(p => !p.error).map(p => ({ page: p.page, label: p.koc.channel_name })));
+
+      // Extract day data and save
+      for (const entry of pages) {
+        if (entry.error) {
+          errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: entry.error });
+          try { await entry.page.close(); } catch {}
+          continue;
+        }
+        try {
+          const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
+          entry.dayData = this.parseDayExploreText(text);
+
+          const stats: ChannelStats28dData = {
+            byCountry: entry.countryData!,
+            byDay: entry.dayData,
+            scrapedAt: new Date().toISOString(),
+          };
+
+          this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, stats, null);
+
+          const record = await prisma.channelStat.create({
+            data: {
+              koc_id: entry.koc.id,
+              view_count: stats.byCountry.totals.views || 0,
+              sub_count: stats.byCountry.totals.subscribersNet || 0,
+              yt_analytics: stats as any,
+            },
+          });
+
+          results.push(record);
+          logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${kocs.length})`);
+        } catch (err: any) {
+          errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
+          logger.error(`Failed for ${entry.koc.channel_name}: ${err}`);
+        } finally {
+          try { await entry.page.close(); } catch {}
+        }
       }
-      try {
-        const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
-        entry.dayData = this.parseDayExploreText(text);
 
-        const stats: ChannelStats28dData = {
-          byCountry: entry.countryData!,
-          byDay: entry.dayData,
-          scrapedAt: new Date().toISOString(),
-        };
-
-        this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, stats, null);
-
-        const record = await prisma.channelStat.create({
-          data: {
-            koc_id: entry.koc.id,
-            view_count: stats.byCountry.totals.views || 0,
-            sub_count: stats.byCountry.totals.subscribersNet || 0,
-            yt_analytics: stats as any,
-          },
-        });
-
-        results.push(record);
-        logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${kocs.length})`);
-      } catch (err: any) {
-        errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
-        logger.error(`Failed for ${entry.koc.channel_name}: ${err}`);
-      } finally {
-        try { await entry.page.close(); } catch {}
+      // Delay giữa các batch
+      if (batchStart + BATCH_SIZE < kocs.length) {
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
@@ -557,167 +567,168 @@ export class SocialBladeService {
 
   /**
    * Same as recordAllStats but emits SSE progress events via ProgressService.
-   * Opens ALL KOC tabs at once for parallel scraping.
+   * Batch 3 tabs at a time.
    */
   static async recordAllStatsWithProgress(taskId: string, adminId?: string) {
     const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) } });
     const total = kocs.length;
     const results: string[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
+    const BATCH_SIZE = 3;
 
-    logger.info(`Starting PARALLEL 28d stats for ${total} KOCs (taskId: ${taskId})...`);
+    logger.info(`Starting 28d stats for ${total} KOCs, batch ${BATCH_SIZE} tabs (taskId: ${taskId})...`);
 
     ProgressService.emit(taskId, {
       step: 0,
-      total: total * 2, // country + day = 2 phases
+      total: total * 2,
       percent: 0,
-      message: `Đang mở ${total} tab song song...`,
+      message: `Bắt đầu cào ${total} KOC, mỗi batch ${BATCH_SIZE} tab...`,
     });
 
     const context = await YouTubeScraperService.getContext(false, adminId);
 
-    // --- Phase 1: Open all pages and navigate to COUNTRY URLs ---
-    const pages: { koc: typeof kocs[0]; page: Page; countryData?: { totals: CountryStatsTotals; rows: CountryStatsRow[] }; dayData?: { totals: DayStatsTotals; rows: DayStatsRow[] }; error?: string }[] = [];
+    for (let batchStart = 0; batchStart < total; batchStart += BATCH_SIZE) {
+      const batchKocs = kocs.slice(batchStart, batchStart + BATCH_SIZE);
+      logger.info(`[28d Stats] Batch ${Math.floor(batchStart / BATCH_SIZE) + 1}: ${batchKocs.map(k => k.channel_name).join(', ')}`);
 
-    for (const koc of kocs) {
-      try {
-        const page = await context.newPage();
-        pages.push({ koc, page });
-      } catch (err: any) {
-        errors.push({ kocId: koc.id, channelName: koc.channel_name, error: `Failed to open page: ${err.message}` });
-      }
-    }
+      const pages: { koc: typeof kocs[0]; page: Page; countryData?: { totals: CountryStatsTotals; rows: CountryStatsRow[] }; dayData?: { totals: DayStatsTotals; rows: DayStatsRow[] }; error?: string }[] = [];
 
-    // Navigate all pages to country URLs simultaneously
-    logger.info(`Navigating ${pages.length} pages to country explore URLs...`);
-    await Promise.all(pages.map(async (entry) => {
-      try {
-        const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
-        await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-
-        // Check for login redirect
-        if (entry.page.url().includes('accounts.google.com')) {
-          entry.error = 'NOT_LOGGED_IN';
-          return;
+      for (const koc of batchKocs) {
+        try {
+          const page = await context.newPage();
+          pages.push({ koc, page });
+        } catch (err: any) {
+          errors.push({ kocId: koc.id, channelName: koc.channel_name, error: `Failed to open page: ${err.message}` });
         }
+      }
 
-        // Handle "unsupported browser" page
-        await new Promise(r => setTimeout(r, 1500));
-        const bodyCheck = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
-        if (bodyCheck.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodyCheck.includes('Go to YouTube Studio')) {
-          const link = entry.page.locator('a:has-text("CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO"), a:has-text("Go to YouTube Studio")');
-          if (await link.count() > 0) {
-            await link.first().click();
-            await entry.page.waitForLoadState('domcontentloaded').catch(() => {});
-            await new Promise(r => setTimeout(r, 3000));
+      // Navigate to country URLs
+      await Promise.all(pages.map(async (entry) => {
+        try {
+          const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+
+          if (entry.page.url().includes('accounts.google.com')) {
+            entry.error = 'NOT_LOGGED_IN';
+            return;
           }
+
+          await new Promise(r => setTimeout(r, 1500));
+          const bodyCheck = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
+          if (bodyCheck.includes('CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO') || bodyCheck.includes('Go to YouTube Studio')) {
+            const link = entry.page.locator('a:has-text("CHUYỂN THẲNG ĐẾN YOUTUBE STUDIO"), a:has-text("Go to YouTube Studio")');
+            if (await link.count() > 0) {
+              await link.first().click();
+              await entry.page.waitForLoadState('domcontentloaded').catch(() => {});
+              await new Promise(r => setTimeout(r, 3000));
+            }
+          }
+        } catch (err: any) {
+          entry.error = err.message;
         }
-      } catch (err: any) {
-        entry.error = err.message;
-      }
-    }));
+      }));
 
-    // Check if any page hit NOT_LOGGED_IN
-    const notLoggedIn = pages.find(p => p.error === 'NOT_LOGGED_IN');
-    if (notLoggedIn) {
-      logger.error('NOT_LOGGED_IN detected — aborting all tabs');
-      YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
-        trigger: 'SocialBladeService.recordAllStatsWithProgress_parallel',
-      }).catch(() => {});
+      // Check NOT_LOGGED_IN
+      const notLoggedIn = pages.find(p => p.error === 'NOT_LOGGED_IN');
+      if (notLoggedIn) {
+        logger.error('NOT_LOGGED_IN detected — aborting all tabs');
+        YouTubeScraperService.markSessionDisconnected('28day_scrape_not_logged_in', undefined, adminId, {
+          trigger: 'SocialBladeService.recordAllStatsWithProgress_parallel',
+        }).catch(() => {});
+        for (const entry of pages) {
+          try { await entry.page.close(); } catch { /* ignore */ }
+        }
+        const resultData = { success: 0, failed: total, errors: [{ kocId: '', channelName: '', error: 'NOT_LOGGED_IN' }] };
+        ProgressService.complete(taskId, resultData);
+        return resultData;
+      }
+
+      // Poll country tables
+      await this.pollAllPagesForTable(pages.filter(p => !p.error).map(p => ({ page: p.page, label: p.koc.channel_name })));
+
+      // Extract country data
       for (const entry of pages) {
-        try { await entry.page.close(); } catch { /* ignore */ }
-      }
-      const resultData = { success: 0, failed: total, errors: [{ kocId: '', channelName: '', error: 'NOT_LOGGED_IN' }] };
-      ProgressService.complete(taskId, resultData);
-      return resultData;
-    }
-
-    // Poll all pages until country tables are loaded
-    logger.info(`Polling ${pages.length} pages for country tables...`);
-    const activePagesCountry = pages.filter(p => !p.error);
-    await this.pollAllPagesForTable(activePagesCountry.map(p => ({ page: p.page, label: p.koc.channel_name })));
-
-    // Extract country data from all pages
-    let countryDone = 0;
-    for (const entry of pages) {
-      if (entry.error) continue;
-      try {
-        const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
-        entry.countryData = this.parseCountryExploreText(text);
-        countryDone++;
-        ProgressService.emit(taskId, {
-          step: countryDone,
-          total: total * 2,
-          percent: Math.round((countryDone / (total * 2)) * 100),
-          message: `Country data: ${entry.koc.channel_name} (${countryDone}/${total})`,
-        });
-        logger.info(`Country data extracted for ${entry.koc.channel_name}`);
-      } catch (err: any) {
-        entry.error = `Country extract failed: ${err.message}`;
-      }
-    }
-
-    // --- Phase 2: Navigate all pages to DAY URLs ---
-    logger.info(`Navigating ${pages.length} pages to day explore URLs...`);
-    await Promise.all(pages.map(async (entry) => {
-      if (entry.error) return;
-      try {
-        const url = this.buildDayExploreUrl(entry.koc.youtube_channel_id);
-        await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-      } catch (err: any) {
-        entry.error = `Day navigate failed: ${err.message}`;
-      }
-    }));
-
-    // Poll all pages until day tables are loaded
-    logger.info(`Polling ${pages.length} pages for day tables...`);
-    const activePagesDays = pages.filter(p => !p.error);
-    await this.pollAllPagesForTable(activePagesDays.map(p => ({ page: p.page, label: p.koc.channel_name })));
-
-    // Extract day data and save to DB
-    for (const entry of pages) {
-      if (entry.error) {
-        errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: entry.error });
-        try { await entry.page.close(); } catch { /* ignore */ }
-        continue;
+        if (entry.error) continue;
+        try {
+          const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
+          entry.countryData = this.parseCountryExploreText(text);
+          const countryDone = results.length + errors.length + pages.filter(p => p.countryData).length;
+          ProgressService.emit(taskId, {
+            step: countryDone,
+            total: total * 2,
+            percent: Math.round((countryDone / (total * 2)) * 100),
+            message: `Country data: ${entry.koc.channel_name}`,
+          });
+          logger.info(`Country data extracted for ${entry.koc.channel_name}`);
+        } catch (err: any) {
+          entry.error = `Country extract failed: ${err.message}`;
+        }
       }
 
-      try {
-        const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
-        entry.dayData = this.parseDayExploreText(text);
+      // Navigate to day URLs
+      await Promise.all(pages.map(async (entry) => {
+        if (entry.error) return;
+        try {
+          const url = this.buildDayExploreUrl(entry.koc.youtube_channel_id);
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+        } catch (err: any) {
+          entry.error = `Day navigate failed: ${err.message}`;
+        }
+      }));
 
-        const stats: ChannelStats28dData = {
-          byCountry: entry.countryData!,
-          byDay: entry.dayData,
-          scrapedAt: new Date().toISOString(),
-        };
+      // Poll day tables
+      await this.pollAllPagesForTable(pages.filter(p => !p.error).map(p => ({ page: p.page, label: p.koc.channel_name })));
 
-        this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, stats, null);
+      // Extract day data and save to DB
+      for (const entry of pages) {
+        if (entry.error) {
+          errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: entry.error });
+          try { await entry.page.close(); } catch { /* ignore */ }
+          continue;
+        }
 
-        await prisma.channelStat.create({
-          data: {
-            koc_id: entry.koc.id,
-            view_count: stats.byCountry.totals.views || 0,
-            sub_count: stats.byCountry.totals.subscribersNet || 0,
-            yt_analytics: stats as any,
-          },
-        });
+        try {
+          const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
+          entry.dayData = this.parseDayExploreText(text);
 
-        results.push(entry.koc.id);
-        const doneCount = results.length + errors.length;
-        ProgressService.emit(taskId, {
-          step: total + results.length,
-          total: total * 2,
-          percent: Math.round(((total + doneCount) / (total * 2)) * 100),
-          message: `Đã lưu: ${entry.koc.channel_name} (${results.length}/${total})`,
-        });
-        logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${total})`);
-      } catch (err: any) {
-        errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
-        logger.error(`Failed to save stats for ${entry.koc.channel_name}: ${err}`);
-        this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, null, String(err));
-      } finally {
-        try { await entry.page.close(); } catch { /* ignore */ }
+          const stats: ChannelStats28dData = {
+            byCountry: entry.countryData!,
+            byDay: entry.dayData,
+            scrapedAt: new Date().toISOString(),
+          };
+
+          this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, stats, null);
+
+          await prisma.channelStat.create({
+            data: {
+              koc_id: entry.koc.id,
+              view_count: stats.byCountry.totals.views || 0,
+              sub_count: stats.byCountry.totals.subscribersNet || 0,
+              yt_analytics: stats as any,
+            },
+          });
+
+          results.push(entry.koc.id);
+          const doneCount = results.length + errors.length;
+          ProgressService.emit(taskId, {
+            step: total + results.length,
+            total: total * 2,
+            percent: Math.round(((total + doneCount) / (total * 2)) * 100),
+            message: `Đã lưu: ${entry.koc.channel_name} (${results.length}/${total})`,
+          });
+          logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${total})`);
+        } catch (err: any) {
+          errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
+          logger.error(`Failed to save stats for ${entry.koc.channel_name}: ${err}`);
+          this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, null, String(err));
+        } finally {
+          try { await entry.page.close(); } catch { /* ignore */ }
+        }
+      }
+
+      // Delay giữa các batch
+      if (batchStart + BATCH_SIZE < total) {
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
