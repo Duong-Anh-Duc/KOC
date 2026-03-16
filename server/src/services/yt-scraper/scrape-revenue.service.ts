@@ -1045,7 +1045,7 @@ export async function scrapeMultipleChannelsParallel(
   onProgress?: (channelId: string, index: number, total: number) => void,
   adminId?: string,
   batchSize = 3,
-  waitMs = 1800000,
+  waitMs = 300000,
 ): Promise<{
   results: YouTubeAnalyticsData[];
   errors: Array<{ channelId: string; error: string }>;
@@ -1129,38 +1129,33 @@ export async function scrapeMultipleChannelsParallel(
           if (!page) { tabReady[i] = true; return; }
           try {
             const result = await page.evaluate(() => {
+              // Còn spinner → chưa sẵn sàng
               const hasSpinner = !!(
                 document.querySelector('ytd-ghost-card-renderer') ||
                 document.querySelector('tp-yt-paper-spinner[active]') ||
                 document.querySelector('[class*="loading-indicator"][style*="display: block"]') ||
                 document.querySelector('ytd-analytics-loading-renderer')
               );
-              if (hasSpinner) return { ready: false, reason: 'spinner', rows: 0 };
+              if (hasSpinner) return { ready: false, reason: 'spinner', len: 0 };
 
-              const table =
-                document.querySelector('ytd-analytics-multi-dimension-data-table-renderer') ||
-                document.querySelector('ytd-analytics-main-app') ||
-                document.querySelector('#analytics-content-container');
-              if (!table) return { ready: false, reason: 'no-table', rows: 0 };
+              // Kiểm tra nội dung text thay vì DOM table
+              const text = document.body.innerText || '';
+              const len = text.length;
+              if (len < 500) return { ready: false, reason: `short-text(${len})`, len };
 
-              const rows = table.querySelectorAll('tr, [role="row"]');
-              const rowCount = rows.length;
-              if (rowCount < 3) return { ready: false, reason: 'few-rows', rows: rowCount };
-
-              const text = (table as HTMLElement).innerText || '';
               const hasTotal = /Tổng|Total/i.test(text);
-              if (!hasTotal) return { ready: false, reason: 'no-total', rows: rowCount };
+              if (!hasTotal) return { ready: false, reason: 'no-total', len };
 
-              return { ready: true, reason: 'ok', rows: rowCount };
-            }) as { ready: boolean; reason: string; rows: number };
+              return { ready: true, reason: 'ok', len };
+            }) as { ready: boolean; reason: string; len: number };
 
             if (result.ready) {
-              if (result.rows === prevRowCount[i] && result.rows > 0) {
+              if (result.len === prevRowCount[i] && result.len > 0) {
                 tabReady[i] = true;
-                logger.info(`[Parallel] OK Tab ${i + 1} (${channelId}) loaded: ${result.rows} rows (stable)`);
+                logger.info(`[Parallel] OK Tab ${i + 1} (${channelId}) loaded: ${result.len} chars (stable)`);
               } else {
-                prevRowCount[i] = result.rows;
-                logger.info(`[Parallel] Tab ${i + 1} (${channelId}) has ${result.rows} rows, waiting to stabilize...`);
+                prevRowCount[i] = result.len;
+                logger.info(`[Parallel] Tab ${i + 1} (${channelId}) has ${result.len} chars, waiting to stabilize...`);
               }
             } else {
               prevRowCount[i] = 0;
