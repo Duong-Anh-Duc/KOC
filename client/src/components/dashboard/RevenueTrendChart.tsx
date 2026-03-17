@@ -21,7 +21,7 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ trendData, loadin
   };
 
   return (
-    <Card title={t('dashboard.revenueTrend')} loading={loading} style={{ borderRadius: 12 }}>
+    <Card title={t('dashboard.revenueTrend')} loading={loading} style={{ borderRadius: 12, border: '2px solid #52c41a' }}>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={trendData || []}>
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} opacity={0.3} />

@@ -105,7 +105,8 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
           <Button
             type="text"
             size="small"
-            icon={<EyeOutlined style={{ fontSize: 16, color: '#1677ff' }} />}
+            className="audit-eye-btn"
+            icon={<EyeOutlined />}
             onClick={() => onViewDetails(record)}
           />
         </Tooltip>

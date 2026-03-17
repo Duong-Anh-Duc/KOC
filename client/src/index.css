@@ -62,6 +62,25 @@ html[data-theme='dark'] .stats-total-row:hover {
   font-weight: 600 !important;
 }
 
+/* ===== Audit Eye Button Animation ===== */
+.audit-eye-btn {
+  color: #1677ff !important;
+  font-size: 16px;
+  transition: transform 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 50% !important;
+  width: 32px;
+  height: 32px;
+}
+.audit-eye-btn:hover {
+  transform: scale(1.3);
+  color: #0958d9 !important;
+  background: rgba(22, 119, 255, 0.08) !important;
+  box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.1);
+}
+.audit-eye-btn:active {
+  transform: scale(1.1);
+}
+
 .stats-page-spin .ant-spin-text {
   font-size: 16px;
   font-weight: 500;
@@ -85,15 +104,15 @@ html[data-theme='dark'] .stats-page-spin .ant-spin-text {
 }
 
 .ant-table-tbody>tr {
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .ant-table-tbody>tr:hover>td {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: rgba(237, 143, 58, 0.04) !important;
 }
 
 html[data-theme='dark'] .ant-table-tbody>tr:hover>td {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(237, 143, 58, 0.08) !important;
 }
 
 /* Revenue table summary row */
@@ -137,21 +156,29 @@ html[data-theme='dark'] .ant-btn-text:not(:disabled):hover {
   transition: all 0.2s ease;
   border-radius: 4px;
   font-weight: 500;
+  cursor: default;
+}
+
+.ant-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* ===== Card Hover Effects ===== */
 .ant-card {
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
   border-radius: 12px !important;
 }
 
 .ant-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+  border-color: rgba(237, 143, 58, 0.3);
 }
 
 html[data-theme='dark'] .ant-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: rgba(237, 143, 58, 0.4);
 }
 
 /* ===== Statistic Cards ===== */
@@ -159,24 +186,49 @@ html[data-theme='dark'] .ant-card:hover {
   transition: all 0.3s ease;
 }
 
+.ant-card:hover .ant-statistic-content-value {
+  color: #ED8F3A;
+  transition: color 0.3s ease;
+}
+
 .ant-statistic-title {
   font-weight: 500;
   margin-bottom: 8px;
+  transition: color 0.3s ease;
 }
 
 .ant-statistic-content {
   font-weight: 600;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.ant-card:hover .ant-statistic-content {
+  transform: scale(1.03);
 }
 
 /* ===== Input & Select Focus Effects ===== */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector {
+  transition: all 0.25s ease !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+  border-color: #ED8F3A !important;
+}
+
 .ant-input:focus,
 .ant-input-affix-wrapper:focus,
 .ant-input-affix-wrapper-focused {
-  box-shadow: 0 0 0 2px rgba(237, 143, 58, 0.1);
+  box-shadow: 0 0 0 3px rgba(237, 143, 58, 0.12);
+  border-color: #ED8F3A !important;
 }
 
 .ant-select-focused .ant-select-selector {
-  box-shadow: 0 0 0 2px rgba(237, 143, 58, 0.1);
+  box-shadow: 0 0 0 3px rgba(237, 143, 58, 0.12) !important;
+  border-color: #ED8F3A !important;
 }
 
 /* ===== Table Pagination ===== */
@@ -258,6 +310,105 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 
 .ant-popconfirm-buttons {
   margin-top: 8px;
+}
+
+/* ===== Tabs ===== */
+.ant-tabs-tab {
+  transition: all 0.25s ease !important;
+}
+
+.ant-tabs-tab:hover {
+  color: #ED8F3A !important;
+  transform: translateY(-1px);
+}
+
+.ant-tabs-tab-active {
+  font-weight: 600 !important;
+}
+
+.ant-tabs-ink-bar {
+  background: #ED8F3A !important;
+  height: 3px !important;
+  border-radius: 3px;
+}
+
+/* ===== Badge ===== */
+.ant-badge-count {
+  transition: transform 0.3s ease;
+}
+
+.ant-badge:hover .ant-badge-count {
+  transform: scale(1.15);
+}
+
+/* ===== Avatar ===== */
+.ant-avatar {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ant-avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Drawer ===== */
+.ant-drawer-content {
+  border-radius: 16px 0 0 16px;
+}
+
+/* ===== Modal Animation ===== */
+.ant-modal-content {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+/* ===== Menu Items ===== */
+.ant-menu-item {
+  transition: all 0.2s ease !important;
+}
+
+.ant-menu-item:hover {
+  transform: translateX(4px);
+}
+
+.ant-menu-item-selected {
+  font-weight: 600 !important;
+}
+
+/* ===== Dashboard KPI Cards ===== */
+.dashboard-kpi-card {
+  overflow: hidden;
+  position: relative;
+}
+
+.dashboard-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(237, 143, 58, 0) 0%, rgba(237, 143, 58, 0.03) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.dashboard-kpi-card:hover::before {
+  opacity: 1;
+}
+
+.dashboard-kpi-card:hover .dashboard-kpi-icon {
+  transform: scale(1.1) rotate(-5deg);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-info-card {
+  overflow: hidden;
+}
+
+.dashboard-info-card .ant-progress-bg {
+  transition: width 0.8s ease !important;
 }
 
 /* ===== Space & Layout ===== */

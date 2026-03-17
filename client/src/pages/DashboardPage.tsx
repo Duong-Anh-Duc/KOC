@@ -1,4 +1,5 @@
-import { Col, Row, Spin } from 'antd';
+import { DashboardOutlined } from '@ant-design/icons';
+import { Col, Row, Spin, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,10 +12,12 @@ import {
 import { useDashboardOverview, useRevenueTrend } from '../hooks';
 import { useAppStore } from '../stores';
 
+const { Title, Text } = Typography;
+
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const darkMode = useAppStore((s) => s.darkMode);
-  const { data: overview, isLoading: loadingOverview, refetch: refetchOverview } = useDashboardOverview();
+  const { data: overview, isLoading: loadingOverview } = useDashboardOverview();
   const { data: trendData, isLoading: loadingTrend } = useRevenueTrend(12);
 
   if (loadingOverview) {
@@ -42,7 +45,15 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{t('menu.dashboard')}</h2>
+        <Title level={3} style={{ margin: 0 }}>
+          <DashboardOutlined style={{ marginRight: 8 }} />
+          {t('menu.dashboard')}
+        </Title>
+        {cycleSummary && (
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {t('dashboard.latestCycle')}: {cycleSummary.cycle.month}
+          </Text>
+        )}
       </div>
 
       <StatsCards overview={overview} cycleSummary={cycleSummary} />

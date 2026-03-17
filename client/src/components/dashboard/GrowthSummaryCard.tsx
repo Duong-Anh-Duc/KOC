@@ -64,7 +64,7 @@ const GrowthSummaryCard: React.FC<GrowthSummaryCardProps> = ({ growthSummary }) 
 
   return (
     <Card
-      style={{ height: '100%', borderRadius: 12 }}
+      style={{ height: '100%', borderRadius: 12, border: '2px solid #1677ff' }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <EyeOutlined />
