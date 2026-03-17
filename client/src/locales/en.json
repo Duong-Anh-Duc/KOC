@@ -103,6 +103,7 @@
     "title": "Creator Management",
     "create": "Add Creator",
     "edit": "Edit Creator",
+    "duplicate": "Duplicate KOC",
     "fullName": "Full Name",
     "fullNamePlaceholder": "Enter full name",
     "email": "Email",
@@ -204,6 +205,9 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
     "totalKOCs": "Total KOCs",
     "activeKOCs": "Active KOCs",
     "inactiveKOCs": "Inactive KOCs",

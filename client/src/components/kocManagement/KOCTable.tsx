@@ -58,7 +58,8 @@ const KOCTable: React.FC<KOCTableProps> = ({
       dataIndex: 'full_name',
       key: 'full_name',
       width: 160,
-      sorter: true,
+      sorter: (a: KOC, b: KOC) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'),
+      defaultSortOrder: 'ascend',
       ellipsis: { showTitle: false },
       render: (val: string) => (
         <Tooltip title={val} placement="topLeft">
@@ -198,7 +199,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
                   style={{ padding: '4px 8px' }}
                 />
               </Tooltip>
-              <Tooltip title="Nhân bản KOC">
+              <Tooltip title={t('koc.duplicate')}>
                 <Button
                   type="text"
                   size="small"
@@ -276,7 +277,8 @@ const KOCTable: React.FC<KOCTableProps> = ({
             }
       }
       size="small"
-      style={{ borderRadius: 8 }}
+      className="koc-table"
+      style={{ borderRadius: 12, overflow: 'hidden' }}
     />
   );
 };

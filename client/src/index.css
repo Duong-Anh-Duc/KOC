@@ -115,6 +115,30 @@ html[data-theme='dark'] .ant-table-tbody>tr:hover>td {
   background-color: rgba(237, 143, 58, 0.08) !important;
 }
 
+/* ===== Enhanced Table Global ===== */
+.ant-table-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 100%) !important;
+  border-bottom: 2px solid #e8e8e8 !important;
+  font-size: 13px;
+  color: #595959 !important;
+}
+
+html[data-theme='dark'] .ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #1f1f1f 0%, #262626 100%) !important;
+  border-bottom: 2px solid #383838 !important;
+  color: #bfbfbf !important;
+}
+
+html[data-theme='dark'] .ant-table-wrapper {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* Revenue table summary row */
 .ant-table-summary .ant-table-cell {
   font-weight: 600;
@@ -375,6 +399,74 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   font-weight: 600 !important;
 }
 
+/* ===== Dashboard Page Animations ===== */
+
+/* Welcome header */
+.dashboard-header {
+  margin-bottom: 20px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ED8F3A 0%, #f5a962 50%, #ffc655 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  animation: dashboardHeaderIn 0.6s ease both;
+}
+
+.dashboard-header-dark {
+  background: linear-gradient(135deg, #7c4a1e 0%, #a05f28 50%, #b87530 100%);
+}
+
+.dashboard-header-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+}
+
+.dashboard-header-dark .dashboard-header-circle {
+  background: rgba(255,255,255,0.06);
+}
+
+.dashboard-header-circle-1 {
+  right: -20px; top: -20px;
+  width: 120px; height: 120px;
+}
+
+.dashboard-header-circle-2 {
+  right: 60px; bottom: -30px;
+  width: 80px; height: 80px;
+}
+
+@keyframes dashboardHeaderIn {
+  from { opacity: 0; transform: translateY(-16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Stagger sections */
+.dashboard-stagger-1 { animation: dashboardFadeUp 0.5s ease 0.15s both; }
+.dashboard-stagger-2 { animation: dashboardFadeUp 0.5s ease 0.3s both; }
+.dashboard-stagger-3 { animation: dashboardFadeUp 0.5s ease 0.45s both; }
+
+@keyframes dashboardFadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Stagger individual KPI cards */
+.dashboard-stagger-1 .ant-col:nth-child(1) { animation: kpiCardIn 0.4s ease 0.2s both; }
+.dashboard-stagger-1 .ant-col:nth-child(2) { animation: kpiCardIn 0.4s ease 0.3s both; }
+.dashboard-stagger-1 .ant-col:nth-child(3) { animation: kpiCardIn 0.4s ease 0.4s both; }
+.dashboard-stagger-1 .ant-col:nth-child(4) { animation: kpiCardIn 0.4s ease 0.5s both; }
+.dashboard-stagger-1 .ant-col:nth-child(5) { animation: kpiCardIn 0.4s ease 0.55s both; }
+.dashboard-stagger-1 .ant-col:nth-child(6) { animation: kpiCardIn 0.4s ease 0.6s both; }
+.dashboard-stagger-1 .ant-col:nth-child(7) { animation: kpiCardIn 0.4s ease 0.65s both; }
+.dashboard-stagger-1 .ant-col:nth-child(8) { animation: kpiCardIn 0.4s ease 0.7s both; }
+
+@keyframes kpiCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ===== Dashboard KPI Cards ===== */
 .dashboard-kpi-card {
   overflow: hidden;
@@ -409,6 +501,63 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 
 .dashboard-info-card .ant-progress-bg {
   transition: width 0.8s ease !important;
+}
+
+/* Dashboard dark mode overrides */
+html[data-theme='dark'] .dashboard-kpi-card::before {
+  background: linear-gradient(135deg, rgba(237, 143, 58, 0) 0%, rgba(237, 143, 58, 0.06) 100%);
+}
+
+html[data-theme='dark'] .dashboard-kpi-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme='dark'] .dashboard-metric-item:hover {
+  background: rgba(237, 143, 58, 0.1);
+}
+
+/* Soften card borders in dark mode */
+html[data-theme='dark'] .dashboard-kpi-card,
+html[data-theme='dark'] .dashboard-info-card {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html[data-theme='dark'] .dashboard-kpi-card:hover,
+html[data-theme='dark'] .dashboard-info-card:hover {
+  border-color: rgba(237, 143, 58, 0.5) !important;
+}
+
+/* Dashboard page: all cards softer in dark mode */
+html[data-theme='dark'] .dashboard-page .ant-card {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-theme='dark'] .dashboard-page .ant-card:hover {
+  border-color: rgba(237, 143, 58, 0.45) !important;
+}
+
+/* Metric item hover in CycleSummaryCard */
+.dashboard-metric-item {
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.dashboard-metric-item:hover {
+  background: rgba(237, 143, 58, 0.05);
+}
+
+.dashboard-metric-item:hover span {
+  transform: scale(1.05);
+}
+
+/* Growth tag pulse for positive growth */
+.ant-tag-green .anticon-arrow-up {
+  animation: growthPulse 2s ease infinite;
+}
+
+@keyframes growthPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; transform: translateY(-2px); }
 }
 
 /* ===== Space & Layout ===== */

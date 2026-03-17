@@ -103,6 +103,7 @@
     "title": "Quản lý Creator",
     "create": "Thêm Creator",
     "edit": "Sửa Creator",
+    "duplicate": "Nhân bản KOC",
     "fullName": "Họ và tên",
     "fullNamePlaceholder": "Nhập họ và tên",
     "email": "Email",
@@ -204,6 +205,9 @@
   },
   "dashboard": {
     "title": "Tổng quan",
+    "goodMorning": "Chào buổi sáng",
+    "goodAfternoon": "Chào buổi chiều",
+    "goodEvening": "Chào buổi tối",
     "totalKOCs": "Tổng KOC",
     "activeKOCs": "KOC hoạt động",
     "inactiveKOCs": "KOC ngừng HĐ",

@@ -10,13 +10,14 @@ import {
   StatsCards,
 } from '../components/dashboard';
 import { useDashboardOverview, useRevenueTrend } from '../hooks';
-import { useAppStore } from '../stores';
+import { useAppStore, useAuthStore } from '../stores';
 
 const { Title, Text } = Typography;
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const darkMode = useAppStore((s) => s.darkMode);
+  const user = useAuthStore((s) => s.user);
   const { data: overview, isLoading: loadingOverview } = useDashboardOverview();
   const { data: trendData, isLoading: loadingTrend } = useRevenueTrend(12);
 
@@ -31,7 +32,6 @@ const DashboardPage: React.FC = () => {
   const cycleSummary = overview?.latestCycleSummary;
   const growthSummary = overview?.growthSummary || [];
 
-  // Find latest cycle's revenue growth % from trend data
   const latestTrend = trendData && trendData.length > 0 ? trendData[trendData.length - 1] : null;
   const revenueGrowth = latestTrend?.revenueGrowth ?? null;
 
@@ -42,41 +42,61 @@ const DashboardPage: React.FC = () => {
     tooltipBorder: darkMode ? '#434343' : '#f0f0f0',
   };
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? t('dashboard.goodMorning', 'Chào buổi sáng')
+    : hour < 18 ? t('dashboard.goodAfternoon', 'Chào buổi chiều')
+    : t('dashboard.goodEvening', 'Chào buổi tối');
+
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <DashboardOutlined style={{ marginRight: 8 }} />
-          {t('menu.dashboard')}
-        </Title>
-        {cycleSummary && (
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            {t('dashboard.latestCycle')}: {cycleSummary.cycle.month}
-          </Text>
-        )}
+    <div className="dashboard-page">
+      {/* Welcome Header */}
+      <div className={`dashboard-header ${darkMode ? 'dashboard-header-dark' : ''}`}>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>{greeting},</Text>
+          <Title level={3} style={{ margin: '4px 0 0', color: '#fff' }}>
+            <DashboardOutlined style={{ marginRight: 8 }} />
+            {user?.full_name || t('menu.dashboard')}
+          </Title>
+          {cycleSummary && (
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>
+              {t('dashboard.latestCycle')}: <strong>{cycleSummary.cycle.month}</strong>
+            </Text>
+          )}
+        </div>
+        <div className="dashboard-header-circle dashboard-header-circle-1" />
+        <div className="dashboard-header-circle dashboard-header-circle-2" />
       </div>
 
-      <StatsCards overview={overview} cycleSummary={cycleSummary} />
+      {/* KPI Cards with stagger */}
+      <div className="dashboard-stagger-1">
+        <StatsCards overview={overview} cycleSummary={cycleSummary} />
+      </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        {cycleSummary && (
-          <Col xs={24} xl={14}>
-            <CycleSummaryCard cycleSummary={cycleSummary} revenueGrowth={revenueGrowth} />
+      {/* Middle Row */}
+      <div className="dashboard-stagger-2">
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          {cycleSummary && (
+            <Col xs={24} xl={14}>
+              <CycleSummaryCard cycleSummary={cycleSummary} revenueGrowth={revenueGrowth} />
+            </Col>
+          )}
+          <Col xs={24} xl={cycleSummary ? 10 : 24}>
+            <GrowthSummaryCard growthSummary={growthSummary} />
           </Col>
-        )}
-        <Col xs={24} xl={cycleSummary ? 10 : 24}>
-          <GrowthSummaryCard growthSummary={growthSummary} />
-        </Col>
-      </Row>
+        </Row>
+      </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={12}>
-          <RevenueTrendChart trendData={trendData || []} loading={loadingTrend} chartColors={chartColors} />
-        </Col>
-        <Col xs={24} xl={12}>
-          <CompanyVsKocChart trendData={trendData || []} loading={loadingTrend} chartColors={chartColors} />
-        </Col>
-      </Row>
+      {/* Charts */}
+      <div className="dashboard-stagger-3">
+        <Row gutter={[16, 16]}>
+          <Col xs={24} xl={12}>
+            <RevenueTrendChart trendData={trendData || []} loading={loadingTrend} chartColors={chartColors} />
+          </Col>
+          <Col xs={24} xl={12}>
+            <CompanyVsKocChart trendData={trendData || []} loading={loadingTrend} chartColors={chartColors} />
+          </Col>
+        </Row>
+      </div>
     </div>
   );
 };
