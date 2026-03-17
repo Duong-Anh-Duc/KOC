@@ -212,7 +212,7 @@ export class EmailService {
    * Send revenue emails to all KOCs for a specific cycle month
    * Returns summary of sent/failed
    */
-  static async sendAllRevenueEmails(month: string, adminId?: string, onProgress?: (step: number, total: number, kocName: string) => void): Promise<{
+  static async sendAllRevenueEmails(month: string, adminId?: string, onProgress?: (step: number, total: number, kocName: string) => void, kocIds?: string[]): Promise<{
     sent: Array<{ kocId: string; kocName: string; email: string }>;
     failed: Array<{ kocId: string; kocName: string; email: string; error: string }>;
     skipped: Array<{ kocId: string; kocName: string; reason: string }>;
@@ -228,6 +228,7 @@ export class EmailService {
       where: { month, ...(adminId ? { admin_id: adminId } : {}) },
       include: {
         revenue_records: {
+          where: kocIds && kocIds.length > 0 ? { koc_id: { in: kocIds } } : undefined,
           include: {
             koc: true,
           },
@@ -243,10 +244,10 @@ export class EmailService {
     const exchangeRate = toNum(cycle.exchange_rate);
 
     // Compute accumulated revenue from previous PENDING records (same logic as dashboard)
-    const kocIds = cycle.revenue_records.map(r => r.koc_id);
-    const prevPendingRecords = kocIds.length > 0
+    const allKocIds = cycle.revenue_records.map(r => r.koc_id);
+    const prevPendingRecords = allKocIds.length > 0
       ? await prisma.revenueRecord.findMany({
-          where: { koc_id: { in: kocIds }, status: 'PENDING', cycle_id: { lt: cycle.id } },
+          where: { koc_id: { in: allKocIds }, status: 'PENDING', cycle_id: { lt: cycle.id } },
         })
       : [];
 

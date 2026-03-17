@@ -105,7 +105,7 @@ export class EmailController {
   static async sendRevenueEmails(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const { month } = req.body;
+      const { month, kocIds } = req.body;
 
       if (!month) {
         res.status(400).json({ success: false, message: t ? t('email.monthRequired') : 'Month is required (e.g. 01/2026)' });
@@ -121,9 +121,10 @@ export class EmailController {
       });
 
       const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const selectedKocIds = Array.isArray(kocIds) && kocIds.length > 0 ? kocIds as string[] : undefined;
 
       // Run in background
-      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, adminId).catch(err => {
+      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, adminId, selectedKocIds).catch(err => {
         ProgressService.error(taskId, err.message);
       });
     } catch (error) {
@@ -134,7 +135,7 @@ export class EmailController {
   /**
    * Background method to send revenue emails with progress
    */
-  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null, adminId?: string): Promise<void> {
+  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null, adminId?: string, kocIds?: string[]): Promise<void> {
     try {
       const results = await EmailService.sendAllRevenueEmails(month, adminId, (step, total, kocName) => {
         const percent = Math.round((step / total) * 100);
@@ -142,7 +143,7 @@ export class EmailController {
           step, total, percent,
           message: `Sending email to ${kocName} (${step}/${total})`,
         });
-      });
+      }, kocIds);
 
       // Audit log
       if (userId) {

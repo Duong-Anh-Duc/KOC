@@ -37,9 +37,9 @@ export const emailApi = {
   sendTest: (email: string) =>
     apiClient.post<ApiResponse<{ success: boolean; messageId?: string; error?: string }>>('/email/test', { email }),
 
-  /** Send revenue emails for a specific month (returns taskId for SSE progress) */
-  sendRevenueEmails: (month: string) =>
-    apiClient.post<ApiResponse<{ taskId: string }>>('/email/send-revenue', { month }),
+  /** Send revenue emails for a specific month, optionally filtered by KOC IDs */
+  sendRevenueEmails: (month: string, kocIds?: string[]) =>
+    apiClient.post<ApiResponse<{ taskId: string }>>('/email/send-revenue', { month, ...(kocIds && kocIds.length > 0 ? { kocIds } : {}) }),
 
   /** Get available cycles for email sending */
   getCycles: () =>

@@ -1,5 +1,5 @@
 import { useProgress } from '@/hooks/useProgress';
-import { SendOutlined } from '@ant-design/icons';
+import { SendOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { emailApi } from '../../api';
+import { emailApi, revenueApi } from '../../api';
 import { toastError, toastSuccess } from '../../utils';
 import { TaskProgressBar } from '../common';
 
@@ -29,6 +29,7 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedKocIds, setSelectedKocIds] = useState<string[]>([]);
 
   // Fetch available cycles
   const { data: cyclesRes } = useQuery({
@@ -40,6 +41,27 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
   });
 
   const cycles = cyclesRes?.data || [];
+
+  // Find cycleId from selected month
+  const selectedCycleId = cycles.find((c: any) => c.month === selectedMonth)?.id;
+
+  // Fetch KOCs for selected cycle
+  const { data: recordsRes } = useQuery({
+    queryKey: ['cycle-records-for-email', selectedCycleId],
+    queryFn: async () => {
+      if (!selectedCycleId) return null;
+      const res = await revenueApi.getRecordsByCycle(selectedCycleId);
+      return res.data;
+    },
+    enabled: !!selectedCycleId,
+  });
+
+  const kocOptions = (recordsRes?.data || [])
+    .filter((r: any) => r.koc)
+    .map((r: any) => ({
+      value: r.koc_id,
+      label: `${r.koc.full_name} (${r.koc.channel_name || ''})`,
+    }));
 
   // SSE Progress for sending revenue emails
   const emailProgress = useProgress((result: unknown) => {
@@ -57,9 +79,9 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
 
   // Send revenue emails mutation
   const sendRevenueMutation = useMutation({
-    mutationFn: (month: string) => {
+    mutationFn: ({ month, kocIds }: { month: string; kocIds?: string[] }) => {
       onSendingChange?.(true);
-      return emailApi.sendRevenueEmails(month);
+      return emailApi.sendRevenueEmails(month, kocIds);
     },
     onSuccess: (res) => {
       const taskId = res.data?.data?.taskId;
@@ -74,6 +96,22 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
       toastError('emailRevenueError', t('email.revenueSentFailed'));
     },
   });
+
+  const handleSend = (month: string, kocIds?: string[]) => {
+    const kocCount = kocIds && kocIds.length > 0 ? kocIds.length : undefined;
+    const confirmContent = kocCount
+      ? t('email.confirmSendSelectedDesc', { month, count: kocCount })
+      : t('email.confirmSendDesc', { month });
+
+    Modal.confirm({
+      title: t('email.confirmSend'),
+      content: confirmContent,
+      okText: t('email.sendNow'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: () => sendRevenueMutation.mutate({ month, kocIds }),
+    });
+  };
 
   return (
     <Card
@@ -95,17 +133,43 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
       <Text strong style={{ display: 'block', marginBottom: 8 }}>
         {t('email.selectCycle')}
       </Text>
-      <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
-        <Select
-          placeholder={t('email.selectCyclePlaceholder')}
-          value={selectedMonth || undefined}
-          onChange={setSelectedMonth}
-          style={{ flex: 1 }}
-          options={cycles.map((c: any) => ({
-            value: c.month,
-            label: `${c.month} - ${c.status} (${c.recordCount} ${t('email.records')})`,
-          }))}
-        />
+      <Select
+        placeholder={t('email.selectCyclePlaceholder')}
+        value={selectedMonth || undefined}
+        onChange={(val) => {
+          setSelectedMonth(val);
+          setSelectedKocIds([]);
+        }}
+        style={{ width: '100%', marginBottom: 12 }}
+        options={cycles.map((c: any) => ({
+          value: c.month,
+          label: `${c.month} - ${c.status} (${c.recordCount} ${t('email.records')})`,
+        }))}
+      />
+
+      {selectedMonth && kocOptions.length > 0 && (
+        <>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>
+            <UserOutlined style={{ marginRight: 4 }} />
+            {t('email.selectKoc', 'Chọn KOC (bỏ trống = gửi tất cả)')}
+          </Text>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder={t('email.selectKocPlaceholder', 'Tất cả KOC trong cycle')}
+            value={selectedKocIds}
+            onChange={setSelectedKocIds}
+            style={{ width: '100%', marginBottom: 12 }}
+            options={kocOptions}
+            maxTagCount="responsive"
+            filterOption={(input, option) =>
+              (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+          />
+        </>
+      )}
+
+      <Space style={{ marginBottom: 16 }}>
         <Button
           type="primary"
           danger
@@ -113,21 +177,16 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
           loading={sendRevenueMutation.isPending || emailProgress.state.active}
           onClick={() => {
             if (selectedMonth) {
-              Modal.confirm({
-                title: t('email.confirmSend'),
-                content: t('email.confirmSendDesc', { month: selectedMonth }),
-                okText: t('email.sendNow'),
-                cancelText: t('common.cancel'),
-                okButtonProps: { danger: true },
-                onOk: () => sendRevenueMutation.mutate(selectedMonth),
-              });
+              handleSend(selectedMonth, selectedKocIds.length > 0 ? selectedKocIds : undefined);
             }
           }}
           disabled={!selectedMonth}
         >
-          {t('email.sendAll')}
+          {selectedKocIds.length > 0
+            ? t('email.sendSelected', `Gửi {{count}} KOC`, { count: selectedKocIds.length })
+            : t('email.sendAll')}
         </Button>
-      </Space.Compact>
+      </Space>
 
       {/* SSE Progress Bar for email sending */}
       <TaskProgressBar state={emailProgress.state} onDismiss={emailProgress.reset} />
@@ -169,16 +228,7 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
                   size="small"
                   icon={<SendOutlined />}
                   loading={sendRevenueMutation.isPending}
-                  onClick={() => {
-                    Modal.confirm({
-                      title: t('email.confirmSend'),
-                      content: t('email.confirmSendDesc', { month: record.month }),
-                      okText: t('email.sendNow'),
-                      cancelText: t('common.cancel'),
-                      okButtonProps: { danger: true },
-                      onOk: () => sendRevenueMutation.mutate(record.month),
-                    });
-                  }}
+                  onClick={() => handleSend(record.month)}
                 >
                   {t('email.send')}
                 </Button>
