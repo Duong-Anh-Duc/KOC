@@ -775,7 +775,7 @@
     "smtpHostPlaceholder": "smtp.gmail.com",
     "smtpUserPlaceholder": "your-email@gmail.com",
     "smtpPassPlaceholder": "App Password (16 ký tự không có dấu cách)",
-    "smtpPassHint": "Dùng App Password của Google, không phải mật khẩu Gmail thường. Tạo tại: myaccount.google.com → Bảo mật → Xác mihập 2 bước → App Passwords",
+    "smtpPassHint": "Dùng App Password của Google, không phải mật khẩu Gmail thường. Tạo tại: myaccount.google.com → Bảo mật → Xác minh 2 bước → App Passwords",
     "passSaved": "Đã lưu",
     "passKeepCurrent": "Để trống = giữ mật khẩu hiện tại",
     "fromNamePlaceholder": "EBE Revenue Bot",

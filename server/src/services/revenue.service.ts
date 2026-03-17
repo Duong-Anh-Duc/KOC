@@ -371,9 +371,9 @@ export class RevenueService {
       throw new ApiError(400, 'revenue.belowThreshold');
     }
 
-    // Approve ALL pending records for this KOC (current + previous cycles)
+    // Approve pending records for this KOC in current + previous cycles only
     await (prisma as any).revenueRecord.updateMany({
-      where: { koc_id: record.koc_id, status: 'PENDING' },
+      where: { koc_id: record.koc_id, status: 'PENDING', cycle_id: { lte: record.cycle_id } },
       data: { status: 'APPROVED', paid_in_cycle_id: record.cycle_id },
     });
 

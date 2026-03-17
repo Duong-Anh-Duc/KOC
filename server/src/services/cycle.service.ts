@@ -234,10 +234,10 @@ export class CycleService {
     // For each eligible KOC: approve EVERY pending record across all cycles
     for (const [kocId, status] of Object.entries(paymentStatus)) {
       if (!status.belowThreshold) {
-        // Approve ALL pending records for this KOC (previous + current cycle)
+        // Approve pending records for this KOC (previous + current cycle only)
         // paid_in_cycle_id = id means "payment was made in this cycle"
         await db.revenueRecord.updateMany({
-          where: { koc_id: kocId, status: 'PENDING' },
+          where: { koc_id: kocId, status: 'PENDING', cycle_id: { lte: id } },
           data: { status: 'APPROVED', paid_in_cycle_id: id },
         });
       }
