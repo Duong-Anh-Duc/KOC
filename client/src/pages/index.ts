@@ -6,6 +6,7 @@ export { default as KOCManagementPage } from './KOCManagementPage';
 export { default as LoginPage } from './LoginPage';
 export { default as MyRevenuePage } from './MyRevenuePage';
 export { default as RevenueControlPage } from './RevenueControlPage';
+export { default as SendRevenueEmailPage } from './SendRevenueEmailPage';
 export { default as StatsPage } from './StatsPage';
 export { default as YouTubeScraperPage } from './YouTubeScraperPage';
 

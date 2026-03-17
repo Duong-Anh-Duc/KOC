@@ -108,7 +108,7 @@ const EmailSendResultModal: React.FC<EmailSendResultModalProps> = ({ open, onClo
                 style={{ marginTop: 8 }}
                 columns={[
                   { title: t('email.kocName'), dataIndex: 'kocName' },
-                  { title: t('email.reason'), dataIndex: 'reason' },
+                  { title: t('email.reason'), dataIndex: 'reason', render: (val: string) => t(val, val) },
                 ]}
               />
             </>

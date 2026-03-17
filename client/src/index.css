@@ -9,7 +9,25 @@ body {
   min-height: 100vh;
 }
 
-/* ===== Custom Spin Loading (reduce background dimming) ===== */
+/* ===== Custom Spin Loading (full-screen overlay) ===== */
+.stats-page-spin > .ant-spin-spinning {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  max-height: none !important;
+  z-index: 1000;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+html[data-theme='dark'] .stats-page-spin > .ant-spin-spinning {
+  background: rgba(0, 0, 0, 0.75);
+}
+
 .stats-page-spin .ant-spin-container::after {
   background: rgba(255, 255, 255, 0.75) !important;
 }
@@ -470,7 +488,8 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 }
 .page-transition.page-visible {
   opacity: 1;
-  transform: translateY(0);
+  /* Remove transform after animation so position:fixed children work correctly */
+  transform: none;
 }
 
 /* ----- Sidebar menu items stagger ----- */

@@ -12,6 +12,7 @@ import {
   LoginPage,
   MyRevenuePage,
   RevenueControlPage,
+  SendRevenueEmailPage,
   StatsPage,
   YouTubeScraperPage,
 } from './pages';
@@ -86,6 +87,14 @@ const App: React.FC = () => {
               element={
                 <AdminRoute>
                   <EmailSettingsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="send-revenue-email"
+              element={
+                <AdminRoute>
+                  <SendRevenueEmailPage />
                 </AdminRoute>
               }
             />

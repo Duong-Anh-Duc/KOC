@@ -5,6 +5,7 @@ import {
     DollarOutlined,
     LineChartOutlined,
     MailOutlined,
+    SendOutlined,
     TeamOutlined,
     YoutubeOutlined
 } from '@ant-design/icons';
@@ -69,6 +70,11 @@ const Sidebar: React.FC = () => {
             key: '/email-settings',
             icon: <MailOutlined />,
             label: t('menu.emailSettings'),
+          },
+          {
+            key: '/send-revenue-email',
+            icon: <SendOutlined />,
+            label: t('menu.sendRevenueEmail'),
           },
           {
             key: '/audit',

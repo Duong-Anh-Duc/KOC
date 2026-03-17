@@ -272,7 +272,7 @@ export class EmailService {
         results.skipped.push({
           kocId: koc.id,
           kocName: koc.full_name,
-          reason: 'Không có email',
+          reason: 'email.noEmailAddress',
         });
         continue;
       }

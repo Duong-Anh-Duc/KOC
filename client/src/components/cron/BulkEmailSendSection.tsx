@@ -1,13 +1,14 @@
 import { useProgress } from '@/hooks/useProgress';
-import { SendOutlined, UserOutlined } from '@ant-design/icons';
+import { MailOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Alert,
   Button,
   Card,
+  Col,
+  Divider,
   Modal,
+  Row,
   Select,
-  Space,
   Table,
   Tag,
   Typography
@@ -18,7 +19,7 @@ import { emailApi, revenueApi } from '../../api';
 import { toastError, toastSuccess } from '../../utils';
 import { TaskProgressBar } from '../common';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 interface BulkEmailSendSectionProps {
   onSendingChange?: (isSending: boolean) => void;
@@ -43,7 +44,8 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
   const cycles = cyclesRes?.data || [];
 
   // Find cycleId from selected month
-  const selectedCycleId = cycles.find((c: any) => c.month === selectedMonth)?.id;
+  const selectedCycle = cycles.find((c: any) => c.month === selectedMonth);
+  const selectedCycleId = selectedCycle?.id;
 
   // Fetch KOCs for selected cycle
   const { data: recordsRes } = useQuery({
@@ -113,129 +115,158 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
     });
   };
 
+  const isSending = sendRevenueMutation.isPending || emailProgress.state.active;
+
   return (
-    <Card
-      title={
-        <Space>
-          <SendOutlined />
+    <Card style={{ marginBottom: 16 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <Title level={5} style={{ margin: 0 }}>
+          <MailOutlined style={{ marginRight: 8 }} />
           {t('email.sendRevenueTitle')}
-        </Space>
-      }
-      style={{ marginBottom: 16 }}
-    >
-      <Alert
-        type="info"
-        showIcon
-        message={t('email.sendRevenueDesc')}
-        style={{ marginBottom: 16 }}
-      />
+        </Title>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {t('email.sendRevenueDesc')}
+        </Text>
+      </div>
 
-      <Text strong style={{ display: 'block', marginBottom: 8 }}>
-        {t('email.selectCycle')}
-      </Text>
-      <Select
-        placeholder={t('email.selectCyclePlaceholder')}
-        value={selectedMonth || undefined}
-        onChange={(val) => {
-          setSelectedMonth(val);
-          setSelectedKocIds([]);
-        }}
-        style={{ width: '100%', marginBottom: 12 }}
-        options={cycles.map((c: any) => ({
-          value: c.month,
-          label: `${c.month} - ${c.status} (${c.recordCount} ${t('email.records')})`,
-        }))}
-      />
+      {/* Send Form */}
+      <div style={{
+        background: '#fafafa',
+        borderRadius: 8,
+        padding: 20,
+        marginBottom: 20,
+      }}>
+        <Row gutter={[16, 16]}>
+          {/* Cycle Selection */}
+          <Col xs={24} md={selectedMonth ? 12 : 24}>
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
+              {t('email.selectCycle')}
+            </Text>
+            <Select
+              placeholder={t('email.selectCyclePlaceholder')}
+              value={selectedMonth || undefined}
+              onChange={(val) => {
+                setSelectedMonth(val);
+                setSelectedKocIds([]);
+              }}
+              style={{ width: '100%' }}
+              options={cycles.map((c: any) => ({
+                value: c.month,
+                label: `${c.month} - ${c.status} (${c.recordCount} ${t('email.records')})`,
+              }))}
+            />
+          </Col>
 
-      {selectedMonth && kocOptions.length > 0 && (
-        <>
-          <Text strong style={{ display: 'block', marginBottom: 8 }}>
-            <UserOutlined style={{ marginRight: 4 }} />
-            {t('email.selectKoc', 'Chọn KOC (bỏ trống = gửi tất cả)')}
-          </Text>
-          <Select
-            mode="multiple"
-            allowClear
-            placeholder={t('email.selectKocPlaceholder', 'Tất cả KOC trong cycle')}
-            value={selectedKocIds}
-            onChange={setSelectedKocIds}
-            style={{ width: '100%', marginBottom: 12 }}
-            options={kocOptions}
-            maxTagCount="responsive"
-            filterOption={(input, option) =>
-              (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-            }
-          />
-        </>
-      )}
+          {/* KOC Selection */}
+          {selectedMonth && kocOptions.length > 0 && (
+            <Col xs={24} md={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
+                <TeamOutlined style={{ marginRight: 4 }} />
+                {t('email.selectKoc')}
+              </Text>
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder={t('email.selectKocPlaceholder')}
+                value={selectedKocIds}
+                onChange={setSelectedKocIds}
+                style={{ width: '100%' }}
+                options={kocOptions}
+                maxTagCount="responsive"
+                filterOption={(input, option) =>
+                  (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Col>
+          )}
+        </Row>
 
-      <Space style={{ marginBottom: 16 }}>
-        <Button
-          type="primary"
-          danger
-          icon={<SendOutlined />}
-          loading={sendRevenueMutation.isPending || emailProgress.state.active}
-          onClick={() => {
-            if (selectedMonth) {
-              handleSend(selectedMonth, selectedKocIds.length > 0 ? selectedKocIds : undefined);
-            }
-          }}
-          disabled={!selectedMonth}
-        >
-          {selectedKocIds.length > 0
-            ? t('email.sendSelected', `Gửi {{count}} KOC`, { count: selectedKocIds.length })
-            : t('email.sendAll')}
-        </Button>
-      </Space>
+        {/* Send Button */}
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Button
+            type="primary"
+            danger
+            icon={<SendOutlined />}
+            loading={isSending}
+            onClick={() => {
+              if (selectedMonth) {
+                handleSend(selectedMonth, selectedKocIds.length > 0 ? selectedKocIds : undefined);
+              }
+            }}
+            disabled={!selectedMonth}
+            size="middle"
+          >
+            {selectedKocIds.length > 0
+              ? t('email.sendSelected', { count: selectedKocIds.length })
+              : t('email.sendAll')}
+          </Button>
+          {selectedMonth && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {selectedKocIds.length > 0
+                ? `${selectedKocIds.length} / ${kocOptions.length} ${t('common.kocs')}`
+                : `${selectedCycle?.recordCount || kocOptions.length} ${t('common.kocs')}`}
+            </Text>
+          )}
+        </div>
+      </div>
 
-      {/* SSE Progress Bar for email sending */}
+      {/* Progress */}
       <TaskProgressBar state={emailProgress.state} onDismiss={emailProgress.reset} />
 
-      {/* Cycle records preview */}
+      {/* Cycles Table */}
       {cycles.length > 0 && (
-        <Table
-          dataSource={cycles}
-          rowKey="id"
-          size="small"
-          pagination={false}
-          columns={[
-            {
-              title: t('email.month'),
-              dataIndex: 'month',
-              width: 100,
-            },
-            {
-              title: t('common.status'),
-              dataIndex: 'status',
-              width: 100,
-              render: (status: string) => {
-                const color = status === 'PAYMENT_COMPLETED' ? 'green' : status === 'LOCKED' ? 'orange' : 'blue';
-                return <Tag color={color}>{t(`status.${status}`, status)}</Tag>;
+        <>
+          <Divider style={{ margin: '16px 0 12px' }} />
+          <Text strong style={{ display: 'block', marginBottom: 10, fontSize: 13 }}>
+            {t('email.cycleList', 'Danh sách chu kỳ')}
+          </Text>
+          <Table
+            dataSource={cycles}
+            rowKey="id"
+            size="small"
+            pagination={false}
+            columns={[
+              {
+                title: t('email.month'),
+                dataIndex: 'month',
+                width: 100,
               },
-            },
-            {
-              title: t('email.records'),
-              dataIndex: 'recordCount',
-              width: 80,
-              align: 'center' as const,
-            },
-            {
-              title: t('common.actions'),
-              width: 100,
-              render: (_: any, record: any) => (
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<SendOutlined />}
-                  loading={sendRevenueMutation.isPending}
-                  onClick={() => handleSend(record.month)}
-                >
-                  {t('email.send')}
-                </Button>
-              ),
-            },
-          ]}
-        />
+              {
+                title: t('common.status'),
+                dataIndex: 'status',
+                width: 110,
+                render: (status: string) => {
+                  const color = status === 'PAYMENT_COMPLETED' ? 'green' : status === 'LOCKED' ? 'orange' : 'blue';
+                  return <Tag color={color}>{t(`status.${status}`, status)}</Tag>;
+                },
+              },
+              {
+                title: t('email.records'),
+                dataIndex: 'recordCount',
+                width: 80,
+                align: 'center' as const,
+              },
+              {
+                title: t('common.actions'),
+                width: 120,
+                align: 'center' as const,
+                render: (_: any, record: any) => (
+                  <Button
+                    type="primary"
+                    ghost
+                    size="small"
+                    icon={<SendOutlined />}
+                    loading={isSending}
+                    onClick={() => handleSend(record.month)}
+                  >
+                    {t('email.send')}
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        </>
       )}
     </Card>
   );

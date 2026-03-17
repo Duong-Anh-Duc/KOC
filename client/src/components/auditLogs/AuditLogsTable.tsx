@@ -1,4 +1,5 @@
-import { Button, Table, Tag } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
+import { Button, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -100,9 +101,14 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
       width: 100,
       align: 'center',
       render: (_: unknown, record: AuditLog) => (
-        <Button type="link" size="small" onClick={() => onViewDetails(record)}>
-          {t('common.viewDetails')}
-        </Button>
+        <Tooltip title={t('common.viewDetails')}>
+          <Button
+            type="text"
+            size="small"
+            icon={<EyeOutlined style={{ fontSize: 16, color: '#1677ff' }} />}
+            onClick={() => onViewDetails(record)}
+          />
+        </Tooltip>
       ),
     },
   ];

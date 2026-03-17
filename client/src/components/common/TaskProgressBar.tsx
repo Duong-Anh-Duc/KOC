@@ -2,6 +2,7 @@ import type { ProgressState } from '@/hooks/useProgress';
 import { CloseOutlined } from '@ant-design/icons';
 import { Button, Progress, Typography } from 'antd';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
@@ -27,9 +28,9 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
     ? (state.error.startsWith('progress.') ? t(state.error) : state.error)
     : '';
 
-  // --- Active: full-page loading overlay ---
+  // --- Active: full-page loading overlay (portal to body to escape transform containers) ---
   if (state.active) {
-    return (
+    return createPortal(
       <div
         style={{
           position: 'fixed',
@@ -84,7 +85,8 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
             </Text>
           )}
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 

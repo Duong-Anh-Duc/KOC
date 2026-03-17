@@ -337,7 +337,12 @@ export class GemLoginService {
         });
         if (r.ok) {
           const j = await r.json() as any;
-          if (j?.Browser) return `http://${h}:${port}`;
+          if (j?.webSocketDebuggerUrl) {
+            return `http://${h}:${port}`;
+          }
+          if (j?.Browser) {
+            logger.warn(`[GemLogin] Port ${port} has /json/version (Browser: ${j.Browser}) but no webSocketDebuggerUrl — skipping`);
+          }
         }
       } catch { /* not CDP */ }
       return null;

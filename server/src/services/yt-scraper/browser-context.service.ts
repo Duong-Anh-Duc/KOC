@@ -351,8 +351,20 @@ export async function getContext(_headless: boolean = true, adminId?: string): P
         if (GemLoginService.getStatus().isRunning) {
           logger.warn(`[CDP] Connection failed at ${cdpUrl} — trying GemLogin reconnect...`);
           const newCdpUrl = await GemLoginService.reconnect();
+          if (!newCdpUrl) throw new Error('Reconnect returned empty CDP URL');
           const { chromium: pw2 } = require('playwright');
-          const browser2 = await pw2.connectOverCDP(newCdpUrl, { timeout: 15000 });
+          // Retry connectOverCDP up to 3 times — browser may need time to expose WebSocket
+          let browser2: any;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              browser2 = await pw2.connectOverCDP(newCdpUrl, { timeout: 15000 });
+              break;
+            } catch (retryErr: any) {
+              logger.warn(`[CDP] connectOverCDP attempt ${attempt}/3 failed: ${retryErr.message}`);
+              if (attempt === 3) throw retryErr;
+              await new Promise(r => setTimeout(r, 2000));
+            }
+          }
           const contexts2 = browser2.contexts();
           const context2: BrowserContext = contexts2.length > 0 ? contexts2[0] : await browser2.newContext();
           context2.on('close', () => { contexts.delete(key); stopKeepAlive(adminId); });
