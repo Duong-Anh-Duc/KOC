@@ -5,6 +5,7 @@ import { config } from '../config';
 import prisma from '../config/database';
 import logger from '../middlewares/logger.middleware';
 import { buildRevenueEmailHtml, RevenueEmailData } from './email-templates';
+import { RevenueService } from './revenue.service';
 
 // ============================================================
 // Types
@@ -241,6 +242,22 @@ export class EmailService {
 
     const exchangeRate = toNum(cycle.exchange_rate);
 
+    // Compute accumulated revenue from previous PENDING records (same logic as dashboard)
+    const kocIds = cycle.revenue_records.map(r => r.koc_id);
+    const prevPendingRecords = kocIds.length > 0
+      ? await prisma.revenueRecord.findMany({
+          where: { koc_id: { in: kocIds }, status: 'PENDING', cycle_id: { lt: cycle.id } },
+        })
+      : [];
+
+    // Sum previous PENDING revenue per KOC
+    const prevOriginalByKoc = new Map<string, number>();
+    const prevUsTaxByKoc = new Map<string, number>();
+    for (const r of prevPendingRecords) {
+      prevOriginalByKoc.set(r.koc_id, (prevOriginalByKoc.get(r.koc_id) ?? 0) + Number(r.original_revenue_usd));
+      prevUsTaxByKoc.set(r.koc_id, (prevUsTaxByKoc.get(r.koc_id) ?? 0) + Number(r.us_tax_deduction));
+    }
+
     for (let i = 0; i < cycle.revenue_records.length; i++) {
       const record = cycle.revenue_records[i];
       const koc = record.koc;
@@ -259,17 +276,31 @@ export class EmailService {
         continue;
       }
 
+      // Use accumulated revenue (previous PENDING months + current) for email
+      const prevOrig = prevOriginalByKoc.get(koc.id) ?? 0;
+      const prevTax = prevUsTaxByKoc.get(koc.id) ?? 0;
+      const round2 = (v: number) => Math.round(v * 100) / 100;
+      const accRevenue = round2(prevOrig + toNum(record.original_revenue_usd));
+      const accUsTax = round2(prevTax + toNum(record.us_tax_deduction));
+
+      const accCalc = RevenueService.calculate({
+        originalRevenueUsd: accRevenue,
+        usTaxDeduction: accUsTax,
+        baseRate: toNum(koc.base_rate),
+        exchangeRate,
+      });
+
       const emailData: RevenueEmailData = {
         kocName: koc.full_name,
         channelName: koc.channel_name,
         month,
-        originalRevenue: toNum(record.original_revenue_usd),
-        usTaxDeduction: toNum(record.us_tax_deduction),
-        bankFee: toNum(record.bank_fee),
-        netRevenue: toNum(record.net_revenue),
-        companyShare: toNum(record.company_share),
-        kocReceiveUsd: toNum(record.koc_receive_usd),
-        kocReceiveVnd: toNum(record.koc_receive_vnd),
+        originalRevenue: accRevenue,
+        usTaxDeduction: accCalc.us_tax_deduction,
+        bankFee: accCalc.bank_fee,
+        netRevenue: accCalc.net_revenue,
+        companyShare: accCalc.company_share,
+        kocReceiveUsd: accCalc.koc_receive_usd,
+        kocReceiveVnd: accCalc.koc_receive_vnd,
         exchangeRate,
         baseRate: toNum(koc.base_rate),
         status: record.status,
