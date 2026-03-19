@@ -85,6 +85,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       width: 180,
       fixed: 'right',
       align: 'center',
+      className: 'actions-col',
       render: (_: unknown, record: RevenueCycle) => (
         <Space size="small" onClick={(e) => e.stopPropagation()}>
           <Tooltip title={t('revenue.viewRecords')}>
@@ -214,7 +215,11 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
         locale={getTableLocale(t)}
         scroll={{ x: 800 }}
         onRow={(record) => ({
-          onClick: () => onCycleClick(record),
+          onClick: (e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('.actions-col')) return;
+            onCycleClick(record);
+          },
           style: { cursor: 'pointer' },
         })}
         pagination={{
