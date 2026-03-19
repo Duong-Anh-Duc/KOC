@@ -18,6 +18,7 @@ interface RevenueTableProps {
   loading?: boolean;
   cycleLocked?: boolean;
   onApprove?: (id: string) => void;
+  onUnapprove?: (id: string) => void;
   onDelete?: (id: string) => void;
   onDeleteMany?: (ids: string[]) => void;
   onEdit?: (record: RevenueRecord) => void;
@@ -42,6 +43,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   loading,
   cycleLocked,
   onApprove,
+  onUnapprove,
   onDelete,
   onDeleteMany,
   onEdit,
@@ -73,6 +75,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
     t,
     cycleLocked,
     onApprove,
+    onUnapprove,
     onDelete,
     onEdit,
     isAdmin,

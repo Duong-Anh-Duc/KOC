@@ -255,10 +255,27 @@ export const useApproveRecord = () => {
     mutationFn: (id: string) => revenueApi.approveRecord(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['payment-status'] });
       toastSuccess('revenueApproveSuccess');
     },
     onError: () => {
       toastError('revenueApproveError');
+    },
+  });
+};
+
+export const useUnapproveRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => revenueApi.unapproveRecord(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [RECORDS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['payment-status'] });
+      toastSuccess('revenueUnapproveSuccess');
+    },
+    onError: () => {
+      toastError('revenueUnapproveError');
     },
   });
 };

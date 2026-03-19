@@ -271,6 +271,35 @@ export class RevenueController {
   }
 
   /**
+   * PATCH /api/revenue/records/:id/unapprove
+   */
+  static async unapproveRecord(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const record = await RevenueService.unapproveRecord(req.params.id as string);
+
+      if (req.user) {
+        await AuditLogService.log(
+          req.user.userId,
+          AUDIT_ACTIONS.UNAPPROVE_REVENUE_RECORD,
+          ENTITIES.REVENUE_RECORD,
+          record.id,
+          { status: 'APPROVED' },
+          { status: 'PENDING' }
+        );
+      }
+
+      const t = (req as any).t;
+      res.status(200).json({
+        success: true,
+        message: t ? t('revenue.recordUnapproved') : 'Revenue record unapproved',
+        data: record,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /api/revenue/calculate (preview calculation without saving)
    */
   static async previewCalculation(req: Request, res: Response, next: NextFunction): Promise<void> {

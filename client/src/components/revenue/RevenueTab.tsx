@@ -24,6 +24,7 @@ interface RevenueTabProps {
   // Actions
   onEditRecord: (record: RevenueRecord) => void;
   onApprove: (id: string) => void;
+  onUnapprove: (id: string) => void;
   onDeleteRecord: (id: string) => void;
   onDeleteManyRecords: (ids: string[]) => void;
   onScrapeRevenue: (cycleId: number, kocIds?: string[]) => void;
@@ -63,6 +64,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   isAdmin,
   onEditRecord,
   onApprove,
+  onUnapprove,
   onDeleteRecord,
   onDeleteManyRecords,
   onScrapeRevenue,
@@ -177,6 +179,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
           isAdmin={isAdmin}
           onEdit={onEditRecord}
           onApprove={onApprove}
+          onUnapprove={onUnapprove}
           onDelete={onDeleteRecord}
           onDeleteMany={onDeleteManyRecords}
           scrapeResults={scrapeResults}

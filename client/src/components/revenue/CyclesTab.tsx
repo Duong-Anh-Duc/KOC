@@ -86,7 +86,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       fixed: 'right',
       align: 'center',
       render: (_: unknown, record: RevenueCycle) => (
-        <Space size="small">
+        <Space size="small" onClick={(e) => e.stopPropagation()}>
           <Tooltip title={t('revenue.viewRecords')}>
             <Button
               type="link"

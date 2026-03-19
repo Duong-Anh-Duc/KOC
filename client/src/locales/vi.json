@@ -156,6 +156,7 @@
     "kocReceiveVnd": "KOC nhận (VND)",
     "total": "Tổng cộng",
     "approve": "Duyệt",
+    "unapprove": "Hủy duyệt",
     "approved": "Đã duyệt",
     "status": "Trạng thái",
     "pending": "Chờ duyệt",
@@ -420,6 +421,7 @@
   "confirm": {
     "delete": "Bạn có chắc chắn muốn xoá?",
     "approve": "Bạn có chắc chắn muốn duyệt bản ghi này?",
+    "unapprove": "Bạn có chắc chắn muốn hủy duyệt bản ghi này?",
     "lockCycle": "Khoá chu kỳ này? Bản ghi sẽ không thể chỉnh sửa sau khi khoá.",
     "reopenCycle": "Mở lại chu kỳ này? Trạng thái sẽ chuyển về Mở.",
     "completeCycle": "Hoàn thành chu kỳ? Thao tác này không thể hoàn tác."
@@ -491,7 +493,9 @@
     "revenueDeleteSuccess": "Xóa bản ghi doanh thu thành công!",
     "revenueDeleteError": "Xóa bản ghi doanh thu thất bại",
     "revenueApproveSuccess": "Duyệt bản ghi thành công!",
-    "revenueApproveError": "Duyệt bản ghi thất bại"
+    "revenueApproveError": "Duyệt bản ghi thất bại",
+    "revenueUnapproveSuccess": "Hủy duyệt bản ghi thành công!",
+    "revenueUnapproveError": "Hủy duyệt bản ghi thất bại"
   },
   "ytScraper": {
     "title": "YouTube Analytics Scraper",

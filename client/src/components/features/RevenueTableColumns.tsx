@@ -20,6 +20,7 @@ export interface RevenueColumnsParams {
   t: TFunction;
   cycleLocked?: boolean;
   onApprove?: (id: string) => void;
+  onUnapprove?: (id: string) => void;
   onDelete?: (id: string) => void;
   onEdit?: (record: RevenueRecord) => void;
   isAdmin?: boolean;
@@ -34,6 +35,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
     t,
     cycleLocked,
     onApprove,
+    onUnapprove,
     onDelete,
     onEdit,
     isAdmin,
@@ -329,6 +331,23 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               </Tooltip>
             );
           })()}
+          {isAdmin && record.status === 'APPROVED' && onUnapprove && (
+            <Popconfirm
+              title={t('confirm.unapprove')}
+              onConfirm={() => onUnapprove(record.id)}
+              okText={t('common.yes')}
+              cancelText={t('common.no')}
+            >
+              <Tooltip title={t('revenue.unapprove')}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+                  style={{ padding: '4px 8px' }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
           {isAdmin && !cycleLocked && onDelete && (
             <Popconfirm
               title={t('confirm.delete')}

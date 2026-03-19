@@ -200,12 +200,6 @@ const LoginPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: 'center', marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {t('auth.demoAccount')}: admin@koc-scraper.com / Admin@Koc2026!
-          </Text>
-        </div>
       </Card>
     </div>
   );

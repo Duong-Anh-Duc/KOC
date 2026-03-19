@@ -26,5 +26,6 @@ router.put('/records/:id', validate(updateRevenueRecordSchema), RevenueControlle
 router.delete('/records/bulk', adminOnly, RevenueController.bulkDeleteRecords);
 router.delete('/records/:id', adminOnly, RevenueController.deleteRecord);
 router.patch('/records/:id/approve', adminOnly, RevenueController.approveRecord);
+router.patch('/records/:id/unapprove', adminOnly, RevenueController.unapproveRecord);
 
 export default router;

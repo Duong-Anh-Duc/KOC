@@ -156,6 +156,7 @@
     "kocReceiveVnd": "KOC Receive (VND)",
     "total": "Total",
     "approve": "Approve",
+    "unapprove": "Unapprove",
     "approved": "Approved",
     "status": "Status",
     "pending": "Pending",
@@ -420,6 +421,7 @@
   "confirm": {
     "delete": "Are you sure you want to delete?",
     "approve": "Are you sure you want to approve this record?",
+    "unapprove": "Are you sure you want to unapprove this record?",
     "lockCycle": "Lock this cycle? Records cannot be edited after locking.",
     "reopenCycle": "Reopen this cycle? Status will change back to Open.",
     "completeCycle": "Complete this cycle? This action is irreversible."
@@ -491,7 +493,9 @@
     "revenueDeleteSuccess": "Revenue record deleted successfully!",
     "revenueDeleteError": "Failed to delete revenue record",
     "revenueApproveSuccess": "Revenue record approved successfully!",
-    "revenueApproveError": "Failed to approve revenue record"
+    "revenueApproveError": "Failed to approve revenue record",
+    "revenueUnapproveSuccess": "Revenue record unapproved successfully!",
+    "revenueUnapproveError": "Failed to unapprove revenue record"
   },
   "ytScraper": {
     "title": "YouTube Analytics Scraper",

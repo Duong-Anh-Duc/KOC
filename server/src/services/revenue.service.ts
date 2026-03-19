@@ -382,6 +382,26 @@ export class RevenueService {
   }
 
   /**
+   * Unapprove an APPROVED record back to PENDING.
+   * Clears paid_in_cycle_id so accumulation logic picks it up again.
+   */
+  static async unapproveRecord(recordId: string) {
+    const record = await prisma.revenueRecord.findUnique({
+      where: { id: recordId },
+      include: { cycle: true },
+    });
+    if (!record) throw new ApiError(404, 'revenue.recordNotFound');
+    if (record.status !== 'APPROVED') throw new ApiError(400, 'revenue.notApproved');
+
+    const updated = await prisma.revenueRecord.update({
+      where: { id: recordId },
+      data: { status: 'PENDING', paid_in_cycle_id: null },
+    });
+
+    return updated;
+  }
+
+  /**
    * Get payment status for each record in a cycle.
    * Uses per-KOC min_payment threshold. Accumulates original_revenue_usd across months.
    * When a cycle is PAYMENT_COMPLETED, records in that cycle are considered paid → reset accumulation.

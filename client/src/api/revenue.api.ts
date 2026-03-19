@@ -85,6 +85,9 @@ export const revenueApi = {
   approveRecord: (id: string) =>
     apiClient.patch<ApiResponse<RevenueRecord>>(`/revenue/records/${id}/approve`),
 
+  unapproveRecord: (id: string) =>
+    apiClient.patch<ApiResponse<RevenueRecord>>(`/revenue/records/${id}/unapprove`),
+
   previewCalculation: (data: {
     original_revenue_usd: number;
     us_tax_deduction: number;

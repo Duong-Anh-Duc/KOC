@@ -18,6 +18,7 @@ import {
     useActiveKOCs,
     useAddKocsToCycle,
     useApproveRecord,
+    useUnapproveRecord,
     useCompleteCycle,
     useCreateCycle,
     useCreateRevenueRecord,
@@ -73,6 +74,7 @@ const RevenueControlPage: React.FC = () => {
   const deleteRecordMutation = useDeleteRevenueRecord();
   const deleteManyMutation = useDeleteManyRecords();
   const approveMutation = useApproveRecord();
+  const unapproveMutation = useUnapproveRecord();
   const fetchExchangeRateMutation = useFetchExchangeRate();
   const updateExchangeRateMutation = useUpdateExchangeRate();
   const addKocsMutation = useAddKocsToCycle();
@@ -333,6 +335,7 @@ const RevenueControlPage: React.FC = () => {
                   isAdmin={isAdmin}
                   onEditRecord={(record) => { setEditingRecord(record); setRecordModalOpen(true); }}
                   onApprove={(id) => approveMutation.mutate(id)}
+                  onUnapprove={(id) => unapproveMutation.mutate(id)}
                   onDeleteRecord={(id) => deleteRecordMutation.mutate(id)}
                   onDeleteManyRecords={(ids) => deleteManyMutation.mutate(ids)}
                   onScrapeRevenue={handleScrapeRevenue}
