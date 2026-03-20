@@ -28,7 +28,7 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ items, loading = false }) => {
             loading={loading}
             size="small"
             styles={{ body: { padding: '10px 14px' } }}
-            style={{ border: `2px solid ${item.borderColor || defaultBorderColors[index % defaultBorderColors.length]}` }}
+            style={{ border: `1px solid ${item.borderColor || defaultBorderColors[index % defaultBorderColors.length]}` }}
           >
             <Statistic
               title={<span style={{ fontSize: 12 }}>{item.title}</span>}

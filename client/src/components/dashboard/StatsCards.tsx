@@ -74,7 +74,7 @@ const KpiCard: React.FC<{
     <Card
       className="dashboard-kpi-card"
       styles={{ body: { padding: cardPad } }}
-      style={{ height: '100%', border: `2px solid ${accentColor}` }}
+      style={{ height: '100%', border: `1px solid ${accentColor}` }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: isSmall ? 10 : 14 }}>
         <div className="dashboard-kpi-icon" style={iconBoxStyle(gradient, isCompact)}>
@@ -178,7 +178,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
       {/* Row 2: Cycle status, PUB check, Exchange rate */}
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={24} sm={12} lg={8}>
-          <Card className="dashboard-info-card" styles={{ body: { padding: isSmall ? '14px 12px' : '18px 20px' } }} style={{ height: '100%', border: '2px solid #fa8c16' }}>
+          <Card className="dashboard-info-card" styles={{ body: { padding: isSmall ? '14px 12px' : '18px 20px' } }} style={{ height: '100%', border: '1px solid #fa8c16' }}>
             <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>
               {t('dashboard.cycleStatus')}
             </Text>
@@ -206,7 +206,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card className="dashboard-info-card" styles={{ body: { padding: isSmall ? '14px 12px' : '18px 20px' } }} style={{ height: '100%', border: '2px solid #52c41a' }}>
+          <Card className="dashboard-info-card" styles={{ body: { padding: isSmall ? '14px 12px' : '18px 20px' } }} style={{ height: '100%', border: '1px solid #52c41a' }}>
             <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 10 }}>
               {t('dashboard.pubCodeVerification')}
             </Text>

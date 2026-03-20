@@ -40,7 +40,7 @@ const CycleSummaryCard: React.FC<CycleSummaryCardProps> = ({ cycleSummary, reven
 
   return (
     <Card
-      style={{ height: '100%', borderRadius: 12, border: '2px solid #ED8F3A' }}
+      style={{ height: '100%', borderRadius: 12, border: '1px solid #ED8F3A' }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CalendarOutlined style={{ color: '#ED8F3A' }} />
