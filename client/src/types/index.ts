@@ -31,7 +31,7 @@ export interface LoginInput {
 export interface AuthUser {
   userId: string;
   email: string;
-  role: 'ADMIN' | 'ACCOUNTANT' | 'KOC';
+  role: 'ADMIN' | 'ACCOUNTANT' | 'VIEWER' | 'KOC';
   full_name: string;
   kocId?: string;
 }

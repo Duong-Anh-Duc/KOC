@@ -19,6 +19,7 @@ import {
     LoginStatusCard,
     ScrapeHistoryDrawer,
 } from '../components/ytScraper';
+import { useAuthStore } from '../stores';
 import type { RevenueCycle, YouTubeScrapeResult } from '../types';
 
 const { Title } = Typography;
@@ -26,6 +27,8 @@ const { Title } = Typography;
 const YouTubeScraperPage: React.FC = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isViewer = user?.role === 'VIEWER';
 
   const [asyncJobId, setAsyncJobId] = useState<string | null>(null);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
@@ -279,11 +282,11 @@ const YouTubeScraperPage: React.FC = () => {
           </Space>
         </div>
 
-        <GemLoginCard />
+        {!isViewer && <GemLoginCard />}
 
-        <GoLoginCard />
+        {!isViewer && <GoLoginCard />}
 
-        <LoginStatusCard
+        {!isViewer && <LoginStatusCard
           statusData={statusData}
           statusLoading={statusLoading}
           isLoggedIn={isLoggedIn}
@@ -295,16 +298,16 @@ const YouTubeScraperPage: React.FC = () => {
           changeAccountLoading={changeAccountMutation.isPending}
           onRefreshAccountInfo={() => refreshAccountInfoMutation.mutate()}
           refreshAccountInfoLoading={refreshAccountInfoMutation.isPending}
-        />
+        />}
 
-        <CreateRevenueBar
+        {!isViewer && <CreateRevenueBar
           cyclesData={cyclesData}
           selectedCycleId={selectedCycleId}
           onCycleChange={setSelectedCycleId}
           onCreateRecords={() => selectedCycleId && createRevenueRecordsMutation.mutate(selectedCycleId)}
           createLoading={createRevenueRecordsMutation.isPending}
           disabled={!selectedCycleId || !latestResults || latestResults.length === 0}
-        />
+        />}
 
         <TaskProgressBar state={monthlyProgress} onDismiss={resetMonthlyProgress} />
 
@@ -326,6 +329,7 @@ const YouTubeScraperPage: React.FC = () => {
             resetMonthlyProgress();
             scrapeAllMonthlyMutation.mutate();
           }}
+          readOnly={isViewer}
         />
 
         <ScrapeHistoryDrawer

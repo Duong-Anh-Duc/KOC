@@ -22,6 +22,7 @@ const StatsPage: React.FC = () => {
   const [cronModalOpen, setCronModalOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
+  const isViewer = user?.role === 'VIEWER';
 
   const { data: allGrowthData, isLoading: allLoading, refetch: refetchAll } = useQuery({
     queryKey: ['stats-growth-all'],
@@ -89,7 +90,7 @@ const StatsPage: React.FC = () => {
 
       <StatsHeader
         onRefresh={() => refetchAll()}
-        onFetchAll={handleFetchAll}
+        onFetchAll={isViewer ? undefined : handleFetchAll}
         fetchLoading={fetchAllStatsMutation.isPending || statsProgress.state.active}
         onOpenCronConfig={isAdmin ? () => setCronModalOpen(true) : undefined}
       />

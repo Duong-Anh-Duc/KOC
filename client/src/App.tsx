@@ -30,7 +30,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-/** Block KOC users from staff-only pages */
+/** Block KOC users from staff-only pages (VIEWER allowed - read only) */
 const StaffRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const user = useAuthStore((s) => s.user);
   if (user?.role === 'KOC') return <Navigate to="/my-revenue" replace />;
@@ -50,6 +50,9 @@ const IndexRedirect: React.FC = () => {
   if (user?.role === 'KOC') return <Navigate to="/my-revenue" replace />;
   return <DashboardPage />;
 };
+
+/** Check if user can modify data (not VIEWER or KOC) */
+
 
 const App: React.FC = () => {
   const darkMode = useAppStore((s) => s.darkMode);

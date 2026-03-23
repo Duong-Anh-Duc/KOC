@@ -18,6 +18,7 @@ datasource db {
 enum UserRole {
   ADMIN
   ACCOUNTANT
+  VIEWER
   KOC
 }
 

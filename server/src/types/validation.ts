@@ -13,7 +13,7 @@ export const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   full_name: z.string().min(2, 'Full name is required'),
-  role: z.enum(['ADMIN', 'ACCOUNTANT', 'KOC']).optional(),
+  role: z.enum(['ADMIN', 'ACCOUNTANT', 'VIEWER', 'KOC']).optional(),
 });
 
 export const createKocAccountSchema = z.object({

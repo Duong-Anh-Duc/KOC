@@ -43,6 +43,7 @@ const RevenueControlPage: React.FC = () => {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
+  const isViewer = user?.role === 'VIEWER';
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('cycles');
@@ -275,7 +276,7 @@ const RevenueControlPage: React.FC = () => {
         <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
-            {isAdmin && (
+            {isAdmin && !isViewer && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCycle}>
                 {t('cycle.create')}
               </Button>
@@ -358,6 +359,7 @@ const RevenueControlPage: React.FC = () => {
                   onCloseHistory={() => setHistoryKocId(null)}
                   paymentStatus={paymentStatus}
                   activeKOCs={activeKOCs}
+                  readOnly={isViewer}
                   />
                 </>
               ),

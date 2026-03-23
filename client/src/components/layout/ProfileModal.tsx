@@ -56,7 +56,7 @@ const ProfileModal: React.FC<Props> = ({ open, onClose }) => {
       confirmLoading={mutation.isPending}
     >
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
-        <Tag color={user?.role === 'ADMIN' ? 'red' : user?.role === 'KOC' ? 'green' : 'blue'}>
+        <Tag color={user?.role === 'ADMIN' ? 'red' : user?.role === 'KOC' ? 'green' : user?.role === 'VIEWER' ? 'orange' : 'blue'}>
           {user?.role}
         </Tag>
       </div>

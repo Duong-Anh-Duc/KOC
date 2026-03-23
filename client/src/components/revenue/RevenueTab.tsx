@@ -49,6 +49,7 @@ interface RevenueTabProps {
   onCloseHistory: () => void;
   paymentStatus?: PaymentStatusMap;
   activeKOCs?: Array<{ id: string; full_name: string; channel_name: string; base_rate: number }>;
+  readOnly?: boolean;
 }
 
 const RevenueTab: React.FC<RevenueTabProps> = ({
@@ -88,6 +89,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   onCloseHistory,
   paymentStatus,
   activeKOCs,
+  readOnly,
 }) => {
   const { t } = useTranslation();
   const [selectKocModalOpen, setSelectKocModalOpen] = useState(false);
@@ -136,7 +138,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
       )}
 
       {/* Cycle Info & Actions */}
-      {selectedCycle && (
+      {selectedCycle && !readOnly && (
         <RevenueToolbar
           selectedCycle={selectedCycle}
           cycleLocked={cycleLocked}
@@ -177,7 +179,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
           loading={loadingRecords}
           cycleLocked={cycleLocked}
           isAdmin={isAdmin}
-          onEdit={onEditRecord}
+          onEdit={readOnly ? undefined : onEditRecord}
           onApprove={onApprove}
           onUnapprove={onUnapprove}
           onDelete={onDeleteRecord}

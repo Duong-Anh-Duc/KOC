@@ -16,6 +16,7 @@ const KOCManagementPage: React.FC = () => {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
+  const isViewer = user?.role === 'VIEWER';
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);

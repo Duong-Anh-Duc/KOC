@@ -9,7 +9,7 @@ import { useAuthStore } from '../stores';
  */
 export function useGemLoginAutoStart() {
   const user = useAuthStore((s) => s.user);
-  const isStaff = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  const isStaff = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT'; // VIEWER excluded - read-only
   const startedRef = useRef(false);
 
   const { data: statusRes, isLoading } = useQuery({

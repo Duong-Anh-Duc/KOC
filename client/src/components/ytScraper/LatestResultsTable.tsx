@@ -26,6 +26,7 @@ interface LatestResultsTableProps {
   onViewHistory: (kocId: string) => void;
   scrapeAllMonthlyLoading: boolean;
   onScrapeAllMonthly: () => void;
+  readOnly?: boolean;
 }
 
 const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
@@ -39,6 +40,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
   onViewHistory,
   scrapeAllMonthlyLoading,
   onScrapeAllMonthly,
+  readOnly,
 }) => {
   const { t } = useTranslation();
 
@@ -237,23 +239,27 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       }
       extra={
         <Space>
-          <Button
-            icon={scrapeAllMonthlyLoading ? <LoadingOutlined /> : <CalendarOutlined />}
-            onClick={onScrapeAllMonthly}
-            loading={scrapeAllMonthlyLoading}
-            disabled={!isLoggedIn || scrapeAllMonthlyLoading}
-          >
-            Cào tất cả tháng
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlayCircleOutlined />}
-            onClick={onScrapeAll}
-            loading={scrapeAllLoading}
-            disabled={!isLoggedIn}
-          >
-            {t('ytScraper.scrapeAll')}
-          </Button>
+          {!readOnly && (
+            <>
+              <Button
+                icon={scrapeAllMonthlyLoading ? <LoadingOutlined /> : <CalendarOutlined />}
+                onClick={onScrapeAllMonthly}
+                loading={scrapeAllMonthlyLoading}
+                disabled={!isLoggedIn || scrapeAllMonthlyLoading}
+              >
+                Cào tất cả tháng
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                onClick={onScrapeAll}
+                loading={scrapeAllLoading}
+                disabled={!isLoggedIn}
+              >
+                {t('ytScraper.scrapeAll')}
+              </Button>
+            </>
+          )}
           <Tooltip title={t('ytScraper.refreshResults')}>
             <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={latestLoading} />
           </Tooltip>

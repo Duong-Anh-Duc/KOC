@@ -7,7 +7,7 @@ const { Title } = Typography;
 
 interface StatsHeaderProps {
   onRefresh: () => void;
-  onFetchAll: () => void;
+  onFetchAll?: () => void;
   fetchLoading: boolean;
   onOpenCronConfig?: () => void;
 }
@@ -48,9 +48,11 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ onRefresh, onFetchAll, fetchL
             {t('stats.cronConfig')}
           </Button>
         )}
-        <Button type="primary" icon={<CloudDownloadOutlined />} loading={fetchLoading} onClick={onFetchAll}>
-          {t('stats.fetchSocialBlade')}
-        </Button>
+        {onFetchAll && (
+          <Button type="primary" icon={<CloudDownloadOutlined />} loading={fetchLoading} onClick={onFetchAll}>
+            {t('stats.fetchSocialBlade')}
+          </Button>
+        )}
       </Space>
     </div>
   );

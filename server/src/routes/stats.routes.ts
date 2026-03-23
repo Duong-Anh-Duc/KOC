@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { StatsController } from '../controllers';
-import { authMiddleware } from '../middlewares';
+import { authMiddleware, canModify } from '../middlewares';
 
 const router = Router();
 
@@ -11,9 +11,9 @@ router.get('/growth/all', StatsController.getAllGrowth);
 router.get('/:kocId/correlation', StatsController.getCorrelation);
 router.get('/:kocId/growth', StatsController.getGrowth);
 router.get('/:kocId', StatsController.getHistory);
-router.post('/:kocId/fetch', StatsController.fetchStats);
-router.post('/fetch-all', StatsController.fetchAllStats);
+router.post('/:kocId/fetch', canModify, StatsController.fetchStats);
+router.post('/fetch-all', canModify, StatsController.fetchAllStats);
 router.get('/cron-config', StatsController.getCronConfig);
-router.put('/cron-config', StatsController.updateCronConfig);
+router.put('/cron-config', canModify, StatsController.updateCronConfig);
 
 export default router;

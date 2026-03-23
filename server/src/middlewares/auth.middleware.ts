@@ -72,7 +72,7 @@ export const adminOnly = (
 };
 
 /**
- * Middleware to block KOC role (allow ADMIN & ACCOUNTANT only)
+ * Middleware to block KOC role (allow ADMIN & ACCOUNTANT & VIEWER only)
  */
 export const adminOrAccountant = (
   req: AuthenticatedRequest,
@@ -91,6 +91,34 @@ export const adminOrAccountant = (
     res.status(403).json({
       success: false,
       message: req.t?.('auth.staffOnly') || 'Staff access required',
+    });
+    return;
+  }
+
+  next();
+};
+
+/**
+ * Middleware to block VIEWER and KOC roles from write operations
+ * Only ADMIN and ACCOUNTANT can modify data
+ */
+export const canModify = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      message: req.t?.('auth.authRequired') || 'Authentication required',
+    });
+    return;
+  }
+
+  if (req.user.role === 'VIEWER' || req.user.role === 'KOC') {
+    res.status(403).json({
+      success: false,
+      message: req.t?.('auth.viewerReadOnly') || 'View-only access. You cannot modify data.',
     });
     return;
   }
