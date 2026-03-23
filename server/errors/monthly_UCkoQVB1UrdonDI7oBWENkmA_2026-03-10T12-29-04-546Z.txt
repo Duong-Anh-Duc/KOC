@@ -1,7 +1,0 @@
-Nhấn phím cách để chơi
-
-Hãy thử:
-
-Kiểm tra cáp mạng, modem và bộ định tuyến
-Kết nối lại với Wi-Fi
-ERR_INTERNET_DISCONNECTED

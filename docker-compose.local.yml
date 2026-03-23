@@ -38,6 +38,19 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: koc_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Backend (Express + Prisma + Chromium) ─────────────────
   server:
     build:
@@ -47,6 +60,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/koc_db
+      REDIS_URL: redis://redis:6379
       PORT: 3002
       NODE_ENV: production
       CORS_ORIGIN: http://localhost:8181
@@ -63,6 +77,8 @@ services:
       - ./server/.chrome-data:/app/.chrome-data
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # ── Frontend (Vite build → nginx) ────────────────────

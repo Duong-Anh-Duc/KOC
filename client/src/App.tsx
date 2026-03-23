@@ -11,9 +11,11 @@ import {
   KOCManagementPage,
   LoginPage,
   MyRevenuePage,
+  PermissionManagementPage,
   RevenueControlPage,
   SendRevenueEmailPage,
   StatsPage,
+  UserManagementPage,
   YouTubeScraperPage,
 } from './pages';
 import { useAppStore, useAuthStore } from './stores';
@@ -30,7 +32,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-/** Block KOC users from staff-only pages (VIEWER allowed - read only) */
+/** Block KOC users from staff pages */
 const StaffRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const user = useAuthStore((s) => s.user);
   if (user?.role === 'KOC') return <Navigate to="/my-revenue" replace />;
@@ -51,12 +53,9 @@ const IndexRedirect: React.FC = () => {
   return <DashboardPage />;
 };
 
-/** Check if user can modify data (not VIEWER or KOC) */
-
-
 const App: React.FC = () => {
   const darkMode = useAppStore((s) => s.darkMode);
-  
+
   return (
     <>
       <BrowserRouter>
@@ -71,44 +70,18 @@ const App: React.FC = () => {
             }
           >
             <Route index element={<IndexRedirect />} />
-            {/* Staff-only pages */}
+            {/* Staff pages (Admin + Manager with permission) */}
             <Route path="koc" element={<StaffRoute><KOCManagementPage /></StaffRoute>} />
             <Route path="revenue" element={<StaffRoute><RevenueControlPage /></StaffRoute>} />
             <Route path="stats" element={<StaffRoute><StatsPage /></StaffRoute>} />
-            <Route path="yt-scraper" element={<StaffRoute><YouTubeScraperPage /></StaffRoute>} />
+            <Route path="send-revenue-email" element={<StaffRoute><SendRevenueEmailPage /></StaffRoute>} />
+            <Route path="audit" element={<StaffRoute><AuditLogsPage /></StaffRoute>} />
             {/* Admin-only pages */}
-            <Route
-              path="cron-settings"
-              element={
-                <AdminRoute>
-                  <CronSettingsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="email-settings"
-              element={
-                <AdminRoute>
-                  <EmailSettingsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="send-revenue-email"
-              element={
-                <AdminRoute>
-                  <SendRevenueEmailPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="audit"
-              element={
-                <AdminRoute>
-                  <AuditLogsPage />
-                </AdminRoute>
-              }
-            />
+            <Route path="users" element={<AdminRoute><UserManagementPage /></AdminRoute>} />
+            <Route path="yt-scraper" element={<AdminRoute><YouTubeScraperPage /></AdminRoute>} />
+            <Route path="cron-settings" element={<AdminRoute><CronSettingsPage /></AdminRoute>} />
+            <Route path="email-settings" element={<AdminRoute><EmailSettingsPage /></AdminRoute>} />
+            <Route path="permissions" element={<AdminRoute><PermissionManagementPage /></AdminRoute>} />
             {/* KOC portal */}
             <Route path="my-revenue" element={<KOCRoute><MyRevenuePage /></KOCRoute>} />
           </Route>

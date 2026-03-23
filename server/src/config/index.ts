@@ -11,7 +11,8 @@ export const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || 'fallback-secret',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || '15m',
+    refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
   },
 
   // SocialBlade: now scraped via Puppeteer, no API credentials needed

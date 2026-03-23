@@ -1,206 +1,167 @@
-import { GlobalOutlined, LockOutlined, MoonOutlined, SunOutlined, UserOutlined } from '@ant-design/icons';
-import type { MenuProps } from 'antd';
-import { Button, Card, Dropdown, Form, Input, Space, Typography } from 'antd';
-import React, { useState } from 'react';
+import { GlobalOutlined, LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { Button, ConfigProvider, Form, Input, Select, theme as antTheme } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 import { useLogin } from '../hooks';
 import { useAppStore, useAuthStore } from '../stores';
 import type { LoginInput } from '../types';
-
-const { Title, Text } = Typography;
+import ForgotPasswordModal from '../components/login/ForgotPasswordModal';
+import LoginBackground from '../components/login/LoginBackground';
+import LoginBrandPanel from '../components/login/LoginBrandPanel';
+import '../components/login/loginPage.css';
 
 const LoginPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const darkMode = useAppStore((s) => s.darkMode);
   const setDarkMode = useAppStore((s) => s.setDarkMode);
+  const locale = useAppStore((s) => s.locale);
   const setLocale = useAppStore((s) => s.setLocale);
   const loginMutation = useLogin();
-  const [isVisible, setIsVisible] = useState(false);
 
-  React.useEffect(() => {
-    setIsVisible(true);
+  const [visible, setVisible] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 80);
+    return () => clearTimeout(timer);
   }, []);
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (rootRef.current) {
+        const rect = rootRef.current.getBoundingClientRect();
+        setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
+    };
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, []);
 
-  const handleFinish = (values: LoginInput) => {
-    loginMutation.mutate(values);
-  };
+  if (isAuthenticated) return <Navigate to="/" replace />;
 
-  const handleLanguageChange = (locale: 'vi' | 'en') => {
-    i18n.changeLanguage(locale);
-    setLocale(locale);
-  };
+  const handleFinish = (values: LoginInput) => loginMutation.mutate(values);
 
-  const languageMenu: MenuProps = {
-    items: [
-      {
-        key: 'vi',
-        label: t('language.viLabel'),
-        onClick: () => handleLanguageChange('vi'),
-      },
-      {
-        key: 'en',
-        label: t('language.enLabel'),
-        onClick: () => handleLanguageChange('en'),
-      },
-    ],
+  const handleLanguageChange = (value: 'vi' | 'en') => {
+    i18n.changeLanguage(value);
+    setLocale(value);
   };
 
   return (
-    <div
-      className="login-page-container"
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: darkMode
-          ? 'linear-gradient(135deg, #3d2817 0%, #1f1309 100%)'
-          : 'linear-gradient(135deg, #ED8F3A 0%, #f5a962 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '24px 16px',
-      }}
-    >
-      {/* Background animated circles */}
-      <div className="login-bg-circle login-bg-circle-1" />
-      <div className="login-bg-circle login-bg-circle-2" />
-      <div className="login-bg-circle login-bg-circle-3" />
+    <div className="lp-root" ref={rootRef}>
+      <LoginBackground mousePos={mousePos} />
 
-      {/* Settings buttons */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 24,
-          right: 24,
-          zIndex: 10,
-        }}
-        className="login-settings-fade-in"
-      >
-        <Space size="middle">
-          <Dropdown menu={languageMenu} trigger={['click']} placement="bottomRight">
-            <Button
-              shape="circle"
-              size="large"
-              icon={<GlobalOutlined />}
-              style={{
-                background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
-                border: 'none',
-                color: '#fff',
-                backdropFilter: 'blur(10px)',
-              }}
-            />
-          </Dropdown>
-          <Button
-            shape="circle"
-            size="large"
-            icon={darkMode ? <SunOutlined /> : <MoonOutlined />}
-            onClick={() => setDarkMode(!darkMode)}
-            style={{
-              background: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)',
-              border: 'none',
-              color: '#fff',
-              backdropFilter: 'blur(10px)',
-            }}
+      {/* Top controls */}
+      <div className="lp-controls">
+        <ConfigProvider theme={{ algorithm: antTheme.darkAlgorithm, token: { colorPrimary: '#ED8F3A', borderRadius: 8 } }}>
+          <Select
+            value={locale}
+            onChange={handleLanguageChange}
+            style={{ width: 130 }}
+            suffixIcon={<GlobalOutlined />}
+            options={[
+              { value: 'vi', label: '🇻🇳 Tiếng Việt' },
+              { value: 'en', label: '🇺🇸 English' },
+            ]}
           />
-        </Space>
+        </ConfigProvider>
+        <button onClick={() => setDarkMode(!darkMode)} className="lp-icon-btn">
+          {darkMode ? <SunOutlined /> : <MoonOutlined />}
+        </button>
       </div>
 
-      <Card
-        className={`login-card ${isVisible ? 'login-card-visible' : ''}`}
-        style={{
-          width: '100%',
-          maxWidth: 400,
-          borderRadius: 16,
-          padding: '32px 28px',
-          boxShadow: darkMode
-            ? '0 24px 64px rgba(0,0,0,0.6)'
-            : '0 24px 64px rgba(0,0,0,0.25)',
-          border: darkMode ? '1px solid rgba(255,255,255,0.1)' : 'none',
-          backdropFilter: 'blur(10px)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: 28 }} className="login-header-fade-in">
-          <img 
-            src="/images/logo.jpg" 
-            alt={t('app.logoAlt')}
-            style={{
-              width: 80,
-              height: 80,
-              margin: '0 auto 20px',
-              display: 'block',
-              objectFit: 'cover',
-              objectPosition: 'left center',
-              border: 'none',
-              outline: 'none',
-              boxShadow: 'none',
-              clipPath: 'polygon(0 0, 92% 0, 92% 100%, 0 100%)'
-            }}
-            className="login-logo-bounce"
-          />
-          <Title level={2} style={{ marginBottom: 8, fontSize: 26, fontWeight: 700 }}>
-            {t('app.title')}
-          </Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>{t('auth.loginSubtitle')}</Text>
-        </div>
+      {/* Card */}
+      <div className={`lp-wrap ${visible ? 'lp-wrap--in' : ''}`}>
+        <div className="lp-glow-border" />
+        <div className="lp-card">
+          <LoginBrandPanel />
 
-        <Form layout="vertical" onFinish={handleFinish} size="large" className="login-form-slide-up">
-          <Form.Item
-            name="email"
-            label={t('auth.email')}
-            rules={[
-              { required: true, message: t('auth.emailRequired') },
-              { type: 'email', message: t('auth.emailInvalid') },
-            ]}
-            style={{ marginBottom: 16 }}
-          >
-            <Input
-              prefix={<UserOutlined style={{ color: 'rgba(0,0,0,0.25)' }} />}
-              placeholder={t('auth.emailPlaceholder')}
-              style={{ height: 44, borderRadius: 8, fontSize: 14 }}
-            />
-          </Form.Item>
+          {/* Form panel */}
+          <div className="lp-form-side">
+            <p className={`lp-welcome ${visible ? 'lp-stagger-1' : ''}`}>{t('auth.login')}</p>
 
-          <Form.Item
-            name="password"
-            label={t('auth.password')}
-            rules={[{ required: true, message: t('auth.passwordRequired') }]}
-            style={{ marginBottom: 16 }}
-          >
-            <Input.Password
-              prefix={<LockOutlined style={{ color: 'rgba(0,0,0,0.25)' }} />}
-              placeholder={t('auth.passwordPlaceholder')}
-              style={{ height: 44, borderRadius: 8, fontSize: 14 }}
-            />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 12 }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loginMutation.isPending}
-              block
-              style={{
-                height: 48,
-                borderRadius: 8,
-                fontSize: 15,
-                fontWeight: 600,
-                background: 'linear-gradient(135deg, #ED8F3A 0%, #f5a962 100%)',
-                border: 'none',
-                boxShadow: '0 4px 12px rgba(237, 143, 58, 0.4)',
+            <ConfigProvider
+              theme={{
+                algorithm: antTheme.darkAlgorithm,
+                token: {
+                  colorPrimary: '#ED8F3A',
+                  colorBgContainer: 'rgba(255,255,255,0.04)',
+                  colorBorder: 'rgba(237,143,58,0.25)',
+                  colorText: '#f1f5f9',
+                  colorTextPlaceholder: '#64748b',
+                  borderRadius: 10,
+                  fontSize: 15,
+                },
               }}
-              className="login-button"
             >
-              {t('auth.login')}
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+              <Form layout="vertical" onFinish={handleFinish} autoComplete="off" style={{ marginTop: 28 }}>
+                <div className={`lp-field-wrap ${visible ? 'lp-stagger-2' : ''}`}>
+                  <Form.Item
+                    name="email"
+                    rules={[
+                      { required: true, message: t('auth.emailRequired') },
+                      { type: 'email', message: t('auth.emailInvalid') },
+                    ]}
+                  >
+                    <Input
+                      prefix={<MailOutlined className="lp-input-icon" />}
+                      placeholder={t('auth.emailPlaceholder')}
+                      size="large"
+                      className="lp-input"
+                    />
+                  </Form.Item>
+                </div>
+
+                <div className={`lp-field-wrap ${visible ? 'lp-stagger-3' : ''}`}>
+                  <Form.Item
+                    name="password"
+                    rules={[{ required: true, message: t('auth.passwordRequired') }]}
+                  >
+                    <Input.Password
+                      prefix={<LockOutlined className="lp-input-icon" />}
+                      placeholder={t('auth.passwordPlaceholder')}
+                      size="large"
+                      className="lp-input"
+                    />
+                  </Form.Item>
+                </div>
+
+                <div className={`lp-field-wrap ${visible ? 'lp-stagger-4' : ''}`}>
+                  <Form.Item style={{ marginBottom: 0, marginTop: 8 }}>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      size="large"
+                      loading={loginMutation.isPending}
+                      className="lp-btn"
+                      style={{
+                        height: 50, fontWeight: 700, fontSize: 15,
+                        letterSpacing: '0.3px', border: 'none',
+                        background: 'linear-gradient(135deg, #ED8F3A 0%, #f5a962 100%)',
+                        boxShadow: '0 4px 20px rgba(237,143,58,0.35)',
+                      }}
+                    >
+                      {t('auth.login')}
+                    </Button>
+                  </Form.Item>
+                </div>
+              </Form>
+            </ConfigProvider>
+
+            <div className={`lp-footer ${visible ? 'lp-stagger-5' : ''}`}>
+              <span onClick={() => setForgotOpen(true)} className="lp-link" style={{ cursor: 'pointer' }}>
+                {t('auth.forgotPassword')}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ForgotPasswordModal open={forgotOpen} onClose={() => setForgotOpen(false)} />
     </div>
   );
 };

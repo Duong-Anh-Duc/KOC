@@ -1,4 +1,4 @@
-import { ExchangeRateService } from '../services/exchange-rate.service';
+import { ExchangeRateService } from '../modules/shared/exchange-rate.service';
 import type { ColumnSpec } from '../types/stats.types';
 
 // ============================================================

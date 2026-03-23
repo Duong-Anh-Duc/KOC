@@ -28,12 +28,19 @@ export const createKocAccountSchema = z.object({
 export const createKOCSchema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
   channel_name: z.string().min(1, 'Channel name is required'),
-  youtube_channel_id: z.string().min(1, 'YouTube channel ID is required'),
+  youtube_channel_id: z.string().min(1, 'YouTube channel ID is required')
+    .transform((val) => {
+      // Auto-convert YouTube Studio URL to channel ID
+      // e.g. https://studio.youtube.com/channel/UCAY9fwuhsl9pFjUnJGaXgWg → UCAY9fwuhsl9pFjUnJGaXgWg
+      const match = val.match(/(?:youtube\.com\/channel\/|youtube\.com\/c\/|youtu\.be\/)(UC[\w-]+)/i)
+        || val.match(/(UC[\w-]{20,})/);
+      return match ? match[1] : val.trim();
+    }),
   email: z.string().email('Invalid email format'),
-  phone: z.string().min(8, 'Phone number is required'),
-  bank_account_number: z.string().min(1, 'Bank account is required'),
-  bank_name: z.string().min(1, 'Bank name is required'),
-  tax_code: z.string().min(1, 'Tax code is required'),
+  phone: z.string().min(8).optional().nullable(),
+  bank_account_number: z.string().min(1).optional().nullable(),
+  bank_name: z.string().min(1).optional().nullable(),
+  tax_code: z.string().min(1).optional().nullable(),
   base_rate: z.number().min(0).max(1).optional().default(0.8),
   min_payment: z.number().min(0).optional().default(100),
   pub_code: z.string().optional().nullable(),
@@ -42,7 +49,11 @@ export const createKOCSchema = z.object({
 export const updateKOCSchema = z.object({
   full_name: z.string().min(2).optional(),
   channel_name: z.string().min(1).optional(),
-  youtube_channel_id: z.string().min(1).optional(),
+  youtube_channel_id: z.string().min(1).transform((val) => {
+    const match = val.match(/(?:youtube\.com\/channel\/|youtube\.com\/c\/|youtu\.be\/)(UC[\w-]+)/i)
+      || val.match(/(UC[\w-]{20,})/);
+    return match ? match[1] : val.trim();
+  }).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(8).optional(),
   bank_account_number: z.string().min(1).optional(),
@@ -50,7 +61,7 @@ export const updateKOCSchema = z.object({
   tax_code: z.string().min(1).optional(),
   base_rate: z.number().min(0).max(1).optional(),
   min_payment: z.number().min(0).optional(),
-  pub_code: z.string().optional().nullable(),
+  pub_code: z.string().min(1).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
 

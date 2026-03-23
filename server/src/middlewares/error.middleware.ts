@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from 'express';
-import { YouTubeScraperService } from '../services/youtube-scraper.service';
 import { AuthenticatedRequest } from '../types';
 
 export interface AppError extends Error {
@@ -39,18 +38,11 @@ export const errorHandler = (
     return;
   }
 
-  // Khi bất kỳ service nào throw NOT_LOGGED_IN → xóa sentinel ngay, trả 401
+  // Session expired (GemLogin profile may need restart)
   if (err.message === 'NOT_LOGGED_IN') {
-    const adminId = (req as AuthenticatedRequest).user?.userId;
-    YouTubeScraperService.markSessionDisconnected('not_logged_in', undefined, adminId, {
-      trigger: 'error_middleware',
-      httpMethod: req.method,
-      httpPath: req.originalUrl,
-      stack: err.stack?.split('\n').slice(0, 5).join(' | ') ?? '',
-    }).catch(() => {});
     res.status(401).json({
       success: false,
-      message: 'Phiên YouTube Studio đã hết hạn. Vui lòng kết nối lại.',
+      message: 'Phiên YouTube Studio đã hết hạn. Vui lòng khởi động lại GemLogin profile.',
       code: 'NOT_LOGGED_IN',
     });
     return;

@@ -33,6 +33,7 @@ export interface AuthUser {
   email: string;
   role: 'ADMIN' | 'ACCOUNTANT' | 'VIEWER' | 'KOC';
   full_name: string;
+  avatar_url?: string | null;
   kocId?: string;
 }
 
@@ -45,6 +46,7 @@ export interface KOC {
   full_name: string;
   channel_name: string;
   youtube_channel_id: string;
+  avatar_url: string | null;
   email: string;
   phone: string | null;
   bank_account_number: string | null;

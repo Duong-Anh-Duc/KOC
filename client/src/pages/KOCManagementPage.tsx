@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { kocAccountApi } from '../api';
 import apiClient from '../api/client';
+import { uploadApi } from '../api/upload.api';
 import { SummaryBar } from '../components/common';
 import { KOCFormModal } from '../components/features';
 import { CreateKocAccountModal, KOCHeader, KOCTable } from '../components/kocManagement';
@@ -82,7 +83,7 @@ const KOCManagementPage: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleSubmit = (values: CreateKOCInput) => {
+  const handleSubmit = (values: CreateKOCInput, avatarFile?: File) => {
     if (editingKOC) {
       updateMutation.mutate(
         { id: editingKOC.id, data: values as UpdateKOCInput },
@@ -96,7 +97,11 @@ const KOCManagementPage: React.FC = () => {
       );
     } else {
       createMutation.mutate(values, {
-        onSuccess: () => {
+        onSuccess: (response) => {
+          const newKoc = (response as any)?.data?.data;
+          if (avatarFile && newKoc?.id) {
+            uploadApi.uploadKocAvatar(newKoc.id, avatarFile).then(() => refetch()).catch(() => {});
+          }
           setModalOpen(false);
           setCloningKOC(null);
         }

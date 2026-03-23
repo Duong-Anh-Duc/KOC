@@ -15,7 +15,27 @@
     "kocAccountExists": "KOC này đã có tài khoản",
     "kocAccountCreated": "Tạo tài khoản KOC thành công",
     "noKocLinked": "Không có KOC liên kết với tài khoản này",
-    "staffOnly": "Chỉ dành cho nhân viên"
+    "staffOnly": "Chỉ dành cho nhân viên",
+    "profileUpdated": "Cập nhật hồ sơ thành công",
+    "missingFields": "Thiếu các trường bắt buộc",
+    "passwordTooShort": "Mật khẩu phải có ít nhất 6 ký tự",
+    "passwordChanged": "Đổi mật khẩu thành công",
+    "emailRequired": "Email là bắt buộc",
+    "emailNotFound": "Email không tồn tại trong hệ thống",
+    "wrongCurrentPassword": "Mật khẩu hiện tại không đúng",
+    "otpInvalid": "Mã OTP không đúng",
+    "otpExpired": "Mã OTP đã hết hạn, vui lòng gửi lại",
+    "otpSent": "Mã OTP đã được gửi đến email của bạn",
+    "otpSendFailed": "Gửi mã OTP thất bại, vui lòng thử lại",
+    "otpVerified": "Xác minh OTP thành công",
+    "resetSuccess": "Đặt lại mật khẩu thành công",
+    "cannotDeactivateAdmin": "Không thể vô hiệu hóa tài khoản Admin",
+    "cannotDeleteAdmin": "Không thể xóa tài khoản Admin",
+    "cannotEditAdmin": "Không thể chỉnh sửa tài khoản Admin khác",
+    "cannotEditSelf": "Không thể chỉnh sửa tài khoản của chính mình",
+    "cannotDeleteSelf": "Không thể xóa tài khoản của chính mình",
+    "userUpdated": "Cập nhật người dùng thành công",
+    "userDeleted": "Xóa người dùng thành công"
   },
   "kocPortal": {
     "revenueRetrieved": "Đã lấy doanh thu",
@@ -46,7 +66,9 @@
     "belowThreshold": "Không thể duyệt: Doanh thu tích lũy chưa đạt ngưỡng $100",
     "calculationPreview": "Xem trước tính toán",
     "paymentStatusRetrieved": "Đã lấy trạng thái thanh toán",
-    "cycleNotFound": "Không tìm thấy kỳ đối soát"
+    "cycleNotFound": "Không tìm thấy kỳ đối soát",
+    "recordsDeleted": "Đã xóa {{count}} bản ghi",
+    "recordUnapproved": "Đã hủy phê duyệt bản ghi doanh thu"
   },
   "cycle": {
     "created": "Tạo kỳ đối soát thành công",
@@ -66,7 +88,8 @@
     "alreadyOpen": "Kỳ đối soát đã ở trạng thái mở",
     "hasRecords": "Không thể xóa kỳ đối soát có bản ghi",
     "exchangeRateFetched": "Lấy tỷ giá thành công",
-    "scrapeComplete": "Cào hoàn tất: {{created}} tạo mới, {{updated}} cập nhật, {{skipped}} bỏ qua, {{errors}} lỗi"
+    "scrapeComplete": "Cào hoàn tất: {{created}} tạo mới, {{updated}} cập nhật, {{skipped}} bỏ qua, {{errors}} lỗi",
+    "kocsAdded": "Đã thêm {{count}} KOC vào kỳ đối soát"
   },
   "stats": {
     "retrieved": "Đã lấy thống kê kênh",

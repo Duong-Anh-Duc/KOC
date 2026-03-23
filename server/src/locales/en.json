@@ -15,7 +15,27 @@
     "kocAccountExists": "This KOC already has a user account",
     "kocAccountCreated": "KOC account created successfully",
     "noKocLinked": "No KOC linked to this account",
-    "staffOnly": "Staff access required"
+    "staffOnly": "Staff access required",
+    "profileUpdated": "Profile updated successfully",
+    "missingFields": "Missing required fields",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordChanged": "Password changed successfully",
+    "emailRequired": "Email is required",
+    "emailNotFound": "Email does not exist in the system",
+    "wrongCurrentPassword": "Current password is incorrect",
+    "otpInvalid": "Invalid OTP code",
+    "otpExpired": "OTP has expired, please request a new one",
+    "otpSent": "OTP has been sent to your email",
+    "otpSendFailed": "Failed to send OTP, please try again",
+    "otpVerified": "OTP verified successfully",
+    "resetSuccess": "Password reset successfully",
+    "cannotDeactivateAdmin": "Cannot deactivate an Admin account",
+    "cannotDeleteAdmin": "Cannot delete an Admin account",
+    "cannotEditAdmin": "Cannot edit another Admin account",
+    "cannotEditSelf": "Cannot edit your own account",
+    "cannotDeleteSelf": "Cannot delete your own account",
+    "userUpdated": "User updated successfully",
+    "userDeleted": "User deleted successfully"
   },
   "kocPortal": {
     "revenueRetrieved": "Revenue retrieved",
@@ -46,7 +66,9 @@
     "belowThreshold": "Cannot approve: Accumulated revenue below $100 threshold",
     "calculationPreview": "Calculation preview",
     "paymentStatusRetrieved": "Payment status retrieved",
-    "cycleNotFound": "Revenue cycle not found"
+    "cycleNotFound": "Revenue cycle not found",
+    "recordsDeleted": "{{count}} records deleted",
+    "recordUnapproved": "Revenue record unapproved"
   },
   "cycle": {
     "created": "Revenue cycle created",
@@ -66,7 +88,8 @@
     "alreadyOpen": "Cycle is already open",
     "hasRecords": "Cannot delete cycle with existing records",
     "exchangeRateFetched": "Exchange rate fetched successfully",
-    "scrapeComplete": "Scrape completed: {{created}} created, {{updated}} updated, {{skipped}} skipped, {{errors}} errors"
+    "scrapeComplete": "Scrape completed: {{created}} created, {{updated}} updated, {{skipped}} skipped, {{errors}} errors",
+    "kocsAdded": "Added {{count}} KOC(s) to cycle"
   },
   "stats": {
     "retrieved": "Channel stats retrieved",

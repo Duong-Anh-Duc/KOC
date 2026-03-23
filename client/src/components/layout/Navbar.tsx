@@ -138,7 +138,11 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
 
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#fff', color: '#ED8F3A' }} />
+              <Avatar
+                src={user?.avatar_url}
+                icon={!user?.avatar_url ? <UserOutlined /> : undefined}
+                style={{ backgroundColor: user?.avatar_url ? undefined : '#fff', color: user?.avatar_url ? undefined : '#ED8F3A' }}
+              />
               {!isMobile && <span style={{ fontWeight: 500, color: '#fff' }}>{user?.full_name}</span>}
               <Tag color={user?.role === 'ADMIN' ? 'red' : 'blue'}>{user?.role}</Tag>
             </Space>

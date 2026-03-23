@@ -48,6 +48,7 @@ model User {
   email         String   @unique @db.VarChar(255)
   password_hash String   @db.VarChar(255)
   full_name     String   @db.VarChar(255)
+  avatar_url    String?  @db.VarChar(500)
   role          UserRole @default(ACCOUNTANT)
   is_active     Boolean  @default(true)
   koc_id        String?  @unique @db.Uuid
@@ -59,6 +60,7 @@ model User {
   managed_cycles  RevenueCycle[]   @relation("AdminManagesCycle")
   audit_logs      AuditLog[]
   youtube_session YouTubeSession?
+  koc_access      ManagerKocAccess[] @relation("ManagerAccessUser")
 
   @@map("users")
 }
@@ -69,6 +71,7 @@ model KOC {
   full_name          String    @db.VarChar(255)
   channel_name       String    @db.VarChar(255)
   youtube_channel_id String    @db.VarChar(100)
+  avatar_url         String?   @db.VarChar(500)
   email              String    @db.VarChar(255)
   phone              String?   @db.VarChar(20)
   bank_account_number String?  @db.VarChar(50)
@@ -88,6 +91,7 @@ model KOC {
   youtube_scrape_results YouTubeScrapeResult[]
   monthly_revenue_analytics MonthlyRevenueAnalytics[]
   user                   User?                     @relation("UserKocLink")
+  manager_access         ManagerKocAccess[]        @relation("ManagerAccessKoc")
 
   @@index([admin_id])
   @@map("kocs")
@@ -245,6 +249,36 @@ model MonthlyRevenueAnalytics {
   @@index([koc_id, month_key])
   @@index([koc_id])
   @@map("monthly_revenue_analytics")
+}
+
+/// Quản lý được xem doanh thu KOC nào + quyền chi tiết
+model ManagerKocAccess {
+  id          String   @id @default(uuid()) @db.Uuid
+  manager_id  String   @db.Uuid
+  koc_id      String   @db.Uuid
+  permissions Json     @default("[\"view_info\",\"view_revenue\",\"view_monthly\",\"view_payment_status\",\"view_stats\",\"view_yt_data\",\"view_audit\"]") @db.JsonB
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  manager User @relation("ManagerAccessUser", fields: [manager_id], references: [id], onDelete: Cascade)
+  koc     KOC  @relation("ManagerAccessKoc", fields: [koc_id], references: [id], onDelete: Cascade)
+
+  @@unique([manager_id, koc_id])
+  @@index([manager_id])
+  @@index([koc_id])
+  @@map("manager_koc_access")
+}
+
+/// Password Reset OTP - Mã OTP đặt lại mật khẩu
+model PasswordResetOTP {
+  id         String   @id @default(uuid()) @db.Uuid
+  email      String   @db.VarChar(255)
+  otp        String   @db.VarChar(6)
+  expires_at DateTime @db.Timestamptz()
+  used       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  @@index([email, otp])
+  @@map("password_reset_otps")
 }
 
 /// YouTube Session - Trạng thái kết nối YouTube Studio cho từng Admin

@@ -1,6 +1,10 @@
-import { Col, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
-import React, { useEffect } from 'react';
+import { CameraOutlined, LoadingOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Button, Col, Form, Input, InputNumber, message, Modal, Row, Select, Tooltip, Upload } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import apiClient from '../../api/client';
+import { uploadApi } from '../../api/upload.api';
+import { VIETNAM_BANK_SELECT_OPTIONS } from '../../constants/banks';
 import type { CreateKOCInput, KOC } from '../../types';
 
 interface KOCFormModalProps {
@@ -8,7 +12,7 @@ interface KOCFormModalProps {
   editingKOC: KOC | null;
   cloningKOC?: KOC | null;
   onCancel: () => void;
-  onSubmit: (values: CreateKOCInput) => void;
+  onSubmit: (values: CreateKOCInput, avatarFile?: File) => void;
   loading?: boolean;
 }
 
@@ -22,6 +26,39 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setAvatarUrl(editingKOC?.avatar_url || null);
+      setPendingAvatarFile(null);
+      setPendingAvatarPreview(null);
+    }
+  }, [open, editingKOC]);
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!editingKOC) {
+      // During creation: store file and show local preview
+      setPendingAvatarFile(file);
+      setPendingAvatarPreview(URL.createObjectURL(file));
+      return;
+    }
+    setUploading(true);
+    try {
+      const res = await uploadApi.uploadKocAvatar(editingKOC.id, file);
+      if (res.data.success && res.data.data) {
+        setAvatarUrl(res.data.data.avatar_url);
+        message.success(t('upload.success'));
+      }
+    } catch {
+      message.error(t('upload.error'));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (open && editingKOC) {
@@ -52,12 +89,59 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
     }
   }, [open, editingKOC, cloningKOC, form]);
 
+  const [fetchingPubCode, setFetchingPubCode] = useState(false);
+
+  /** Extract channel ID from YouTube URL or raw input */
+  const extractChannelId = (val: string): string => {
+    const match = val.match(/(?:youtube\.com\/channel\/|studio\.youtube\.com\/channel\/)(UC[\w-]+)/i)
+      || val.match(/(UC[\w-]{20,})/);
+    return match ? match[1] : val.trim();
+  };
+
+  /** Auto-convert channel ID on blur */
+  const handleChannelIdBlur = () => {
+    const raw = form.getFieldValue('youtube_channel_id');
+    if (raw) {
+      const cleaned = extractChannelId(raw);
+      if (cleaned !== raw) {
+        form.setFieldValue('youtube_channel_id', cleaned);
+      }
+    }
+  };
+
+  /** Fetch pub code from YouTube Studio via GemLogin scraper */
+  const handleFetchPubCode = async () => {
+    const channelId = extractChannelId(form.getFieldValue('youtube_channel_id') || '');
+    if (!channelId || !channelId.startsWith('UC')) {
+      message.warning(t('koc.enterChannelIdFirst'));
+      return;
+    }
+    setFetchingPubCode(true);
+    try {
+      const res = await apiClient.get<{ success: boolean; data: { pub_code: string | null } }>(`/kocs/fetch-pub-code/${channelId}`);
+      if (res.data.success && res.data.data.pub_code) {
+        form.setFieldValue('pub_code', res.data.data.pub_code);
+        message.success(`${t('koc.pubCodeFetched')}: ${res.data.data.pub_code}`);
+      } else {
+        message.warning(t('koc.pubCodeNotFound'));
+      }
+    } catch {
+      message.error(t('koc.pubCodeFetchError'));
+    } finally {
+      setFetchingPubCode(false);
+    }
+  };
+
   const handleFinish = (values: CreateKOCInput) => {
-    onSubmit({
-      ...values,
-      base_rate: Number(values.base_rate),
-      min_payment: Number(values.min_payment),
-    });
+    onSubmit(
+      {
+        ...values,
+        youtube_channel_id: extractChannelId(values.youtube_channel_id),
+        base_rate: Number(values.base_rate),
+        min_payment: Number(values.min_payment),
+      },
+      !editingKOC && pendingAvatarFile ? pendingAvatarFile : undefined,
+    );
   };
 
   return (
@@ -77,6 +161,48 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
       destroyOnClose
     >
       <Form form={form} layout="vertical" onFinish={handleFinish}>
+        {/* Avatar upload */}
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <Upload
+            showUploadList={false}
+            accept="image/*"
+            beforeUpload={(file) => {
+              handleAvatarUpload(file);
+              return false;
+            }}
+          >
+            <div style={{ cursor: 'pointer', position: 'relative', display: 'inline-block' }}>
+              <Avatar
+                size={80}
+                src={editingKOC ? avatarUrl : pendingAvatarPreview}
+                icon={!(editingKOC ? avatarUrl : pendingAvatarPreview) ? <UserOutlined /> : undefined}
+                style={{ backgroundColor: (editingKOC ? avatarUrl : pendingAvatarPreview) ? undefined : '#ED8F3A' }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  background: '#1677ff',
+                  borderRadius: '50%',
+                  width: 24,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #fff',
+                }}
+              >
+                <CameraOutlined style={{ color: '#fff', fontSize: 12 }} />
+              </div>
+            </div>
+          </Upload>
+          {uploading && <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>{t('upload.uploading')}</div>}
+          {!editingKOC && pendingAvatarPreview && (
+            <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>{t('upload.willUploadAfterCreate') || 'Ảnh sẽ được tải lên sau khi tạo KOC'}</div>
+          )}
+        </div>
+
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
@@ -104,8 +230,12 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               name="youtube_channel_id"
               label={t('koc.youtubeChannelId')}
               rules={[{ required: true, message: t('validation.required') }]}
+              extra={t('koc.channelIdHint')}
             >
-              <Input placeholder={t('koc.channelIdShortPlaceholder')} />
+              <Input
+                placeholder="UCxxxxxxx hoặc https://studio.youtube.com/channel/UCxxxxxxx"
+                onBlur={handleChannelIdBlur}
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -147,7 +277,16 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               name="bank_name"
               label={t('koc.bankName')}
             >
-              <Input placeholder={t('koc.bankNamePlaceholder')} />
+              <Select
+                showSearch
+                allowClear
+                placeholder={t('koc.bankNamePlaceholder')}
+                optionFilterProp="label"
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                }
+                options={VIETNAM_BANK_SELECT_OPTIONS}
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -165,7 +304,6 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
             <Form.Item
               name="base_rate"
               label={t('koc.baseRate')}
-              rules={[{ required: true, message: t('validation.required') }]}
             >
               <InputNumber
                 min={0}
@@ -183,7 +321,6 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               label={t('koc.minPayment')}
               extra={t('koc.minPaymentHint')}
               rules={[
-                { required: true, message: t('validation.required') },
                 { type: 'number', min: 0, message: t('validation.required') },
               ]}
             >
@@ -202,10 +339,26 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
           <Col span={editingKOC ? 12 : 24}>
             <Form.Item
               name="pub_code"
-              label={t('koc.pubCode')}
+              label={
+                <span>
+                  {t('koc.pubCode')}
+                  <Tooltip title={t('koc.fetchPubCodeTooltip')}>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={fetchingPubCode ? <LoadingOutlined /> : <SearchOutlined />}
+                      onClick={handleFetchPubCode}
+                      loading={fetchingPubCode}
+                      style={{ marginLeft: 6, padding: 0, height: 'auto' }}
+                    >
+                      {t('koc.fetchPubCode')}
+                    </Button>
+                  </Tooltip>
+                </span>
+              }
               extra={t('koc.pubCodeHint')}
             >
-              <Input placeholder={t('koc.pubCodePlaceholder')} />
+              <Input placeholder="pub-1234567890" />
             </Form.Item>
           </Col>
           {editingKOC && (

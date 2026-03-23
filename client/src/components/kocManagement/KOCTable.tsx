@@ -1,5 +1,5 @@
-import { CopyOutlined, DeleteOutlined, EditOutlined, UserAddOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { CopyOutlined, DeleteOutlined, EditOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Button, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -57,14 +57,22 @@ const KOCTable: React.FC<KOCTableProps> = ({
       title: t('koc.fullName'),
       dataIndex: 'full_name',
       key: 'full_name',
-      width: 160,
+      width: 200,
       sorter: (a: KOC, b: KOC) => (a.full_name || '').localeCompare(b.full_name || '', 'vi'),
       defaultSortOrder: 'ascend',
       ellipsis: { showTitle: false },
-      render: (val: string) => (
-        <Tooltip title={val} placement="topLeft">
-          <Text strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val || '-'}</Text>
-        </Tooltip>
+      render: (val: string, record: KOC) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Avatar
+            size={32}
+            src={record.avatar_url}
+            icon={!record.avatar_url ? <UserOutlined /> : undefined}
+            style={{ flexShrink: 0, backgroundColor: record.avatar_url ? undefined : '#ED8F3A' }}
+          />
+          <Tooltip title={val} placement="topLeft">
+            <Text strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val || '-'}</Text>
+          </Tooltip>
+        </div>
       ),
     },
     {

@@ -5,15 +5,18 @@ import {
     DollarOutlined,
     LineChartOutlined,
     MailOutlined,
+    SafetyOutlined,
     SendOutlined,
+    ShareAltOutlined,
     TeamOutlined,
-    YoutubeOutlined
+    UserSwitchOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Drawer, Grid, Layout, Menu } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useAppStore, useAuthStore } from '../../stores';
 
 const { Sider } = Layout;
@@ -26,8 +29,10 @@ const Sidebar: React.FC = () => {
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const user = useAuthStore((s) => s.user);
   const screens = useBreakpoint();
+  const { hasPermission } = usePermissions();
 
   const isKOC = user?.role === 'KOC';
+  const isAdmin = user?.role === 'ADMIN';
   const isMobile = !screens.lg;
 
   const kocMenuItems: MenuProps['items'] = [
@@ -38,53 +43,77 @@ const Sidebar: React.FC = () => {
     },
   ];
 
-  const staffMenuItems: MenuProps['items'] = [
+  // Manager menu: flat list filtered by permissions (no groups to keep it simple)
+  const managerMenuItems: MenuProps['items'] = [
+    hasPermission('view_info') || hasPermission('view_revenue') ? {
+      key: '/',
+      icon: <DashboardOutlined />,
+      label: t('menu.dashboard'),
+    } : null,
+    hasPermission('view_info') || hasPermission('edit_info') ? {
+      key: '/koc',
+      icon: <TeamOutlined />,
+      label: t('menu.koc'),
+    } : null,
+    hasPermission('view_revenue') || hasPermission('edit_revenue') ? {
+      key: '/revenue',
+      icon: <DollarOutlined />,
+      label: t('menu.revenue'),
+    } : null,
+    hasPermission('view_stats') ? {
+      key: '/stats',
+      icon: <LineChartOutlined />,
+      label: t('menu.stats'),
+    } : null,
+    hasPermission('send_email') ? {
+      key: '/send-revenue-email',
+      icon: <SendOutlined />,
+      label: t('menu.sendRevenueEmail'),
+    } : null,
+    hasPermission('view_audit') ? {
+      key: '/audit',
+      icon: <AuditOutlined />,
+      label: t('menu.audit'),
+    } : null,
+  ].filter(Boolean) as NonNullable<MenuProps['items']>;
+
+  // Admin menu: grouped by function
+  const adminMenuItems: MenuProps['items'] = [
     {
       key: '/',
       icon: <DashboardOutlined />,
       label: t('menu.dashboard'),
     },
     {
-      key: '/koc',
-      icon: <TeamOutlined />,
-      label: t('menu.koc'),
+      type: 'group',
+      label: t('menu.groupManagement'),
+      children: [
+        { key: '/koc',     icon: <TeamOutlined />,      label: t('menu.koc') },
+        { key: '/revenue', icon: <DollarOutlined />,    label: t('menu.revenue') },
+        { key: '/stats',   icon: <LineChartOutlined />, label: t('menu.stats') },
+      ],
     },
     {
-      key: '/revenue',
-      icon: <DollarOutlined />,
-      label: t('menu.revenue'),
+      type: 'group',
+      label: t('menu.groupChannel'),
+      children: [
+        { key: '/cron-settings',       icon: <ShareAltOutlined />,     label: t('menu.cronSettings') },
+        { key: '/email-settings',      icon: <MailOutlined />,         label: t('menu.emailSettings') },
+        { key: '/send-revenue-email',  icon: <SendOutlined />,         label: t('menu.sendRevenueEmail') },
+      ],
     },
     {
-      key: '/stats',
-      icon: <LineChartOutlined />,
-      label: t('menu.stats'),
+      type: 'group',
+      label: t('menu.groupSystem'),
+      children: [
+        { key: '/users',       icon: <UserSwitchOutlined />, label: t('menu.users') },
+        { key: '/permissions', icon: <SafetyOutlined />,     label: t('menu.permissions') },
+        { key: '/audit',       icon: <AuditOutlined />,      label: t('menu.audit') },
+      ],
     },
-    ...(user?.role === 'ADMIN'
-      ? [
-          {
-            key: '/cron-settings',
-            icon: <ClockCircleOutlined />,
-            label: t('menu.cronSettings'),
-          },
-          {
-            key: '/email-settings',
-            icon: <MailOutlined />,
-            label: t('menu.emailSettings'),
-          },
-          {
-            key: '/send-revenue-email',
-            icon: <SendOutlined />,
-            label: t('menu.sendRevenueEmail'),
-          },
-          {
-            key: '/audit',
-            icon: <AuditOutlined />,
-            label: t('menu.audit'),
-          },
-        ]
-      : []),
   ];
 
+  const staffMenuItems = isAdmin ? adminMenuItems : managerMenuItems;
   const menuItems = isKOC ? kocMenuItems : staffMenuItems;
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -114,14 +143,30 @@ const Sidebar: React.FC = () => {
   );
 
   const menu = (
-    <Menu
-      theme="dark"
-      mode="inline"
-      selectedKeys={[location.pathname]}
-      items={menuItems}
-      onClick={handleMenuClick}
-      style={{ borderRight: 0, background: '#ED8F3A' }}
-    />
+    <>
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[location.pathname]}
+        items={menuItems}
+        onClick={handleMenuClick}
+        style={{ borderRight: 0, background: '#ED8F3A' }}
+      />
+      <style>{`
+        .ant-menu-item-group-title {
+          color: rgba(255,255,255,0.55) !important;
+          font-size: 10px !important;
+          font-weight: 700 !important;
+          letter-spacing: 0.08em !important;
+          padding-top: 16px !important;
+          padding-left: 24px !important;
+          text-transform: uppercase;
+        }
+        .ant-layout-sider-collapsed .ant-menu-item-group-title {
+          display: none !important;
+        }
+      `}</style>
+    </>
   );
 
   // Mobile: use Drawer overlay

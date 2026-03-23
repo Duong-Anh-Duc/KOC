@@ -3,9 +3,9 @@ import app from './app';
 import { config } from './config';
 import prisma from './config/database';
 import logger from './middlewares/logger.middleware';
-import { CronService, StatsCronService } from './services/cron.service';
-import { ExchangeRateService } from './services/exchange-rate.service';
-import { YouTubeScraperService } from './services/youtube-scraper.service';
+import { CronService, StatsCronService } from './modules/cron/cron.service';
+import { ExchangeRateService } from './modules/shared/exchange-rate.service';
+import { YouTubeScraperService } from './modules/shared/youtube-scraper.service';
 
 // Get local IP address
 const getLocalIP = (): string => {
@@ -47,10 +47,7 @@ const startServer = async () => {
       // Start exchange rate auto-refresher (every 10 minutes)
       ExchangeRateService.startRateRefresher();
 
-      // Restore YouTube Studio sessions (launches headless browsers with keep-alive)
-      YouTubeScraperService.initializePersistentSessions().catch(err => {
-        logger.warn('Failed to initialize YouTube sessions:', err.message);
-      });
+      // YouTube sessions managed by GemLogin - no persistent sessions needed
 
     });
   } catch (error) {

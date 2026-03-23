@@ -1,14 +1,15 @@
 import { create } from 'zustand';
+import { clearPermissionCache } from '../hooks/usePermissions';
 import type { AuthUser } from '../types';
 
 interface AuthState {
   user: AuthUser | null;
-  token: string | null;
+  token: string | null; // access token — memory only, NOT persisted
   isAuthenticated: boolean;
   setAuth: (user: AuthUser, token: string) => void;
+  setToken: (token: string) => void;
   updateUser: (partial: Partial<AuthUser>) => void;
   logout: () => void;
-  hydrate: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -17,9 +18,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   setAuth: (user, token) => {
-    localStorage.setItem('token', token);
+    // Only persist user info (display purposes), NOT the token
     localStorage.setItem('user', JSON.stringify(user));
     set({ user, token, isAuthenticated: true });
+  },
+
+  setToken: (token) => {
+    set({ token });
   },
 
   updateUser: (partial) => {
@@ -32,22 +37,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
+    clearPermissionCache();
     set({ user: null, token: null, isAuthenticated: false });
-  },
-
-  hydrate: () => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr) as AuthUser;
-        set({ user, token, isAuthenticated: true });
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
   },
 }));

@@ -23,7 +23,12 @@ export const useLogin = () => {
 export const useLogout = () => {
   const logout = useAuthStore((s) => s.logout);
 
-  return () => {
+  return async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // best-effort: clear locally even if server call fails
+    }
     logout();
     toastInfo('logoutSuccess');
   };

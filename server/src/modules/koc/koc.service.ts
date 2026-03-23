@@ -1,0 +1,209 @@
+import { KOCStatus } from '@prisma/client';
+import prisma from '../../config/database';
+import { PAGINATION } from '../../constants';
+import { ApiError } from '../../middlewares';
+import { PaginationQuery } from '../../types';
+
+interface KOCQuery extends PaginationQuery {
+  adminId?: string; // Filter KOCs managed by this admin
+}
+
+export class KOCService {
+  /**
+   * Get all KOCs with pagination & search
+   * If adminId is provided, only return KOCs managed by that admin
+   */
+  static async getAll(query: KOCQuery) {
+    const page = query.page || PAGINATION.DEFAULT_PAGE;
+    const limit = Math.min(query.limit || PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    
+    // Filter by admin
+    if (query.adminId) {
+      where.admin_id = query.adminId;
+    }
+
+    // Search filter
+    if (query.search) {
+      where.OR = [
+        { full_name: { contains: query.search, mode: 'insensitive' as const } },
+        { channel_name: { contains: query.search, mode: 'insensitive' as const } },
+        { email: { contains: query.search, mode: 'insensitive' as const } },
+      ];
+    }
+
+    const [data, total, activeCount, inactiveCount] = await Promise.all([
+      prisma.kOC.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [query.sortBy || 'created_at']: query.sortOrder || 'desc' },
+      }),
+      prisma.kOC.count({ where }),
+      prisma.kOC.count({ where: { ...where, status: 'ACTIVE' } }),
+      prisma.kOC.count({ where: { ...where, status: 'INACTIVE' } }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        activeCount,
+        inactiveCount,
+      },
+    };
+  }
+
+  /**
+   * Get KOC by ID (scoped to admin if adminId provided)
+   */
+  static async getById(id: string, adminId?: string) {
+    const koc = await prisma.kOC.findUnique({
+      where: { id },
+      include: {
+        revenue_records: {
+          include: { cycle: { select: { month: true, exchange_rate: true } } },
+          orderBy: { created_at: 'desc' },
+          take: 12,
+        },
+        channel_stats: {
+          orderBy: { recorded_at: 'desc' },
+          take: 30,
+        },
+      },
+    });
+
+    if (!koc) throw new ApiError(404, 'koc.notFound');
+    if (adminId && koc.admin_id !== adminId) throw new ApiError(403, 'koc.notYours');
+    return koc;
+  }
+
+  /**
+   * Create a new KOC
+   */
+  static async create(data: {
+    full_name: string;
+    channel_name: string;
+    youtube_channel_id: string;
+    email: string;
+    phone?: string | null;
+    bank_account_number?: string | null;
+    bank_name?: string | null;
+    tax_code?: string | null;
+    base_rate?: number;
+    min_payment?: number;
+    pub_code?: string;
+    admin_id?: string;
+  }) {
+    const koc = await prisma.kOC.create({
+      data: {
+        full_name: data.full_name,
+        channel_name: data.channel_name,
+        youtube_channel_id: data.youtube_channel_id,
+        email: data.email,
+        phone: data.phone || null,
+        bank_account_number: data.bank_account_number || null,
+        bank_name: data.bank_name || null,
+        tax_code: data.tax_code || null,
+        base_rate: data.base_rate ?? 0.8,
+        min_payment: data.min_payment ?? 100,
+        pub_code: data.pub_code || null,
+        admin_id: data.admin_id || null,
+      },
+    });
+
+    return koc;
+  }
+
+  /**
+   * Update a KOC
+   */
+  static async update(
+    id: string,
+    data: Partial<{
+      admin_id: string;
+      full_name: string;
+      channel_name: string;
+      youtube_channel_id: string;
+      email: string;
+      phone: string;
+      bank_account_number: string;
+      bank_name: string;
+      tax_code: string;
+      base_rate: number;
+      min_payment: number;
+      pub_code: string;
+      status: KOCStatus;
+    }>
+  ) {
+    console.log('KOCService.update - Input data:', JSON.stringify(data, null, 2));
+    console.log('KOCService.update - min_payment in data:', data.min_payment, 'type:', typeof data.min_payment);
+    
+    const existing = await prisma.kOC.findUnique({ where: { id } });
+    if (!existing) throw new ApiError(404, 'koc.notFound');
+
+    const oldValue = { ...existing };
+    // Note: admin ownership is checked at controller level
+    console.log('KOCService.update - Old min_payment:', oldValue.min_payment);
+
+    const updated = await prisma.kOC.update({
+      where: { id },
+      data,
+    });
+    
+    console.log('KOCService.update - Updated min_payment:', updated.min_payment, 'type:', typeof updated.min_payment);
+
+    return { koc: updated, oldValue };
+  }
+
+  /**
+   * Delete a KOC (soft delete by setting INACTIVE, or hard delete)
+   */
+  static async delete(id: string, adminId?: string) {
+    const koc = await prisma.kOC.findUnique({ where: { id } });
+    if (!koc) throw new ApiError(404, 'koc.notFound');
+    if (adminId && koc.admin_id !== adminId) throw new ApiError(403, 'koc.notYours');
+
+    // Check if KOC has any revenue records
+    const recordCount = await prisma.revenueRecord.count({ where: { koc_id: id } });
+
+    if (recordCount > 0) {
+      // Soft delete - set INACTIVE
+      return prisma.kOC.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+      });
+    }
+
+    // Hard delete if no records
+    await prisma.kOC.delete({ where: { id } });
+    return koc;
+  }
+
+  /**
+   * Get all active KOCs (for dropdowns/selects)
+   * If adminId is provided, only return KOCs managed by that admin
+   */
+  static async getActiveKOCs(adminId?: string) {
+    const where: any = { status: 'ACTIVE' as const };
+    if (adminId) {
+      where.admin_id = adminId;
+    }
+    return prisma.kOC.findMany({
+      where,
+      select: {
+        id: true,
+        full_name: true,
+        channel_name: true,
+        base_rate: true,
+        admin_id: true,
+      },
+      orderBy: { full_name: 'asc' },
+    });
+  }
+}
