@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 const { Text } = Typography;
 
 interface CycleItem {
-  id: string;
+  id: string | number;
   month: string;
   status: string;
   recordCount: number;

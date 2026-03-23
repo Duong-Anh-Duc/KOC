@@ -183,7 +183,7 @@ export class AuthController {
    */
   static async toggleUserActive(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { is_active } = req.body;
       const user = await AuthService.toggleUserActive(id, is_active);
       res.status(200).json({ success: true, data: user });
@@ -197,7 +197,7 @@ export class AuthController {
    */
   static async adminUpdateUser(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { full_name, email, role } = req.body;
       const user = await AuthService.adminUpdateUser(id, { full_name, email, role }, req.user!.userId);
       res.status(200).json({ success: true, data: user });
@@ -211,7 +211,7 @@ export class AuthController {
    */
   static async deleteUser(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       await AuthService.deleteUser(id, req.user!.userId);
       res.status(200).json({ success: true });
     } catch (error) {

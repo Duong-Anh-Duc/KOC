@@ -15,7 +15,7 @@ const { Text } = Typography;
 
 interface KocRecord {
   koc_id: string;
-  koc: { full_name: string; channel_name: string };
+  koc?: { full_name: string; channel_name: string };
   original_revenue_usd: any;
   status: string;
 }

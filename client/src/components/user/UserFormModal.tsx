@@ -1,5 +1,6 @@
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Modal, Select, Space } from 'antd';
+import type { FormInstance } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StaffUser } from '../../api/auth.api';
@@ -13,7 +14,7 @@ interface Props {
   open: boolean;
   editing: StaffUser | null;
   submitting: boolean;
-  form: ReturnType<typeof Form.useForm>[0];
+  form: FormInstance<any>;
   onClose: () => void;
   onFinish: (values: { full_name: string; email: string; password?: string; role: string }) => void;
 }
