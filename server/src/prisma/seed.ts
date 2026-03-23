@@ -37,6 +37,21 @@ async function main() {
   });
 
   console.log(`Demo Admin created: ${demoAdmin.email}`);
+
+  // Create default viewer account (read-only access)
+  const viewerPassword = await bcrypt.hash('viewer123', 12);
+  const viewer = await prisma.user.upsert({
+    where: { email: 'viewer@koc.vn' },
+    update: {},
+    create: {
+      email: 'viewer@koc.vn',
+      password_hash: viewerPassword,
+      full_name: 'Viewer Account',
+      role: UserRole.VIEWER,
+    },
+  });
+
+  console.log(`Viewer created: ${viewer.email}`);
   console.log('Seeding completed!');
 }
 
