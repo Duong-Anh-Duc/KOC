@@ -969,3 +969,143 @@ h2, h3 {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   RESPONSIVE DESIGN — Mobile (360px+), Tablet (768px+)
+   ============================================================ */
+
+/* ----- Modal responsive ----- */
+@media (max-width: 767px) {
+  .ant-modal {
+    top: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+    margin: 0 auto !important;
+  }
+
+  .ant-modal-content {
+    padding: 16px !important;
+  }
+
+  .ant-modal-header {
+    margin-bottom: 12px !important;
+  }
+
+  .ant-modal-body {
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
+
+  /* Page container padding */
+  .ant-layout-content {
+    padding: 8px !important;
+  }
+
+  /* Card padding on mobile */
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  .ant-card-head {
+    padding: 0 12px !important;
+    min-height: 44px !important;
+  }
+
+  /* Typography scaling */
+  h1.ant-typography, .ant-typography h1 { font-size: 22px !important; }
+  h2.ant-typography, .ant-typography h2 { font-size: 18px !important; }
+  h3.ant-typography, .ant-typography h3 { font-size: 16px !important; }
+  h4.ant-typography, .ant-typography h4 { font-size: 14px !important; }
+
+  /* Button sizing */
+  .ant-btn {
+    font-size: 13px;
+  }
+
+  /* Form adjustments */
+  .ant-form-item {
+    margin-bottom: 12px !important;
+  }
+
+  .ant-form-item-label {
+    padding-bottom: 4px !important;
+  }
+
+  /* Table pagination on mobile */
+  .ant-pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .ant-pagination-options {
+    display: none;
+  }
+
+  /* Statistic */
+  .ant-statistic-content-value {
+    font-size: 20px !important;
+  }
+
+  /* Tabs on mobile */
+  .ant-tabs-tab {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+  }
+
+  /* Space wrapping */
+  .ant-space-wrap {
+    flex-wrap: wrap !important;
+  }
+
+  /* Dashboard header on mobile */
+  .dashboard-header {
+    padding: 14px 16px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Summary bar cards */
+  .ant-statistic-title {
+    font-size: 12px !important;
+  }
+}
+
+/* ----- Tablet (768px - 991px) ----- */
+@media (min-width: 768px) and (max-width: 991px) {
+  .ant-modal {
+    top: 20px !important;
+  }
+
+  .ant-card-body {
+    padding: 16px !important;
+  }
+}
+
+/* ----- Small mobile (max 480px) extra tweaks ----- */
+@media (max-width: 480px) {
+  .ant-modal-content {
+    padding: 12px !important;
+  }
+
+  .ant-card-body {
+    padding: 8px !important;
+  }
+
+  .ant-btn {
+    padding: 0 10px !important;
+    font-size: 12px !important;
+  }
+
+  .ant-table-thead > tr > th {
+    font-size: 11px !important;
+    padding: 6px 8px !important;
+  }
+
+  .ant-table-tbody > tr > td {
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Hide quick jumper on very small screens */
+  .ant-pagination-options-quick-jumper {
+    display: none !important;
+  }
+}

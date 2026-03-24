@@ -121,6 +121,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_revenue_usd',
       width: 130,
       align: 'right',
+      responsive: ['lg'],
       render: (val: number, record: RevenueRecord) => {
         const isIntermediate = record.paid_in_cycle_id != null && record.paid_in_cycle_id !== record.cycle_id;
         if (isIntermediate) {
@@ -140,6 +141,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_us_tax',
       width: 120,
       align: 'right',
+      responsive: ['xl'],
       render: (_: unknown, record: RevenueRecord) => formatUSD(Number(record.accumulated_us_tax ?? record.us_tax_deduction)),
     },
     {
@@ -148,6 +150,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_bank_fee',
       width: 120,
       align: 'right',
+      responsive: ['xl'],
       render: (_: unknown, record: RevenueRecord) => formatUSD(Number(record.accumulated_bank_fee ?? record.bank_fee)),
     },
     {
@@ -156,6 +159,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_net_revenue',
       width: 140,
       align: 'right',
+      responsive: ['lg'],
       render: (_: unknown, record: RevenueRecord) => (
         <strong>{formatUSD(Math.max(0, Number(record.accumulated_net_revenue ?? record.net_revenue)))}</strong>
       ),
@@ -166,6 +170,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_company_share',
       width: 130,
       align: 'right',
+      responsive: ['xl'],
       render: (_: unknown, record: RevenueRecord) => formatUSD(Number(record.accumulated_company_share ?? record.company_share)),
     },
     {
@@ -174,6 +179,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_koc_gross',
       width: 130,
       align: 'right',
+      responsive: ['xl'],
       render: (_: unknown, record: RevenueRecord) => formatUSD(Number(record.accumulated_koc_gross ?? record.koc_share_gross)),
     },
     {
@@ -182,6 +188,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_koc_tax',
       width: 120,
       align: 'right',
+      responsive: ['lg'],
       render: (_: unknown, record: RevenueRecord) => formatUSD(Number(record.accumulated_koc_tax ?? record.koc_tax_deduction)),
     },
     {
@@ -200,6 +207,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'accumulated_koc_usd_badge',
       width: 140,
       align: 'right',
+      responsive: ['lg'],
       render: (val: number, record: RevenueRecord) => {
         const isIntermediate = record.paid_in_cycle_id != null && record.paid_in_cycle_id !== record.cycle_id;
         if (isIntermediate) return <Text type="secondary">-</Text>;
@@ -240,6 +248,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       key: 'pub_code_check',
       width: 110,
       align: 'center',
+      responsive: ['md'],
       render: (_: unknown, record: RevenueRecord) => {
         const stored = record.koc?.pub_code || null;
         const scraped = record.scraped_pub_code;

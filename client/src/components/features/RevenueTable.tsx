@@ -141,7 +141,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       loading={loading}
       bordered
       locale={getTableLocale(t)}
-      scroll={{ x: 1800 }}
+      scroll={{ x: 'max-content' }}
       pagination={false}
       size="small"
       style={{ borderRadius: 8 }}

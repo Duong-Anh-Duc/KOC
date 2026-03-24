@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { Grid } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statsApi } from '../api';
@@ -7,6 +8,8 @@ import { StatsCronConfigModal, StatsDetailModal, StatsGrowthTable, StatsHeader, 
 import { useProgress } from '../hooks/useProgress';
 import { useAuthStore } from '../stores';
 import { toastError } from '../utils';
+
+const { useBreakpoint } = Grid;
 
 /** Format large numbers: 6900000 → "6.9M", 31600 → "31.6K" */
 const formatNumber = (val: number | null | undefined): string => {
@@ -23,6 +26,8 @@ const StatsPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
   const isViewer = user?.role === 'VIEWER';
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const { data: allGrowthData, isLoading: allLoading, refetch: refetchAll } = useQuery({
     queryKey: ['stats-growth-all'],
@@ -85,7 +90,7 @@ const StatsPage: React.FC = () => {
   const detailData = detailResponse?.data || null;
 
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', padding: isMobile ? '0 4px' : undefined }}>
       <TaskProgressBar state={statsProgress.state} onDismiss={statsProgress.reset} />
 
       <StatsHeader

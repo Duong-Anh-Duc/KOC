@@ -1,7 +1,9 @@
-import { Modal, Spin, Table, Tabs, Typography } from 'antd';
+import { Grid, Modal, Spin, Table, Tabs, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTableLocale } from '../../utils';
+
+const { useBreakpoint } = Grid;
 
 const { Text } = Typography;
 
@@ -74,6 +76,8 @@ const StatsDetailModal: React.FC<StatsDetailModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const modalWidth = !screens.md ? '95vw' : !screens.lg ? '90vw' : 1200;
 
   const countryColumns = [
     {
@@ -255,7 +259,7 @@ const StatsDetailModal: React.FC<StatsDetailModalProps> = ({
       title={`${t('stats.detailTitle')} - ${channelName}`}
       open={open}
       onCancel={onClose}
-      width={1200}
+      width={modalWidth}
       footer={null}
     >
       <Spin spinning={loading}>

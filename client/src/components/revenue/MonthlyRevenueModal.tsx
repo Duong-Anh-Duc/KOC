@@ -6,8 +6,10 @@ import {
     FieldTimeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal, Progress, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { Button, Grid, Modal, Progress, Space, Spin, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+
+const { useBreakpoint } = Grid;
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +38,8 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const screens = useBreakpoint();
+  const modalWidth = !screens.md ? '95vw' : !screens.lg ? '90vw' : 950;
 
   // Fetch stored monthly data
   const { data: monthlyData, isLoading } = useQuery({
@@ -192,7 +196,7 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
       }
       open={open}
       onCancel={onClose}
-      width={950}
+      width={modalWidth}
       destroyOnClose
       footer={
         <Space direction="vertical" style={{ width: '100%' }}>

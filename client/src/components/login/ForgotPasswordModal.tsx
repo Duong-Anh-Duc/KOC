@@ -142,7 +142,7 @@ const ForgotPasswordModal: React.FC<Props> = ({ open, onClose }) => {
             boxShadow: '0 40px 100px rgba(0,0,0,0.8), 0 0 60px rgba(237,143,58,0.05)',
           },
           header: { background: 'transparent', borderBottom: '1px solid rgba(237,143,58,0.12)', paddingBottom: 16 },
-          body: { padding: '24px 0 0' },
+          body: { padding: '24px 24px 24px' },
         }}
       >
         <Steps

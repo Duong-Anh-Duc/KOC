@@ -442,8 +442,6 @@
 /* MODAL CAROUSEL */
 .lp-step-viewport {
   overflow: hidden; position: relative;
-  mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
 }
 .lp-steps-track {
   display: flex; width: 300%;
@@ -512,10 +510,18 @@
   background: linear-gradient(135deg, #ED8F3A 0%, #f5a962 100%) !important;
   color: #ffffff !important; border: none !important; opacity: 1 !important;
 }
+.lp-modal .ant-modal-content { overflow: visible !important; }
 .lp-modal .ant-modal-close { color: #64748b; transition: all 0.2s; }
 .lp-modal .ant-modal-close:hover { color: #ED8F3A; background: rgba(237,143,58,0.1); }
 
-/* RESPONSIVE */
+/* RESPONSIVE — Tablet */
+@media (max-width: 768px) {
+  .lp-wrap { width: 96vw; }
+  .lp-brand { flex: 0 0 220px; padding: 40px 20px; }
+  .lp-form-side { padding: 40px 32px; }
+}
+
+/* RESPONSIVE — Mobile */
 @media (max-width: 640px) {
   .lp-card { flex-direction: column; }
   .lp-brand {
@@ -534,6 +540,16 @@
   .lp-dots { margin-top: 8px; }
   .lp-form-side { padding: 28px 24px; }
   .lp-welcome { font-size: 22px; }
-  .lp-wrap { width: 95vw; }
+  .lp-wrap { width: 98vw; }
   .lp-shooting { display: none; }
+  .lp-controls { top: 10px; right: 10px; }
+}
+
+/* RESPONSIVE — Very small mobile */
+@media (max-width: 380px) {
+  .lp-form-side { padding: 20px 16px; }
+  .lp-welcome { font-size: 19px; }
+  .lp-brand { padding: 16px; }
+  .lp-logo { width: 44px; height: 44px; border-radius: 10px; }
+  .lp-brand-name { font-size: 15px; }
 }

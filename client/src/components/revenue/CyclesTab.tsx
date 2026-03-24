@@ -1,5 +1,5 @@
 import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
+import { Button, Grid, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
 import { getTableLocale } from '../../utils';
 import { SummaryBar } from '../common';
+
+const { useBreakpoint } = Grid;
 
 interface CyclesTabProps {
   cycles: RevenueCycle[] | undefined;
@@ -47,6 +49,8 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
   completeLoading,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const cycleColumns: ColumnsType<RevenueCycle> = [
     {
@@ -64,6 +68,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       title: t('revenue.exchangeRate'),
       dataIndex: 'exchange_rate',
       width: 140,
+      responsive: ['sm'],
       render: (val: string) => Number(val).toLocaleString() + ' ' + t('common.vnd'),
     },
     {
@@ -78,6 +83,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       title: t('common.createdAt'),
       dataIndex: 'created_at',
       width: 160,
+      responsive: ['md'],
       render: (val: string) => dayjs(val).format('DD/MM/YYYY HH:mm'),
     },
     {
@@ -213,7 +219,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
         loading={loading}
         bordered
         locale={getTableLocale(t)}
-        scroll={{ x: 800 }}
+        scroll={{ x: isMobile ? 'max-content' : 800 }}
         onRow={(record) => ({
           onClick: (e) => {
             const target = e.target as HTMLElement;

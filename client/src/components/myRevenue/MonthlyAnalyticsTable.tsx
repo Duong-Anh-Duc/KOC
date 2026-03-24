@@ -59,7 +59,7 @@ const MonthlyAnalyticsTable: React.FC<Props> = ({ data }) => {
       rowKey="id"
       bordered
       pagination={false}
-      scroll={{ x: 600 }}
+      scroll={{ x: 'max-content' }}
       size="middle"
     />
   );

@@ -7,6 +7,9 @@ import { auditApi } from '../api';
 import { AuditDetailModal, AuditLogsHeader, AuditLogsTable } from '../components/auditLogs';
 import { SummaryBar } from '../components/common';
 import type { AuditLog } from '../types';
+import { Grid } from 'antd';
+
+const { useBreakpoint } = Grid;
 
 
 
@@ -14,6 +17,7 @@ import type { AuditLog } from '../types';
 
 const AuditLogsPage: React.FC = () => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [entityFilter, setEntityFilter] = useState<string | undefined>();
@@ -40,7 +44,7 @@ const AuditLogsPage: React.FC = () => {
   const pagination = data?.meta;
 
   return (
-    <div>
+    <div style={{ padding: screens.md ? undefined : '0 4px' }}>
       <AuditLogsHeader
         dateRange={dateRange}
         onDateRangeChange={(dates) => { setDateRange(dates); setPage(1); }}

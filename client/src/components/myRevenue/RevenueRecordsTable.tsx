@@ -1,8 +1,10 @@
-import { Empty, Table, Tag, Typography } from 'antd';
+import { Empty, Grid, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueRecord } from '../../types';
+
+const { useBreakpoint } = Grid;
 
 const { Text } = Typography;
 
@@ -16,6 +18,8 @@ interface Props {
 
 const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const columns: ColumnsType<RecordWithCycle> = [
     {
@@ -45,6 +49,7 @@ const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
       key: 'us_tax_deduction',
       width: 100,
       align: 'right',
+      responsive: ['md'],
       render: (val: number) => `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     },
     {
@@ -53,6 +58,7 @@ const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
       key: 'bank_fee',
       width: 100,
       align: 'right',
+      responsive: ['md'],
       render: (val: number) => `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     },
     {
@@ -61,6 +67,7 @@ const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
       key: 'net_revenue',
       width: 120,
       align: 'right',
+      responsive: ['lg'],
       render: (val: number) => `$${Math.max(0, Number(val)).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     },
     {
@@ -110,7 +117,7 @@ const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
       rowKey="id"
       bordered
       pagination={{ pageSize: 12 }}
-      scroll={{ x: 960 }}
+      scroll={{ x: isMobile ? 'max-content' : 960 }}
       size="middle"
     />
   );

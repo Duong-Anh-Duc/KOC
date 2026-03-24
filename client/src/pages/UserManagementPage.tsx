@@ -8,6 +8,7 @@ import {
   Avatar,
   Button,
   Form,
+  Grid,
   Input,
   message,
   Popconfirm,
@@ -25,6 +26,8 @@ import UserFormModal from '../components/user/UserFormModal';
 import UserStatsCards from '../components/user/UserStatsCards';
 import { useAuthStore } from '../stores';
 
+const { useBreakpoint } = Grid;
+
 const { Title, Text: AntText } = Typography;
 const { Search } = Input;
 
@@ -34,11 +37,13 @@ const ROLE_STYLE: Record<string, { bg: string; color: string; border: string }> 
   VIEWER:     { bg: '#fff7e6', color: '#d46b08', border: '#ffd591' },
 };
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 const UserManagementPage: React.FC = () => {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [users, setUsers]           = useState<StaffUser[]>([]);
   const [total, setTotal]           = useState(0);
   const [stats, setStats]           = useState<{ activeCount: number; accountantCount: number; viewerCount: number }>({ activeCount: 0, accountantCount: 0, viewerCount: 0 });
@@ -48,12 +53,13 @@ const UserManagementPage: React.FC = () => {
   const [editing, setEditing]       = useState<StaffUser | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [form] = Form.useForm();
 
   const fetchUsers = useCallback(async (page = currentPage, q = search) => {
     try {
       setLoading(true);
-      const res = await authApi.listUsers({ page, limit: PAGE_SIZE, search: q || undefined });
+      const res = await authApi.listUsers({ page, limit: pageSize, search: q || undefined });
       if (res.data.success && res.data.data) {
         setUsers(res.data.data.data ?? []);
         setTotal(res.data.data.total ?? 0);
@@ -120,7 +126,7 @@ const UserManagementPage: React.FC = () => {
       width: 56,
       align: 'center' as const,
       render: (_: unknown, __: StaffUser, index: number) => (
-        <AntText type="secondary" style={{ fontSize: 13 }}>{(currentPage - 1) * PAGE_SIZE + index + 1}</AntText>
+        <AntText type="secondary" style={{ fontSize: 13 }}>{(currentPage - 1) * pageSize + index + 1}</AntText>
       ),
     },
     {
@@ -164,6 +170,7 @@ const UserManagementPage: React.FC = () => {
       dataIndex: 'is_active',
       key: 'is_active',
       width: 130,
+      responsive: ['md'] as any,
       render: (active: boolean, record: StaffUser) => (
         <Tooltip title={record.role === 'ADMIN' ? 'Không thể thay đổi trạng thái Admin' : (active ? 'Nhấn để vô hiệu hóa' : 'Nhấn để kích hoạt')}>
           <Switch
@@ -184,6 +191,7 @@ const UserManagementPage: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 155,
+      responsive: ['lg'] as any,
       render: (d: string) => (
         <AntText type="secondary" style={{ fontSize: 13 }}>
           {new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -227,17 +235,17 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <div style={{ padding: '0 4px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 12 : 0, marginBottom: 20 }}>
         <div>
           <Title level={4} style={{ margin: 0, fontWeight: 700 }}>{t('users.title')}</Title>
-          <AntText type="secondary" style={{ fontSize: 13 }}>Quản lý tài khoản kế toán và người xem trong hệ thống</AntText>
+          {!isMobile && <AntText type="secondary" style={{ fontSize: 13 }}>Quản lý tài khoản kế toán và người xem trong hệ thống</AntText>}
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={openCreate}
           size="middle"
-          style={{ background: 'linear-gradient(135deg, #ED8F3A, #f5a962)', border: 'none', borderRadius: 8, fontWeight: 600, height: 38, paddingInline: 18, boxShadow: '0 2px 8px rgba(237,143,58,0.35)' }}
+          style={{ background: 'linear-gradient(135deg, #ED8F3A, #f5a962)', border: 'none', borderRadius: 8, fontWeight: 600, height: 38, paddingInline: 18, boxShadow: '0 2px 8px rgba(237,143,58,0.35)', alignSelf: isMobile ? 'flex-end' : undefined }}
         >
           {t('users.createUser')}
         </Button>
@@ -260,13 +268,17 @@ const UserManagementPage: React.FC = () => {
         loading={loading}
         pagination={{
           current: currentPage,
-          pageSize: PAGE_SIZE,
+          pageSize,
           total,
           onChange: (page) => setCurrentPage(page),
-          showSizeChanger: false,
-          showTotal: (t) => `${t} người dùng`,
+          onShowSizeChange: (_, size) => { setPageSize(size); setCurrentPage(1); },
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (total) => `${t('common.total')}: ${total}`,
         }}
         size="middle"
+        scroll={{ x: isMobile ? 'max-content' : undefined }}
         style={{ borderRadius: 10, overflow: 'hidden' }}
         rowClassName={() => 'um-row'}
       />

@@ -6,12 +6,14 @@ import {
     PlayCircleOutlined,
     ReloadOutlined,
 } from '@ant-design/icons';
-import { Alert, Button, Card, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Alert, Button, Card, Grid, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueByCountry, YouTubeScrapeResult } from '../../types';
 import { formatUSD, getTableLocale } from '../../utils';
+
+const { useBreakpoint } = Grid;
 
 const { Text } = Typography;
 
@@ -43,6 +45,8 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
   readOnly,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const latestResultsColumns = [
     {
@@ -87,6 +91,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       key: 'views',
       width: 120,
       align: 'right' as const,
+      responsive: ['md'] as any,
       sorter: (a: YouTubeScrapeResult, b: YouTubeScrapeResult) => (a.views || 0) - (b.views || 0),
       render: (val: number | null) => (val != null ? <Text>{Number(val).toLocaleString()}</Text> : '-'),
     },
@@ -96,6 +101,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       key: 'watch_time_hours',
       width: 130,
       align: 'right' as const,
+      responsive: ['lg'] as any,
       sorter: (a: YouTubeScrapeResult, b: YouTubeScrapeResult) => (a.watch_time_hours || 0) - (b.watch_time_hours || 0),
       render: (val: number | null) =>
         val != null ? (
@@ -112,6 +118,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       key: 'avg_watch_time',
       width: 130,
       align: 'right' as const,
+      responsive: ['xl'] as any,
       render: (val: string | null) => val || '-',
     },
     {
@@ -119,6 +126,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       dataIndex: 'period',
       key: 'period',
       width: 140,
+      responsive: ['lg'] as any,
       render: (val: string | null) => (val ? <Tag>{val}</Tag> : '-'),
     },
     {
@@ -126,6 +134,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       dataIndex: 'scraped_at',
       key: 'scraped_at',
       width: 160,
+      responsive: ['md'] as any,
       sorter: (a: YouTubeScrapeResult, b: YouTubeScrapeResult) =>
         new Date(a.scraped_at).getTime() - new Date(b.scraped_at).getTime(),
       render: (val: string) => (
@@ -299,7 +308,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
         loading={latestLoading}
         locale={getTableLocale(t)}
         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `${t('common.total')}: ${total}` }}
-        scroll={{ x: 1400 }}
+        scroll={{ x: isMobile ? 'max-content' : 1400 }}
         expandable={{
           expandedRowRender: (record: YouTubeScrapeResult) => {
             const countries = record.country_data;

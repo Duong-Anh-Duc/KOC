@@ -1,11 +1,13 @@
 import { EyeOutlined } from '@ant-design/icons';
-import { Button, Table, Tag, Tooltip } from 'antd';
+import { Button, Grid, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AuditLog } from '../../types';
 import { getTableLocale } from '../../utils';
+
+const { useBreakpoint } = Grid;
 
 const entityColorMap: Record<string, string> = {
   KOC: 'blue',
@@ -38,6 +40,8 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
   onViewDetails,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const columns: ColumnsType<AuditLog> = [
     {
@@ -57,12 +61,19 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
           UPDATE: 'blue',
           DELETE: 'red',
           APPROVE: 'orange',
+          APPROVE_REVENUE_RECORD: 'orange',
+          UNAPPROVE_REVENUE_RECORD: 'volcano',
           LOCK: 'purple',
+          LOCK_CYCLE: 'purple',
+          REOPEN_CYCLE: 'cyan',
           COMPLETE: 'cyan',
+          COMPLETE_CYCLE: 'cyan',
           LOGIN: 'geekblue',
           CREATE_CYCLE: 'green',
           RUN_CRON_JOB: 'gold',
           UPDATE_CRON_CONFIG: 'blue',
+          SCRAPE_REVENUE: 'lime',
+          SEND_REVENUE_EMAILS: 'geekblue',
         };
         return <Tag color={colorMap[action] || 'default'}>{t(`audit.actions.${action}`, action)}</Tag>;
       },
@@ -78,6 +89,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
     {
       title: t('audit.user'),
       width: 180,
+      responsive: ['sm'],
       render: (_: unknown, record: AuditLog) => (
         <div>
           <div style={{ fontWeight: 500 }}>{record.user?.full_name || '-'}</div>
@@ -89,6 +101,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
       title: t('common.createdAt'),
       dataIndex: 'timestamp',
       width: 160,
+      responsive: ['md'],
       render: (val: string) => (
         <div>
           <div>{dayjs(val).format('DD/MM/YYYY')}</div>
@@ -122,7 +135,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
       loading={loading}
       bordered
       locale={getTableLocale(t)}
-      scroll={{ x: 800 }}
+      scroll={{ x: isMobile ? 'max-content' : 1000 }}
       pagination={{
         current: page,
         pageSize,

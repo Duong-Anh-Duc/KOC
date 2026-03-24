@@ -1,11 +1,13 @@
 import { CopyOutlined, DeleteOutlined, EditOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { Avatar, Button, Grid, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores';
 import type { KOC } from '../../types';
 import { getTableLocale } from '../../utils';
+
+const { useBreakpoint } = Grid;
 
 const { Text } = Typography;
 
@@ -44,6 +46,8 @@ const KOCTable: React.FC<KOCTableProps> = ({
 }) => {
   const { t } = useTranslation();
   const darkMode = useAppStore((s) => s.darkMode);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const columns: ColumnsType<KOC> = [
     {
@@ -104,6 +108,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       dataIndex: 'phone',
       key: 'phone',
       width: 120,
+      responsive: ['md'],
       render: (val: string) => val ? (
         <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{val}</Text>
       ) : <Text type="secondary">-</Text>,
@@ -114,6 +119,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       key: 'bank_name',
       width: 140,
       ellipsis: { showTitle: false },
+      responsive: ['lg'],
       render: (val: string) => val ? (
         <Tooltip title={val} placement="topLeft">
           <Text style={{ fontSize: 12, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
@@ -125,6 +131,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       dataIndex: 'bank_account_number',
       key: 'bank_account_number',
       width: 150,
+      responsive: ['lg'],
       render: (val: string | null) => val ? (
         <Tag color="geekblue" style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>{val}</Tag>
       ) : <Text type="secondary">-</Text>,
@@ -147,6 +154,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       key: 'pub_code',
       width: 180,
       ellipsis: { showTitle: false },
+      responsive: ['xl'],
       render: (val: string | null) => val ? (
         <Tooltip title={val}>
           <Tag color="purple" style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'default', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{val}</Tag>
@@ -246,7 +254,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       loading={loading}
       bordered
       locale={getTableLocale(t)}
-      scroll={{ x: 1400 }}
+      scroll={{ x: isMobile ? 600 : 1400 }}
       onRow={(_, index) => {
         const bgColor = darkMode
           ? ((index ?? 0) % 2 === 0 ? '#141414' : '#1f1f1f')

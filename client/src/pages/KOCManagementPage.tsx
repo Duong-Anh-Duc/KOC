@@ -1,7 +1,10 @@
 import { TeamOutlined, UserAddOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Grid } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const { useBreakpoint } = Grid;
 import { kocAccountApi } from '../api';
 import apiClient from '../api/client';
 import { uploadApi } from '../api/upload.api';
@@ -19,6 +22,8 @@ const KOCManagementPage: React.FC = () => {
   const isAdmin = user?.role === 'ADMIN';
   const isViewer = user?.role === 'VIEWER';
   const queryClient = useQueryClient();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -120,7 +125,7 @@ const KOCManagementPage: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={{ padding: isMobile ? '0 4px' : undefined }}>
       <KOCHeader
         search={search}
         onSearchChange={setSearch}

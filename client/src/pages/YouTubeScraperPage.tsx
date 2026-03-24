@@ -4,7 +4,9 @@ import {
     ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, message, notification, Space, Spin, Tooltip, Typography } from 'antd';
+import { Button, Grid, message, notification, Space, Spin, Tooltip, Typography } from 'antd';
+
+const { useBreakpoint } = Grid;
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
@@ -29,6 +31,8 @@ const YouTubeScraperPage: React.FC = () => {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const isViewer = user?.role === 'VIEWER';
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const [asyncJobId, setAsyncJobId] = useState<string | null>(null);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
@@ -270,7 +274,7 @@ const YouTubeScraperPage: React.FC = () => {
     <Spin spinning={isScraping} tip={t('ytScraper.scrapingAll')} size="large" className="stats-page-spin">
       <div>
         {/* Page Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0, marginBottom: 16 }}>
           <Title level={3} style={{ margin: 0 }}>
             <LineChartOutlined style={{ marginRight: 8 }} />
             {t('ytScraper.title')}
