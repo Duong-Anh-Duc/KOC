@@ -144,6 +144,53 @@ html[data-theme='dark'] .ant-table-wrapper {
   font-weight: 600;
 }
 
+/* Always show horizontal scrollbar in table (override macOS overlay behavior).
+   Ant Design uses .ant-table-content when only scroll.x is set (no scroll.y),
+   and .ant-table-body when scroll.y is also set — target both. */
+.ant-table-content,
+.ant-table-body {
+  scrollbar-width: thin; /* Firefox */
+  overflow-x: scroll !important; /* force scrollbar space even when not scrolling */
+}
+
+.ant-table-content::-webkit-scrollbar,
+.ant-table-body::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.ant-table-content::-webkit-scrollbar-track,
+.ant-table-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+}
+
+.ant-table-content::-webkit-scrollbar-thumb,
+.ant-table-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 4px;
+}
+
+.ant-table-content::-webkit-scrollbar-thumb:hover,
+.ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme='dark'] .ant-table-content::-webkit-scrollbar-track,
+html[data-theme='dark'] .ant-table-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme='dark'] .ant-table-content::-webkit-scrollbar-thumb,
+html[data-theme='dark'] .ant-table-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+html[data-theme='dark'] .ant-table-content::-webkit-scrollbar-thumb:hover,
+html[data-theme='dark'] .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
 /* ===== Enhanced Button & Icon Effects ===== */
 .ant-btn {
   transition: all 0.2s ease;

@@ -106,7 +106,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
         return (
           <span>
             {formatUSD(val)}
-            {belowThreshold && tooltipContent && (
+            {record.status === 'PENDING' && belowThreshold && tooltipContent && (
               <Tooltip title={tooltipContent}>
                 <WarningOutlined style={{ color: '#faad14', marginLeft: 6, fontSize: 12 }} />
               </Tooltip>

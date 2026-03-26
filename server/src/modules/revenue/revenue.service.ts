@@ -273,10 +273,17 @@ export class RevenueService {
     // Totals always use accumulated values
     const totals = enrichedRecords.reduce(
       (acc, r) => {
+        // Intermediate records (paid in a different cycle) are excluded from Cộng dồn total
+        const isIntermediate = r.paid_in_cycle_id != null && r.paid_in_cycle_id !== r.cycle_id;
         return {
           totalOriginal: acc.totalOriginal + Number(r.original_revenue_usd),
+          totalCumulatedRevenue: acc.totalCumulatedRevenue + (isIntermediate ? 0 : Number(r.accumulated_revenue_usd)),
+          totalUsTax: acc.totalUsTax + Number(r.accumulated_us_tax),
+          totalBankFee: acc.totalBankFee + Number(r.accumulated_bank_fee),
           totalNetRevenue: acc.totalNetRevenue + Number(r.accumulated_net_revenue),
           totalCompanyShare: acc.totalCompanyShare + Number(r.accumulated_company_share),
+          totalKocShareGross: acc.totalKocShareGross + Number(r.accumulated_koc_gross),
+          totalKocTax: acc.totalKocTax + Number(r.accumulated_koc_tax),
           totalKocReceiveUsd: acc.totalKocReceiveUsd + Number(r.accumulated_koc_usd),
           totalKocReceiveVnd: acc.totalKocReceiveVnd + Number(r.accumulated_koc_vnd),
           totalAccumulatedKocUsd: acc.totalAccumulatedKocUsd + Number(r.accumulated_koc_usd),
@@ -285,8 +292,13 @@ export class RevenueService {
       },
       {
         totalOriginal: 0,
+        totalCumulatedRevenue: 0,
+        totalUsTax: 0,
+        totalBankFee: 0,
         totalNetRevenue: 0,
         totalCompanyShare: 0,
+        totalKocShareGross: 0,
+        totalKocTax: 0,
         totalKocReceiveUsd: 0,
         totalKocReceiveVnd: 0,
         totalAccumulatedKocUsd: 0,

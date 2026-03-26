@@ -71,6 +71,9 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   const detailRecord = detailKocId ? records.find(r => r.koc_id === detailKocId) || null : null;
   const detailScrape = detailKocId ? getScrapeResult(detailKocId) || null : null;
 
+  // When rowSelection is active, the checkbox column shifts all summary cell indices by 1
+  const sel = isAdmin && !cycleLocked && (onDelete || onDeleteMany) ? 1 : 0;
+
   const columns = getRevenueColumns({
     t,
     cycleLocked,
@@ -175,38 +178,44 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       }}
       summary={() =>
         totals ? (
-          <Table.Summary fixed>
-            <Table.Summary.Row style={{
-              backgroundColor: darkMode ? '#1f1f1f' : '#e6f4ff',
-              fontWeight: 700
-            }}>
-              <Table.Summary.Cell index={0} colSpan={3}>
+          <Table.Summary>
+            <Table.Summary.Row style={{ fontWeight: 700 }}>
+              <Table.Summary.Cell index={0} colSpan={3 + sel}>
                 <Text strong style={{ color: '#1677ff' }}>{t('revenue.total')}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={3} align="right">
+              <Table.Summary.Cell index={3 + sel} align="right">
                 <Text strong>{formatUSD(totals.totalOriginal)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={4} /> {/* accumulated_revenue */}
-              <Table.Summary.Cell index={5} colSpan={2} /> {/* usTax + bankFee */}
-              <Table.Summary.Cell index={7} align="right">
+              <Table.Summary.Cell index={4 + sel} align="right">
+                <Text strong style={{ color: '#722ed1' }}>{formatUSD(totals.totalCumulatedRevenue)}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5 + sel} align="right">
+                <Text strong>{formatUSD(totals.totalUsTax)}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={6 + sel} align="right">
+                <Text strong>{formatUSD(totals.totalBankFee)}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={7 + sel} align="right">
                 <Text strong>{formatUSD(totals.totalNetRevenue)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={8} align="right">
+              <Table.Summary.Cell index={8 + sel} align="right">
                 <Text strong>{formatUSD(totals.totalCompanyShare)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={9} colSpan={2} /> {/* kocShareGross + kocTax */}
-              <Table.Summary.Cell index={11} align="right">
+              <Table.Summary.Cell index={9 + sel} align="right">
+                <Text strong>{formatUSD(totals.totalKocShareGross)}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={10 + sel} align="right">
+                <Text strong>{formatUSD(totals.totalKocTax)}</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={11 + sel} align="right">
                 <Text strong style={{ color: '#1677ff', fontSize: 13 }}>{formatUSD(totals.totalKocReceiveUsd)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={12} align="right">
-                {totals.totalAccumulatedKocUsd > totals.totalKocReceiveUsd + 0.001 ? (
-                  <Text strong style={{ color: '#722ed1', fontSize: 13 }}>{formatUSD(totals.totalAccumulatedKocUsd)}</Text>
-                ) : null}
+              <Table.Summary.Cell index={12 + sel} align="right">
+                <Text strong style={{ color: '#722ed1', fontSize: 13 }}>{formatUSD(totals.totalAccumulatedKocUsd)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={13} align="right">
+              <Table.Summary.Cell index={13 + sel} align="right">
                 <Text strong style={{ color: '#52c41a', fontSize: 13 }}>{formatVND(totals.totalKocReceiveVnd)}</Text>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={14} colSpan={3} />
             </Table.Summary.Row>
           </Table.Summary>
         ) : null

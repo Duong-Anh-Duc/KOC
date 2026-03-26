@@ -56,6 +56,7 @@ export const useUpdateKOC = () => {
       kocApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['payment-status'] });
       toastSuccess('kocUpdateSuccess');
     },
     onError: () => {
