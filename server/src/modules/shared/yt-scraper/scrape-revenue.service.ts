@@ -131,13 +131,17 @@ export function buildRevenueExploreUrl(
         `Month ${month} matches minus_2_month — using native time period`
       );
     } else {
-      const startDate = `${yyyy}-${mm}-01`;
-      const lastDay = new Date(year, mon, 0).getDate();
-      const endDate = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
-      timePeriodParam = `time_period=custom&start_date=${startDate}&end_date=${endDate}`;
-      logger.info(
-        `Month ${month} doesn't match recent months — using custom date range`
-      );
+      const isCurrentMonth = year === currentYear && mon === currentMonth;
+      if (isCurrentMonth) {
+        timePeriodParam = 'time_period=current_month';
+        logger.info(`Month ${month} is current month — using time_period=current_month`);
+      } else {
+        const startDate = `${yyyy}-${mm}-01`;
+        const lastDay = new Date(year, mon, 0).getDate();
+        const endDate = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
+        timePeriodParam = `time_period=custom&start_date=${startDate}&end_date=${endDate}`;
+        logger.info(`Month ${month} doesn't match recent months — using custom date range (${startDate} → ${endDate})`);
+      }
     }
   }
 

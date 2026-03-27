@@ -224,13 +224,29 @@ export class RevenueService {
       orderBy: { koc: { full_name: 'asc' } },
     });
 
-    // Dynamically compute accumulated from previous PENDING cycles (not from stored DB value)
+    // Dynamically compute accumulated from previous cycles (not from stored DB value).
+    // Include PENDING records (not yet paid) AND records that were APPROVED in this same cycle
+    // (paid_in_cycle_id = cycleId) — those were auto-approved together with the current month,
+    // so they must still count toward the accumulated total shown in this cycle's view.
     const kocIds = records.map(r => r.koc_id);
     const prevPendingRecords = kocIds.length > 0
       ? await prisma.revenueRecord.findMany({
-          where: { koc_id: { in: kocIds }, status: 'PENDING', cycle_id: { lt: cycleId } },
+          where: {
+            koc_id: { in: kocIds },
+            cycle_id: { lt: cycleId },
+            OR: [
+              { status: 'PENDING' },
+              { paid_in_cycle_id: cycleId },
+            ],
+          },
         })
       : [];
+
+    console.log('[DEBUG getRecordsByCycle] cycleId:', cycleId, '| kocIds:', kocIds);
+    console.log('[DEBUG getRecordsByCycle] prevPendingRecords count:', prevPendingRecords.length);
+    for (const r of prevPendingRecords) {
+      console.log('  >> prev record:', { koc_id: r.koc_id, cycle_id: r.cycle_id, status: r.status, paid_in_cycle_id: r.paid_in_cycle_id, rev: Number(r.original_revenue_usd) });
+    }
 
     // Sum previous PENDING revenue per KOC
     const prevOriginalByKoc = new Map<string, number>();
@@ -458,7 +474,7 @@ export class RevenueService {
     }
 
     // Group records by KOC
-    const kocRecords = new Map<string, Array<{ cycleId: number; revenue: number; month: string; status: string; cycleStatus: string }>>();
+    const kocRecords = new Map<string, Array<{ cycleId: number; revenue: number; month: string; status: string; cycleStatus: string; paidInCycleId: number | null }>>();
     for (const record of records) {
       const entries = kocRecords.get(record.koc_id) || [];
       entries.push({
@@ -467,6 +483,7 @@ export class RevenueService {
         month: record.cycle.month,
         status: record.status,
         cycleStatus: cycleStatusMap.get(record.cycle_id) || 'OPEN',
+        paidInCycleId: record.paid_in_cycle_id,
       });
       kocRecords.set(record.koc_id, entries);
     }
@@ -480,13 +497,12 @@ export class RevenueService {
       const accumulatedMonths: Array<{ month: string; revenue: number }> = [];
 
       for (const entry of entries) {
-        if (entry.status === 'APPROVED') {
-          // APPROVED means this KOC's revenue was settled up to this point → reset running total.
-          // This covers both: manual approval (cycle still OPEN/LOCKED) and payment completion.
+        if (entry.status === 'APPROVED' && entry.paidInCycleId !== cycleId) {
+          // Settled in a previous/different cycle → reset running total.
           accumulated = 0;
           accumulatedMonths.length = 0;
         } else {
-          // PENDING → keep accumulating into the unpaid balance
+          // PENDING or approved together in the current cycle → include in accumulated.
           accumulated += entry.revenue;
           accumulatedMonths.push({ month: entry.month, revenue: entry.revenue });
         }
