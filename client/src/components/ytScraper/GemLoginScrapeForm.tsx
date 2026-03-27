@@ -67,6 +67,10 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
     const data = result as any;
     setScrapeResult(data);
     message.success(`Cào xong: ${data?.success}/${data?.total} KOC thành công`);
+    queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+    queryClient.invalidateQueries({ queryKey: ['cycles'] });
+    queryClient.invalidateQueries({ queryKey: ['yt-scrape-latest-results'] });
+    queryClient.invalidateQueries({ queryKey: ['monthlyRevenue'] });
   });
 
   const scrapeMutation = useMutation({
@@ -92,6 +96,9 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
       setCronResult({ success: res.data?.success, message: res.data?.message, cycleMonth: res.data?.data?.cycleMonth });
       queryClient.invalidateQueries({ queryKey: ['yt-scrape-latest-results'] });
       queryClient.invalidateQueries({ queryKey: ['cycles-for-scraper'] });
+      queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
+      queryClient.invalidateQueries({ queryKey: ['cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyRevenue'] });
       if (res.data?.success) {
         message.success(res.data?.message || 'Hoàn tất');
       } else {
