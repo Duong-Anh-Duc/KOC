@@ -5,6 +5,38 @@ import { RevenueCalculationInput, RevenueCalculationResult } from '../../types';
 
 export class RevenueService {
   /**
+   * Parse "MM/YYYY" to a comparable number YYYYMM for correct chronological ordering.
+   * e.g. "01/2026" → 202601, "12/2025" → 202512
+   */
+  private static monthToSortKey(month: string): number {
+    const [mm, yyyy] = month.split('/');
+    return parseInt(yyyy, 10) * 100 + parseInt(mm, 10);
+  }
+
+  /**
+   * Get IDs of all cycles that are chronologically before (or before-or-equal) the given cycle.
+   * Uses parsed month comparison instead of cycle_id integer comparison.
+   */
+  private static async getCycleIdsBefore(
+    currentCycleMonth: string,
+    adminId?: string | null,
+    inclusive = false
+  ): Promise<number[]> {
+    const adminFilter = adminId ? { admin_id: adminId } : {};
+    const allCycles = await prisma.revenueCycle.findMany({
+      where: adminFilter,
+      select: { id: true, month: true },
+    });
+    const currentKey = RevenueService.monthToSortKey(currentCycleMonth);
+    return allCycles
+      .filter(c => {
+        const key = RevenueService.monthToSortKey(c.month);
+        return inclusive ? key <= currentKey : key < currentKey;
+      })
+      .map(c => c.id);
+  }
+
+  /**
    * Core revenue calculation formula
    * 
    * 1. Bank Fee = ((Original - US_Tax) * 0.25%) + $12
@@ -229,11 +261,18 @@ export class RevenueService {
     // (paid_in_cycle_id = cycleId) — those were auto-approved together with the current month,
     // so they must still count toward the accumulated total shown in this cycle's view.
     const kocIds = records.map(r => r.koc_id);
-    const prevPendingRecords = kocIds.length > 0
+
+    // Use month-based comparison (not cycle_id integer) to find chronologically earlier cycles
+    const currentCycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
+    const prevCycleIds = currentCycle
+      ? await RevenueService.getCycleIdsBefore(currentCycle.month, currentCycle.admin_id, false)
+      : [];
+
+    const prevPendingRecords = kocIds.length > 0 && prevCycleIds.length > 0
       ? await prisma.revenueRecord.findMany({
           where: {
             koc_id: { in: kocIds },
-            cycle_id: { lt: cycleId },
+            cycle_id: { in: prevCycleIds },
             OR: [
               { status: 'PENDING' },
               { paid_in_cycle_id: cycleId },
@@ -241,12 +280,6 @@ export class RevenueService {
           },
         })
       : [];
-
-    console.log('[DEBUG getRecordsByCycle] cycleId:', cycleId, '| kocIds:', kocIds);
-    console.log('[DEBUG getRecordsByCycle] prevPendingRecords count:', prevPendingRecords.length);
-    for (const r of prevPendingRecords) {
-      console.log('  >> prev record:', { koc_id: r.koc_id, cycle_id: r.cycle_id, status: r.status, paid_in_cycle_id: r.paid_in_cycle_id, rev: Number(r.original_revenue_usd) });
-    }
 
     // Sum previous PENDING revenue per KOC
     const prevOriginalByKoc = new Map<string, number>();
@@ -400,8 +433,12 @@ export class RevenueService {
     }
 
     // Approve pending records for this KOC in current + previous cycles only
+    // Use month-based comparison to find chronologically earlier-or-equal cycles
+    const prevOrEqualCycleIds = await RevenueService.getCycleIdsBefore(
+      record.cycle.month, record.cycle.admin_id, true
+    );
     await (prisma as any).revenueRecord.updateMany({
-      where: { koc_id: record.koc_id, status: 'PENDING', cycle_id: { lte: record.cycle_id } },
+      where: { koc_id: record.koc_id, status: 'PENDING', cycle_id: { in: prevOrEqualCycleIds } },
       data: { status: 'APPROVED', paid_in_cycle_id: record.cycle_id },
     });
 
@@ -439,22 +476,22 @@ export class RevenueService {
     const cycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
     if (!cycle) throw new ApiError(404, 'cycle.notFound');
 
-    // Get all cycles ordered by month for comparison
-    const allCycles = await prisma.revenueCycle.findMany({
-      orderBy: { month: 'asc' },
-    });
+    // Get all cycles and sort chronologically by parsed month (not string sort)
+    const allCycles = await prisma.revenueCycle.findMany();
+    allCycles.sort((a, b) => RevenueService.monthToSortKey(a.month) - RevenueService.monthToSortKey(b.month));
 
-    // Find cycles before (and including) current cycle
-    const currentIdx = allCycles.findIndex(c => c.id === cycleId);
-    const relevantCycles = allCycles.slice(0, currentIdx + 1);
+    // Find cycles chronologically before (and including) current cycle
+    const currentKey = RevenueService.monthToSortKey(cycle.month);
+    const relevantCycles = allCycles.filter(c => RevenueService.monthToSortKey(c.month) <= currentKey);
 
     // Get all records for relevant cycles (scoped to admin's KOCs)
     const kocFilter = adminId ? { koc: { admin_id: adminId } } : {};
     const records = await prisma.revenueRecord.findMany({
       where: { cycle_id: { in: relevantCycles.map(c => c.id) }, ...kocFilter },
       include: { cycle: true },
-      orderBy: { cycle: { month: 'asc' } },
     });
+    // Sort by parsed month chronologically (not string sort which breaks cross-year)
+    records.sort((a, b) => RevenueService.monthToSortKey(a.cycle.month) - RevenueService.monthToSortKey(b.cycle.month));
 
     // Build cycle status map (to know which cycles are PAYMENT_COMPLETED)
     const cycleStatusMap = new Map<number, string>();

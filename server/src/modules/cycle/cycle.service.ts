@@ -231,13 +231,24 @@ export class CycleService {
     // Determine which KOCs have hit the threshold (accumulated >= min_payment)
     const paymentStatus = await RevenueService.getPaymentStatus(id, adminId);
 
-    // For each eligible KOC: approve EVERY pending record across all cycles
+    // Find all cycle IDs chronologically before or equal to this cycle (by month, not by ID)
+    const allCycles = await db.revenueCycle.findMany({
+      where: cycle.admin_id ? { admin_id: cycle.admin_id } : {},
+      select: { id: true, month: true },
+    });
+    const parseMonth = (m: string) => { const [mm, yyyy] = m.split('/'); return parseInt(yyyy, 10) * 100 + parseInt(mm, 10); };
+    const currentKey = parseMonth(cycle.month);
+    const prevOrEqualCycleIds = allCycles
+      .filter((c: { month: string }) => parseMonth(c.month) <= currentKey)
+      .map((c: { id: number }) => c.id);
+
+    // For each eligible KOC: approve EVERY pending record across all chronologically previous cycles
     for (const [kocId, status] of Object.entries(paymentStatus)) {
       if (!status.belowThreshold) {
         // Approve pending records for this KOC (previous + current cycle only)
         // paid_in_cycle_id = id means "payment was made in this cycle"
         await db.revenueRecord.updateMany({
-          where: { koc_id: kocId, status: 'PENDING', cycle_id: { lte: id } },
+          where: { koc_id: kocId, status: 'PENDING', cycle_id: { in: prevOrEqualCycleIds } },
           data: { status: 'APPROVED', paid_in_cycle_id: id },
         });
       }
