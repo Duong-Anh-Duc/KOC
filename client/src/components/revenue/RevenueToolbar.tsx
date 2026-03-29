@@ -28,6 +28,8 @@ interface RevenueToolbarProps {
   cycleLocked: boolean;
   records: RevenueRecord[];
   isAdmin: boolean;
+  canManageCycle: boolean;
+  canRunScraper: boolean;
   onScrapeRevenue: (cycleId: number, kocIds?: string[]) => void;
   scrapeLoading: boolean;
   onScrapeMonthly: (kocIds?: string[]) => void;
@@ -50,6 +52,8 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
   cycleLocked,
   records,
   isAdmin,
+  canManageCycle,
+  canRunScraper,
   onScrapeRevenue,
   scrapeLoading,
   onScrapeMonthly,
@@ -90,7 +94,7 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
         </Col>
         <Col>
           <Space>
-            {!cycleLocked && (
+            {canRunScraper && !cycleLocked && (
               <Dropdown
                 menu={{
                   items: [
@@ -140,7 +144,7 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
                 </Button>
               </Dropdown>
             )}
-            {isAdmin && !cycleLocked && (
+            {canManageCycle && !cycleLocked && (
               <Button
                 icon={addKocsLoading ? <LoadingOutlined /> : <PlusOutlined />}
                 loading={addKocsLoading}
@@ -151,7 +155,7 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
                 Thêm KOC ({missingKOCsCount})
               </Button>
             )}
-            {isAdmin && selectedCycle.status === 'OPEN' && (
+            {canManageCycle && selectedCycle.status === 'OPEN' && (
               <Button
                 icon={<LockOutlined />}
                 onClick={() => onLockCycle(selectedCycle.id)}
@@ -160,7 +164,7 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
                 {t('cycle.lock')}
               </Button>
             )}
-            {isAdmin && selectedCycle.status === 'LOCKED' && (
+            {canManageCycle && selectedCycle.status === 'LOCKED' && (
               <Button
                 type="primary"
                 icon={<CheckCircleOutlined />}

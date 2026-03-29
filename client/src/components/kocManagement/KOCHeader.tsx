@@ -12,7 +12,7 @@ interface KOCHeaderProps {
   statusFilter: string | undefined;
   onStatusFilterChange: (value: string | undefined) => void;
   onRefresh: () => void;
-  isAdmin: boolean;
+  canEdit: boolean;
   onCreate: () => void;
 }
 
@@ -23,7 +23,7 @@ const KOCHeader: React.FC<KOCHeaderProps> = ({
   statusFilter,
   onStatusFilterChange,
   onRefresh,
-  isAdmin,
+  canEdit,
   onCreate,
 }) => {
   const { t } = useTranslation();
@@ -53,7 +53,7 @@ const KOCHeader: React.FC<KOCHeaderProps> = ({
           ]}
         />
         <Button icon={<ReloadOutlined />} onClick={onRefresh} />
-        {isAdmin && (
+        {canEdit && (
           <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
             {t('koc.create')}
           </Button>

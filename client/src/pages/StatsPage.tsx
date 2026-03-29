@@ -6,6 +6,7 @@ import { statsApi } from '../api';
 import { SummaryBar, TaskProgressBar } from '../components/common';
 import { StatsCronConfigModal, StatsDetailModal, StatsGrowthTable, StatsHeader, Top10Chart } from '../components/stats';
 import { useProgress } from '../hooks/useProgress';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAuthStore } from '../stores';
 import { toastError } from '../utils';
 
@@ -25,7 +26,8 @@ const StatsPage: React.FC = () => {
   const [cronModalOpen, setCronModalOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
-  const isViewer = user?.role === 'VIEWER';
+  const { hasPermission } = usePermissions();
+  const canRunScraper = isAdmin || hasPermission('run_scraper');
   const screens = useBreakpoint();
   const isMobile = !screens.md;
 
@@ -95,7 +97,7 @@ const StatsPage: React.FC = () => {
 
       <StatsHeader
         onRefresh={() => refetchAll()}
-        onFetchAll={isViewer ? undefined : handleFetchAll}
+        onFetchAll={canRunScraper ? handleFetchAll : undefined}
         fetchLoading={fetchAllStatsMutation.isPending || statsProgress.state.active}
         onOpenCronConfig={isAdmin ? () => setCronModalOpen(true) : undefined}
       />

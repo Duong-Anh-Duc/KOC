@@ -26,6 +26,8 @@ const KocAccessModal: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const [kocSearch, setKocSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filteredKocs = useMemo(() => {
     if (!kocSearch.trim()) return kocs;
@@ -51,7 +53,7 @@ const KocAccessModal: React.FC<Props> = ({
       key: 'stt',
       width: 60,
       align: 'center',
-      render: (_: unknown, __: KocItem, index: number) => index + 1,
+      render: (_: unknown, __: KocItem, index: number) => (currentPage - 1) * pageSize + index + 1,
     },
     {
       title: t('permissions.colKocName'),
@@ -163,10 +165,12 @@ const KocAccessModal: React.FC<Props> = ({
             dataSource={filteredKocs}
             rowKey="id"
             pagination={{
-              pageSize: 10,
+              current: currentPage,
+              pageSize,
               showSizeChanger: true,
               pageSizeOptions: ['5', '10', '20', '50'],
               showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}`,
+              onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             }}
             size="small"
           />

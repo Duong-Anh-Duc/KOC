@@ -13,7 +13,7 @@ const { useBreakpoint } = Grid;
 interface CyclesTabProps {
   cycles: RevenueCycle[] | undefined;
   loading: boolean;
-  isAdmin: boolean;
+  canManageCycle: boolean;
   pageSize: number;
   onPageSizeChange: (size: number) => void;
   onCycleClick: (cycle: RevenueCycle) => void;
@@ -36,7 +36,7 @@ const statusColorMap: Record<string, string> = {
 const CyclesTab: React.FC<CyclesTabProps> = ({
   cycles,
   loading,
-  isAdmin,
+  canManageCycle,
   pageSize,
   onPageSizeChange,
   onCycleClick,
@@ -102,7 +102,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
               onClick={() => onCycleClick(record)}
             />
           </Tooltip>
-          {record.status === 'OPEN' && (
+          {record.status === 'OPEN' && canManageCycle && (
             <>
               <Tooltip title={t('common.edit')}>
                 <Button
@@ -112,7 +112,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                   onClick={() => onEditCycle(record)}
                 />
               </Tooltip>
-              {isAdmin && (
+              {canManageCycle && (
                 <Popconfirm
                   title={t('confirm.lockCycle')}
                   onConfirm={() => onLockCycle(record.id)}
@@ -130,7 +130,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
               )}
             </>
           )}
-          {record.status === 'LOCKED' && isAdmin && (
+          {record.status === 'LOCKED' && canManageCycle && (
             <>
               <Popconfirm
                 title={t('confirm.reopenCycle')}
@@ -162,7 +162,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
               </Popconfirm>
             </>
           )}
-          {record.status === 'PAYMENT_COMPLETED' && isAdmin && (
+          {record.status === 'PAYMENT_COMPLETED' && canManageCycle && (
             <Popconfirm
               title={t('confirm.reopenCycle')}
               onConfirm={() => onReopenCycle(record.id)}

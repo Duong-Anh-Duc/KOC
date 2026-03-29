@@ -23,6 +23,8 @@ interface RevenueTableProps {
   onDeleteMany?: (ids: string[]) => void;
   onEdit?: (record: RevenueRecord) => void;
   isAdmin?: boolean;
+  canApprove?: boolean;
+  canDelete?: boolean;
   /** Latest scrape results for each KOC - used for country breakdown */
   scrapeResults?: YouTubeScrapeResult[];
   /** Scrape history for selected KOC */
@@ -48,6 +50,8 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   onDeleteMany,
   onEdit,
   isAdmin,
+  canApprove,
+  canDelete,
   scrapeResults,
   scrapeHistory,
   scrapeHistoryLoading,
@@ -72,7 +76,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   const detailScrape = detailKocId ? getScrapeResult(detailKocId) || null : null;
 
   // When rowSelection is active, the checkbox column shifts all summary cell indices by 1
-  const sel = isAdmin && !cycleLocked && (onDelete || onDeleteMany) ? 1 : 0;
+  const sel = canDelete && !cycleLocked && (onDelete || onDeleteMany) ? 1 : 0;
 
   const columns = getRevenueColumns({
     t,
@@ -82,6 +86,8 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
     onDelete,
     onEdit,
     isAdmin,
+    canApprove,
+    canDelete,
     scrapeResults,
     paymentStatus,
     onViewDetail: (kocId) => setDetailKocId(kocId),
@@ -95,7 +101,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   return (
   <>
     {/* ===== Bulk Action Bar ===== */}
-    {isAdmin && !cycleLocked && (onDelete || onDeleteMany) && (
+    {canDelete && !cycleLocked && (onDelete || onDeleteMany) && (
       <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {selectedRowKeys.length > 0 && (
           <>
@@ -148,7 +154,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       pagination={false}
       size="small"
       style={{ borderRadius: 8 }}
-      rowSelection={isAdmin && !cycleLocked && (onDelete || onDeleteMany) ? {
+      rowSelection={canDelete && !cycleLocked && (onDelete || onDeleteMany) ? {
         selectedRowKeys,
         onChange: (keys) => setSelectedRowKeys(keys),
         columnWidth: 40,

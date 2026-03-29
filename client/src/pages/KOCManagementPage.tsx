@@ -12,6 +12,7 @@ import { SummaryBar } from '../components/common';
 import { KOCFormModal } from '../components/features';
 import { CreateKocAccountModal, KOCHeader, KOCTable } from '../components/kocManagement';
 import { useCreateKOC, useDeleteKOC, useKOCs, useUpdateKOC } from '../hooks';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAuthStore } from '../stores';
 import type { CreateKOCInput, KOC, UpdateKOCInput } from '../types';
 import { toastError, toastSuccess } from '../utils';
@@ -21,6 +22,8 @@ const KOCManagementPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
   const isViewer = user?.role === 'VIEWER';
+  const { hasPermission } = usePermissions();
+  const canEditKoc = isAdmin || hasPermission('edit_info');
   const queryClient = useQueryClient();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
@@ -46,7 +49,7 @@ const KOCManagementPage: React.FC = () => {
   const { data: accountsData } = useQuery({
     queryKey: ['koc-accounts'],
     queryFn: () => apiClient.get<{ success: boolean; data: Record<string, boolean> }>('/kocs/accounts-status').then((res) => res.data.data),
-    enabled: isAdmin,
+    enabled: canEditKoc,
   });
   const kocHasAccount = accountsData || {};
 
@@ -133,9 +136,10 @@ const KOCManagementPage: React.FC = () => {
         statusFilter={statusFilter}
         onStatusFilterChange={(val) => { setStatusFilter(val); setPage(1); }}
         onRefresh={() => refetch()}
-        isAdmin={isAdmin}
+        canEdit={canEditKoc}
         onCreate={handleCreate}
       />
+
 
       <SummaryBar
         items={[
@@ -163,7 +167,7 @@ const KOCManagementPage: React.FC = () => {
       <KOCTable
         kocs={filteredKocs}
         loading={isLoading}
-        isAdmin={isAdmin}
+        canEdit={canEditKoc}
         page={page}
         pageSize={pageSize}
         total={meta?.total || 0}
@@ -173,7 +177,7 @@ const KOCManagementPage: React.FC = () => {
         onEdit={handleEdit}
         onDuplicate={handleDuplicate}
         onDelete={(id) => deleteMutation.mutate(id)}
-        onCreateAccount={isAdmin ? handleCreateAccount : undefined}
+        onCreateAccount={canEditKoc ? handleCreateAccount : undefined}
         kocHasAccount={kocHasAccount}
       />
 

@@ -25,6 +25,8 @@ const PermissionManagementPage: React.FC = () => {
   const [kocPermDefs, setKocPermDefs] = useState<KocPermDef[]>([]);
   const [selectedManager, setSelectedManager] = useState<ManagerUser | null>(null);
   const [permModalKoc, setPermModalKoc]       = useState<KocItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchData = useCallback(async () => {
     try {
@@ -109,7 +111,7 @@ const PermissionManagementPage: React.FC = () => {
       key: 'stt',
       width: 60,
       align: 'center',
-      render: (_: unknown, __: ManagerUser, index: number) => index + 1,
+      render: (_: unknown, __: ManagerUser, index: number) => (currentPage - 1) * pageSize + index + 1,
     },
     {
       title: t('permissions.colManager'),
@@ -174,10 +176,12 @@ const PermissionManagementPage: React.FC = () => {
           dataSource={managers}
           rowKey="id"
           pagination={{
-            pageSize: 10,
+            current: currentPage,
+            pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['5', '10', '20', '50'],
             showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}`,
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
           }}
           size="middle"
         />

@@ -24,6 +24,8 @@ export interface RevenueColumnsParams {
   onDelete?: (id: string) => void;
   onEdit?: (record: RevenueRecord) => void;
   isAdmin?: boolean;
+  canApprove?: boolean;
+  canDelete?: boolean;
   scrapeResults?: unknown[];
   paymentStatus?: PaymentStatusMap;
   onViewDetail: (kocId: string) => void;
@@ -39,6 +41,8 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
     onDelete,
     onEdit,
     isAdmin,
+    canApprove,
+    canDelete,
     scrapeResults,
     paymentStatus,
     onViewDetail,
@@ -315,7 +319,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               />
             </Tooltip>
           )}
-          {isAdmin && record.status === 'PENDING' && onApprove && (() => {
+          {canApprove && record.status === 'PENDING' && onApprove && (() => {
             const status = paymentStatus?.[record.koc_id];
             const belowThreshold = status?.belowThreshold;
             return belowThreshold ? (
@@ -340,7 +344,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               </Tooltip>
             );
           })()}
-          {isAdmin && record.status === 'APPROVED' && onUnapprove && (
+          {canApprove && record.status === 'APPROVED' && onUnapprove && (
             <Popconfirm
               title={t('confirm.unapprove')}
               onConfirm={() => onUnapprove(record.id)}
@@ -357,7 +361,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               </Tooltip>
             </Popconfirm>
           )}
-          {isAdmin && !cycleLocked && onDelete && (
+          {canDelete && !cycleLocked && onDelete && (
             <Popconfirm
               title={t('confirm.delete')}
               onConfirm={() => onDelete(record.id)}

@@ -70,11 +70,7 @@ const Sidebar: React.FC = () => {
       icon: <SendOutlined />,
       label: t('menu.sendRevenueEmail'),
     } : null,
-    hasPermission('view_audit') ? {
-      key: '/audit',
-      icon: <AuditOutlined />,
-      label: t('menu.audit'),
-    } : null,
+    null,
   ].filter(Boolean) as NonNullable<MenuProps['items']>;
 
   // Admin menu: grouped by function

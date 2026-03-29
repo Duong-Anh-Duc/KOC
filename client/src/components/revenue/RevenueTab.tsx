@@ -21,6 +21,10 @@ interface RevenueTabProps {
   totals: Record<string, number> | undefined;
   loadingRecords: boolean;
   isAdmin: boolean;
+  canManageCycle: boolean;
+  canRunScraper: boolean;
+  canApprove: boolean;
+  canDelete: boolean;
   // Actions
   onEditRecord: (record: RevenueRecord) => void;
   onApprove: (id: string) => void;
@@ -63,6 +67,10 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   totals,
   loadingRecords,
   isAdmin,
+  canManageCycle,
+  canRunScraper,
+  canApprove,
+  canDelete,
   onEditRecord,
   onApprove,
   onUnapprove,
@@ -144,6 +152,8 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
           cycleLocked={cycleLocked}
           records={records}
           isAdmin={isAdmin}
+          canManageCycle={canManageCycle}
+          canRunScraper={canRunScraper}
           onScrapeRevenue={onScrapeRevenue}
           scrapeLoading={scrapeLoading}
           onScrapeMonthly={onScrapeMonthly}
@@ -179,6 +189,8 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
           loading={loadingRecords}
           cycleLocked={cycleLocked}
           isAdmin={isAdmin}
+          canApprove={canApprove}
+          canDelete={canDelete}
           onEdit={readOnly ? undefined : onEditRecord}
           onApprove={onApprove}
           onUnapprove={onUnapprove}

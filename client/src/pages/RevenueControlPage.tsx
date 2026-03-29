@@ -34,6 +34,7 @@ import {
     useUpdateExchangeRate,
     useUpdateRevenueRecord,
 } from '../hooks';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAuthStore } from '../stores';
 import type { RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../types';
 
@@ -44,6 +45,8 @@ const RevenueControlPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
   const isViewer = user?.role === 'VIEWER';
+  const { hasPermission } = usePermissions();
+  const canManageCycle = isAdmin || hasPermission('manage_cycle');
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('cycles');
@@ -276,7 +279,7 @@ const RevenueControlPage: React.FC = () => {
         <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
-            {isAdmin && !isViewer && (
+            {canManageCycle && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCycle}>
                 {t('cycle.create')}
               </Button>
@@ -300,7 +303,7 @@ const RevenueControlPage: React.FC = () => {
                 <CyclesTab
                   cycles={cycles}
                   loading={loadingCycles}
-                  isAdmin={isAdmin}
+                  canManageCycle={canManageCycle}
                   pageSize={cyclePageSize}
                   onPageSizeChange={setCyclePageSize}
                   onCycleClick={handleCycleClick}
@@ -334,6 +337,10 @@ const RevenueControlPage: React.FC = () => {
                   totals={totals}
                   loadingRecords={loadingRecords}
                   isAdmin={isAdmin}
+                  canManageCycle={canManageCycle}
+                  canRunScraper={isAdmin || hasPermission('run_scraper')}
+                  canApprove={isAdmin || hasPermission('approve_revenue')}
+                  canDelete={isAdmin || hasPermission('delete_revenue')}
                   onEditRecord={(record) => { setEditingRecord(record); setRecordModalOpen(true); }}
                   onApprove={(id) => approveMutation.mutate(id)}
                   onUnapprove={(id) => unapproveMutation.mutate(id)}
@@ -359,7 +366,7 @@ const RevenueControlPage: React.FC = () => {
                   onCloseHistory={() => setHistoryKocId(null)}
                   paymentStatus={paymentStatus}
                   activeKOCs={activeKOCs}
-                  readOnly={isViewer}
+                  readOnly={!isAdmin && !hasPermission('edit_revenue')}
                   />
                 </>
               ),

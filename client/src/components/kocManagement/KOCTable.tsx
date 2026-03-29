@@ -14,7 +14,7 @@ const { Text } = Typography;
 interface KOCTableProps {
   kocs: KOC[];
   loading: boolean;
-  isAdmin: boolean;
+  canEdit: boolean;
   page: number;
   pageSize: number;
   total: number;
@@ -31,7 +31,7 @@ interface KOCTableProps {
 const KOCTable: React.FC<KOCTableProps> = ({
   kocs,
   loading,
-  isAdmin,
+  canEdit,
   page,
   pageSize,
   total,
@@ -186,7 +186,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       align: 'center',
       render: (_: unknown, record: KOC) => (
         <Space size="small">
-          {isAdmin && (
+          {canEdit && (
             <>
               {onCreateAccount && !kocHasAccount?.[record.id] && (
                 <Tooltip title={t('kocAccount.createTitle')}>
