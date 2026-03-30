@@ -60,8 +60,23 @@ export class YouTubeScrapeResultService {
   /**
    * Get latest scrape result for each active KOC
    */
-  static async getLatestForAllKOCs() {
-    const results = await prisma.$queryRaw<
+  static async getLatestForAllKOCs(adminId?: string, allowedKocIds?: string[]) {
+    // Build additional WHERE conditions based on scope
+    const conditions: string[] = [`k.status = 'ACTIVE'`];
+    const params: any[] = [];
+
+    if (adminId) {
+      params.push(adminId);
+      conditions.push(`k.admin_id = $${params.length}`);
+    }
+    if (allowedKocIds && allowedKocIds.length > 0) {
+      params.push(allowedKocIds);
+      conditions.push(`k.id = ANY($${params.length})`);
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const results = await prisma.$queryRawUnsafe<
       Array<{
         id: string;
         koc_id: string;
@@ -79,8 +94,8 @@ export class YouTubeScrapeResultService {
         youtube_channel_id: string;
         koc_status: string;
       }>
-    >`
-      SELECT DISTINCT ON (sr.koc_id)
+    >(
+      `SELECT DISTINCT ON (sr.koc_id)
         sr.id,
         sr.koc_id,
         sr.channel_id,
@@ -98,9 +113,10 @@ export class YouTubeScrapeResultService {
         k.status AS koc_status
       FROM youtube_scrape_results sr
       JOIN kocs k ON k.id = sr.koc_id
-      WHERE k.status = 'ACTIVE'
-      ORDER BY sr.koc_id, sr.scraped_at DESC
-    `;
+      WHERE ${whereClause}
+      ORDER BY sr.koc_id, sr.scraped_at DESC`,
+      ...params
+    );
 
     return results.map((r) => ({
       id: r.id,

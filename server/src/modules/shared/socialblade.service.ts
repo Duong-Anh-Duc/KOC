@@ -569,8 +569,14 @@ export class SocialBladeService {
    * Same as recordAllStats but emits SSE progress events via ProgressService.
    * Batch 3 tabs at a time.
    */
-  static async recordAllStatsWithProgress(taskId: string, adminId?: string) {
-    const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) } });
+  static async recordAllStatsWithProgress(taskId: string, adminId?: string, allowedKocIds?: string[]) {
+    const kocs = await prisma.kOC.findMany({
+      where: {
+        status: 'ACTIVE',
+        ...(adminId ? { admin_id: adminId } : {}),
+        ...(allowedKocIds ? { id: { in: allowedKocIds } } : {}),
+      },
+    });
     const total = kocs.length;
     const results: string[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
@@ -808,9 +814,10 @@ export class SocialBladeService {
   /**
    * Get latest stats for all KOCs
    */
-  static async getLatestStats(adminId?: string) {
+  static async getLatestStats(adminId?: string, allowedKocIds?: string[]) {
     const where: any = { status: 'ACTIVE' as const };
     if (adminId) where.admin_id = adminId;
+    if (allowedKocIds) where.id = { in: allowedKocIds };
 
     const kocs = await prisma.kOC.findMany({
       where,
@@ -847,9 +854,10 @@ export class SocialBladeService {
    * Get 28d growth summary for all KOCs
    * Supports both new (byCountry/byDay) and old (overview/content/audience) formats
    */
-  static async getAllKocsGrowth(adminId?: string) {
+  static async getAllKocsGrowth(adminId?: string, allowedKocIds?: string[]) {
     const where: any = { status: 'ACTIVE' as const };
     if (adminId) where.admin_id = adminId;
+    if (allowedKocIds) where.id = { in: allowedKocIds };
 
     const kocs = await prisma.kOC.findMany({
       where,

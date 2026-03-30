@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../../config/database';
 import logger from '../../middlewares/logger.middleware';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope, buildKocWhereFilter } from '../../utils/access-scope';
 import { GemLoginService } from './gemlogin.service';
 import { ProgressService } from '../shared/progress.service';
 
@@ -133,6 +134,7 @@ export class GemLoginController {
    */
   static async scrapeRevenue(req: Request, res: Response): Promise<void> {
     const authReq = req as AuthenticatedRequest;
+    const scope = await getAccessScope(authReq);
     const adminId = authReq.user?.userId;
     const profileId: string = req.body?.profileId || process.env.GEMLOGIN_PROFILE_ID || '1';
     const month: string | undefined = req.body?.month;
@@ -155,10 +157,18 @@ export class GemLoginController {
           startedHere = true;
         }
 
+        // Intersect kocIds with access scope
+        let effectiveKocIds = kocIds;
+        if (scope.allowedKocIds) {
+          effectiveKocIds = kocIds
+            ? kocIds.filter(id => scope.allowedKocIds!.includes(id))
+            : scope.allowedKocIds;
+        }
+
         const kocWhere = {
           status: 'ACTIVE' as const,
-          ...(adminId ? { admin_id: adminId } : {}),
-          ...(kocIds ? { id: { in: kocIds } } : {}),
+          ...(scope.adminId ? { admin_id: scope.adminId } : {}),
+          ...(effectiveKocIds ? { id: { in: effectiveKocIds } } : {}),
         };
 
         const kocs = await prisma.kOC.findMany({
@@ -255,7 +265,8 @@ export class GemLoginController {
    */
   static async runCron(req: Request, res: Response): Promise<void> {
     const authReq = req as AuthenticatedRequest;
-    const adminId = authReq.user?.userId;
+    const scope = await getAccessScope(authReq);
+    const adminId = scope.adminId || authReq.user?.userId;
     const profileId: string = req.body?.profileId || process.env.GEMLOGIN_PROFILE_ID || '1';
     const closeAfter: boolean = req.body?.closeAfter === true;
 

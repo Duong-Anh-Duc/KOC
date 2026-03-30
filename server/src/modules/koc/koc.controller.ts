@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import prisma from '../../config/database';
 import { AUDIT_ACTIONS, ENTITIES } from '../../constants';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope } from '../../utils/access-scope';
 import { AuditLogService } from '../audit/audit.service';
 import { KOCService } from './koc.service';
 
@@ -14,7 +15,7 @@ export class KOCController {
     try {
       const { page, limit, search, sortBy, sortOrder } = req.query;
       const authReq = req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const scope = await getAccessScope(authReq);
 
       const result = await KOCService.getAll({
         page: page ? Number(page) : undefined,
@@ -22,7 +23,8 @@ export class KOCController {
         search: search as string,
         sortBy: sortBy as string,
         sortOrder: sortOrder as 'asc' | 'desc',
-        adminId,
+        adminId: scope.adminId,
+        allowedKocIds: scope.allowedKocIds,
       });
 
       const t = (req as any).t;
@@ -44,8 +46,9 @@ export class KOCController {
   static async getActive(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const authReq = req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      const kocs = await KOCService.getActiveKOCs(adminId);
+      const scope = await getAccessScope(authReq);
+
+      const kocs = await KOCService.getActiveKOCs(scope.adminId, scope.allowedKocIds);
 
       const t = (req as any).t;
       res.status(200).json({

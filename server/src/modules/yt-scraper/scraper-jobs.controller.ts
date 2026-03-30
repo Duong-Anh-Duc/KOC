@@ -10,6 +10,7 @@ import { YouTubeScrapeResultService } from '../shared/youtube-scrape-result.serv
 import { YouTubeScraperSchedulerService } from '../shared/youtube-scraper-scheduler.service';
 import { YouTubeScraperService } from '../shared/youtube-scraper.service';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope, isKocAccessible, buildKocWhereFilter } from '../../utils/access-scope';
 import { CycleService } from '../cycle/cycle.service';
 import { RevenueService } from '../revenue/revenue.service';
 import { SocialBladeService } from '../shared/socialblade.service';
@@ -23,11 +24,8 @@ export class ScraperJobsController {
     try {
       const t = (req as any).t;
       const authReq = req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      // ADMIN chỉ scrape KOC của mình
-      const kocWhere = adminId
-        ? { status: 'ACTIVE' as const, admin_id: adminId }
-        : { status: 'ACTIVE' as const };
+      const scope = await getAccessScope(authReq);
+      const kocWhere = { status: 'ACTIVE' as const, ...buildKocWhereFilter(scope) };
       const kocs = await prisma.kOC.findMany({
         where: kocWhere,
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true },
@@ -43,8 +41,8 @@ export class ScraperJobsController {
       });
 
       // Run in background
-      logger.info(`Starting scrape-all task ${taskId} for ${channelIds.length} channels (admin: ${adminId})`);
-      ScraperJobsController.runScrapeAll(kocs, channelIds, taskId, adminId).catch(err => {
+      logger.info(`Starting scrape-all task ${taskId} for ${channelIds.length} channels (admin: ${scope.adminId})`);
+      ScraperJobsController.runScrapeAll(kocs, channelIds, taskId, scope.adminId).catch(err => {
         logger.error(`scrape-all task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
@@ -80,7 +78,6 @@ export class ScraperJobsController {
         });
       }, adminId);
 
-      // Map results back to KOC info & save
       const enrichedResults = results.map(r => {
         const koc = kocs.find(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id) === r.channelId);
         return { koc, analytics: r };
@@ -117,11 +114,8 @@ export class ScraperJobsController {
     try {
       const t = (req as any).t;
       const authReq = req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      // ADMIN chỉ scrape KOC của mình
-      const kocWhere = adminId
-        ? { status: 'ACTIVE' as const, admin_id: adminId }
-        : { status: 'ACTIVE' as const };
+      const scope = await getAccessScope(authReq);
+      const kocWhere = { status: 'ACTIVE' as const, ...buildKocWhereFilter(scope) };
       const kocs = await prisma.kOC.findMany({
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true },
         where: kocWhere,
@@ -146,7 +140,7 @@ export class ScraperJobsController {
       const { jobId, message } = await YouTubeScraperSchedulerService.startAsyncScrapeJob(
         channelIds,
         channelToKocMap,
-        adminId
+        scope.adminId
       );
       res.status(202).json({
         success: true,
@@ -160,7 +154,6 @@ export class ScraperJobsController {
 
   /**
    * GET /api/yt-scraper/job/:jobId
-   * Get scrape job status
    */
   static async getJobStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -185,12 +178,13 @@ export class ScraperJobsController {
 
   /**
    * GET /api/yt-scraper/results/latest
-   * Get latest scrape result for each active KOC
    */
   static async getLatestResults(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const results = await YouTubeScrapeResultService.getLatestForAllKOCs();
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const results = await YouTubeScrapeResultService.getLatestForAllKOCs(scope.adminId, scope.allowedKocIds);
       res.status(200).json({
         success: true,
         message: t ? t('ytScraper.latestResultsFound', { count: results.length }) : `Found latest scrape data for ${results.length} KOCs`,
@@ -203,12 +197,19 @@ export class ScraperJobsController {
 
   /**
    * GET /api/yt-scraper/results/:kocId
-   * Get scrape history for a specific KOC
    */
   static async getKOCHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = req.params.kocId as string;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
       const limit = parseInt(req.query.limit as string) || 20;
       const history = await YouTubeScrapeResultService.getHistoryByKOC(kocId, limit);
       res.status(200).json({
@@ -223,12 +224,19 @@ export class ScraperJobsController {
 
   /**
    * GET /api/yt-scraper/results/:kocId/latest
-   * Get latest single scrape for a specific KOC
    */
   static async getKOCLatest(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = req.params.kocId as string;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
       const result = await YouTubeScrapeResultService.getLatestByKOC(kocId);
       if (!result) {
         res.status(404).json({ success: false, message: t ? t('ytScraper.noScrapeData') : 'No scrape data found for this KOC' });
@@ -242,12 +250,11 @@ export class ScraperJobsController {
 
   /**
    * POST /api/yt-scraper/create-revenue-records
-   * Create revenue records from latest scraped data for a given cycle
-   * Body: { cycleId: number }
    */
   static async createRevenueRecords(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const scope = await getAccessScope(req);
       const adminId = req.user?.userId;
       const { cycleId } = req.body;
       if (!cycleId) {
@@ -255,15 +262,14 @@ export class ScraperJobsController {
         return;
       }
 
-      // Validate cycle exists and is OPEN
       const cycle = await CycleService.getById(cycleId);
       if (cycle.status !== 'OPEN') {
         res.status(400).json({ success: false, message: t ? t('ytScraper.cycleNotOpen') : 'Cycle is not OPEN' });
         return;
       }
 
-      // Get latest scrape results for all active KOCs
-      const scrapeResults = await YouTubeScrapeResultService.getLatestForAllKOCs();
+      // Get latest scrape results, filtered by access scope
+      const scrapeResults = await YouTubeScrapeResultService.getLatestForAllKOCs(scope.adminId, scope.allowedKocIds);
 
       const US_TAX_RATE = 0.30;
       const US_COUNTRY_NAMES = ['hoa kỳ', 'united states', 'us', 'usa', 'états-unis'];
@@ -280,7 +286,6 @@ export class ScraperJobsController {
         }
 
         try {
-          // Check if record already exists
           const existing = await prisma.revenueRecord.findUnique({
             where: { koc_id_cycle_id: { koc_id: result.koc_id, cycle_id: cycleId } },
           });
@@ -290,7 +295,6 @@ export class ScraperJobsController {
             continue;
           }
 
-          // Calculate US tax from country breakdown: US revenue * 30%
           const countries = Array.isArray(result.country_data) ? result.country_data : [];
           const usCountry = countries.find((c: any) =>
             US_COUNTRY_NAMES.includes(c.country?.toLowerCase?.())
@@ -324,7 +328,6 @@ export class ScraperJobsController {
 
   /**
    * GET /api/yt-scraper/test-parse/:channelId
-   * Test parse a channel and save debug info to file
    */
   static async testParse(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -332,10 +335,8 @@ export class ScraperJobsController {
       const adminId = (req as AuthenticatedRequest).user?.userId;
       const channelId = Array.isArray(req.params.channelId) ? req.params.channelId[0] : req.params.channelId;
 
-      // Call the service method that returns analytics data
       const analytics = await SocialBladeService.scrapeChannelStats(channelId, adminId);
 
-      // Save to file
       const outputPath = path.join(process.cwd(), 'test-parse-output.json');
       const debugData = {
         channelId,
@@ -364,13 +365,19 @@ export class ScraperJobsController {
 
   /**
    * POST /api/yt-scraper/monthly/scrape/:kocId
-   * Scrape monthly revenue analytics for a specific KOC
    */
   static async scrapeMonthlyRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const adminId = authReq.user?.userId;
       const kocId = req.params.kocId as string;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
 
       const koc = await prisma.kOC.findUnique({
         where: { id: kocId },
@@ -382,7 +389,6 @@ export class ScraperJobsController {
         return;
       }
 
-      // Trả taskId ngay — chạy scraping ngầm với SSE progress
       const taskId = ProgressService.generateTaskId('monthly-scrape');
       res.status(202).json({ success: true, message: 'Task started', data: { taskId } });
 
@@ -413,15 +419,23 @@ export class ScraperJobsController {
 
   /**
    * POST /api/yt-scraper/monthly/scrape-all
-   * Start background scrape of monthly revenue for all active KOCs.
-   * Returns taskId immediately; client subscribes to SSE for progress.
    */
   static async scrapeAllMonthlyRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const adminId = scope.adminId || authReq.user?.userId;
       const kocIds: string[] | undefined = req.body?.kocIds;
       const taskId = ProgressService.generateTaskId('monthly-scrape-all');
+
+      // Intersect requested kocIds with allowedKocIds
+      let effectiveKocIds = kocIds;
+      if (scope.allowedKocIds) {
+        effectiveKocIds = kocIds && kocIds.length > 0
+          ? kocIds.filter(id => scope.allowedKocIds!.includes(id))
+          : scope.allowedKocIds;
+      }
 
       res.status(202).json({
         success: true,
@@ -429,7 +443,6 @@ export class ScraperJobsController {
         data: { taskId },
       });
 
-      // Run in background with progress
       (async () => {
         try {
           const { GemLoginService } = await import('../gemlogin/gemlogin.service');
@@ -446,7 +459,7 @@ export class ScraperJobsController {
                 message: `[${current}/${total}] Đang cào: ${channelName}`,
               });
             },
-            kocIds
+            effectiveKocIds
           );
           ProgressService.complete(taskId, { results, errors, total: results.length + errors.length });
         } catch (err: any) {
@@ -461,12 +474,19 @@ export class ScraperJobsController {
 
   /**
    * GET /api/yt-scraper/monthly/:kocId
-   * Get stored monthly revenue analytics for a KOC
    */
   static async getMonthlyRevenue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = req.params.kocId as string;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
       const data = await MonthlyRevenueService.getByKOC(kocId);
       res.status(200).json({ success: true, message: t ? t('ytScraper.monthlyDataRetrieved') : 'Monthly revenue data retrieved', data });
     } catch (error) {
@@ -480,13 +500,20 @@ export class ScraperJobsController {
 
   /**
    * POST /api/yt-scraper/verify-pub-code/:kocId
-   * Scrape monetization page and verify pub code for a specific KOC
    */
   static async verifyPubCode(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const adminId = (req as AuthenticatedRequest).user?.userId;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const adminId = authReq.user?.userId;
       const kocId = req.params.kocId as string;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
       const result = await PubCodeService.verifyKOCPubCode(kocId, adminId);
 
       const success = result.matched !== false;
@@ -506,13 +533,14 @@ export class ScraperJobsController {
 
   /**
    * POST /api/yt-scraper/verify-pub-codes
-   * Verify pub codes for all active KOCs
    */
   static async verifyAllPubCodes(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const adminId = (req as AuthenticatedRequest).user?.userId;
-      const { results, summary } = await PubCodeService.verifyAllPubCodes(adminId);
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const adminId = authReq.user?.userId;
+      const { results, summary } = await PubCodeService.verifyAllPubCodes(adminId, scope.allowedKocIds);
       res.status(200).json({
         success: true,
         message: t

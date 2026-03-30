@@ -3,6 +3,7 @@ import { StatsCronService } from '../cron/cron.service';
 import { ProgressService } from '../shared/progress.service';
 import { AuthenticatedRequest } from '../../types';
 import { SocialBladeService } from '../shared/socialblade.service';
+import { getAccessScope, isKocAccessible } from '../../utils/access-scope';
 
 export class StatsController {
   /**
@@ -10,8 +11,16 @@ export class StatsController {
    */
   static async getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const days = req.query.days ? Number(req.query.days) : 30;
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = Array.isArray(req.params.kocId) ? req.params.kocId[0] : req.params.kocId;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
+      const days = req.query.days ? Number(req.query.days) : 30;
       const stats = await SocialBladeService.getStatsHistory(kocId, days);
 
       const t = (req as any).t;
@@ -30,8 +39,16 @@ export class StatsController {
    */
   static async fetchStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = Array.isArray(req.params.kocId) ? req.params.kocId[0] : req.params.kocId;
-      const adminId = (req as AuthenticatedRequest).user?.userId;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
+      const adminId = authReq.user?.userId;
       const record = await SocialBladeService.recordStats(kocId, adminId);
 
       const t = (req as any).t;
@@ -51,7 +68,9 @@ export class StatsController {
    */
   static async fetchAllStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const adminId = (_req as AuthenticatedRequest).user?.userId;
+      const authReq = _req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const adminId = scope.adminId || authReq.user?.userId;
       const taskId = ProgressService.generateTaskId('stats');
 
       // Respond immediately with taskId
@@ -68,7 +87,7 @@ export class StatsController {
           await GemLoginService.ensureRunning(() =>
             ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
           );
-          await SocialBladeService.recordAllStatsWithProgress(taskId, adminId);
+          await SocialBladeService.recordAllStatsWithProgress(taskId, adminId, scope.allowedKocIds);
         } catch {
           // Error handled inside service
         }
@@ -83,8 +102,9 @@ export class StatsController {
    */
   static async getLatest(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const adminId = (_req as AuthenticatedRequest).user?.role === 'ADMIN' ? (_req as AuthenticatedRequest).user?.userId : undefined;
-      const stats = await SocialBladeService.getLatestStats(adminId);
+      const authReq = _req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const stats = await SocialBladeService.getLatestStats(scope.adminId, scope.allowedKocIds);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -103,7 +123,15 @@ export class StatsController {
    */
   static async getGrowth(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = Array.isArray(req.params.kocId) ? req.params.kocId[0] : req.params.kocId;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
       const detail = await SocialBladeService.getKocDetail(kocId);
 
       const t = (req as any).t;
@@ -123,8 +151,9 @@ export class StatsController {
    */
   static async getAllGrowth(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const adminId = (_req as AuthenticatedRequest).user?.role === 'ADMIN' ? (_req as AuthenticatedRequest).user?.userId : undefined;
-      const growthData = await SocialBladeService.getAllKocsGrowth(adminId);
+      const authReq = _req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
+      const growthData = await SocialBladeService.getAllKocsGrowth(scope.adminId, scope.allowedKocIds);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -142,7 +171,15 @@ export class StatsController {
    */
   static async getCorrelation(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const scope = await getAccessScope(authReq);
       const kocId = Array.isArray(req.params.kocId) ? req.params.kocId[0] : req.params.kocId;
+
+      if (!isKocAccessible(kocId, scope)) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
       const months = req.query.months ? Number(req.query.months) : 6;
       const data = await SocialBladeService.getCorrelation(kocId, months);
 

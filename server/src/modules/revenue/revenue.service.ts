@@ -229,9 +229,13 @@ export class RevenueService {
    * Get all records for a specific cycle
    * @param statusFilter - Optional filter: 'APPROVED' | 'PENDING' to get only records with that status
    */
-  static async getRecordsByCycle(cycleId: number, statusFilter?: 'APPROVED' | 'PENDING', adminId?: string) {
-    // Build KOC filter for admin scoping
-    const kocFilter = adminId ? { koc: { admin_id: adminId } } : {};
+  static async getRecordsByCycle(cycleId: number, statusFilter?: 'APPROVED' | 'PENDING', adminId?: string, allowedKocIds?: string[]) {
+    // Build KOC filter for admin scoping or manager-level KOC filtering
+    const kocFilter = adminId
+      ? { koc: { admin_id: adminId } }
+      : allowedKocIds
+        ? { koc_id: { in: allowedKocIds } }
+        : {};
 
     const records = await prisma.revenueRecord.findMany({
       where: {
@@ -472,7 +476,7 @@ export class RevenueService {
    * When a cycle is PAYMENT_COMPLETED, records in that cycle are considered paid → reset accumulation.
    * Returns map of koc_id -> { accumulated, belowThreshold, accumulatedMonths, threshold }
    */
-  static async getPaymentStatus(cycleId: number, adminId?: string) {
+  static async getPaymentStatus(cycleId: number, adminId?: string, allowedKocIds?: string[]) {
     const cycle = await prisma.revenueCycle.findUnique({ where: { id: cycleId } });
     if (!cycle) throw new ApiError(404, 'cycle.notFound');
 
@@ -484,8 +488,12 @@ export class RevenueService {
     const currentKey = RevenueService.monthToSortKey(cycle.month);
     const relevantCycles = allCycles.filter(c => RevenueService.monthToSortKey(c.month) <= currentKey);
 
-    // Get all records for relevant cycles (scoped to admin's KOCs)
-    const kocFilter = adminId ? { koc: { admin_id: adminId } } : {};
+    // Get all records for relevant cycles (scoped to admin's KOCs or manager's allowed KOCs)
+    const kocFilter = adminId
+      ? { koc: { admin_id: adminId } }
+      : allowedKocIds
+        ? { koc_id: { in: allowedKocIds } }
+        : {};
     const records = await prisma.revenueRecord.findMany({
       where: { cycle_id: { in: relevantCycles.map(c => c.id) }, ...kocFilter },
       include: { cycle: true },

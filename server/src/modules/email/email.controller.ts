@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { EmailService } from './email.service';
 import { ProgressService } from '../shared/progress.service';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope } from '../../utils/access-scope';
 import { AuditLogService } from '../audit/audit.service';
 
 export class EmailController {
@@ -120,11 +121,18 @@ export class EmailController {
         data: { taskId },
       });
 
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
-      const selectedKocIds = Array.isArray(kocIds) && kocIds.length > 0 ? kocIds as string[] : undefined;
+      const scope = await getAccessScope(req);
+      let selectedKocIds = Array.isArray(kocIds) && kocIds.length > 0 ? kocIds as string[] : undefined;
+
+      // Intersect selectedKocIds with allowedKocIds for ACCOUNTANT
+      if (scope.allowedKocIds) {
+        selectedKocIds = selectedKocIds
+          ? selectedKocIds.filter(id => scope.allowedKocIds!.includes(id))
+          : scope.allowedKocIds;
+      }
 
       // Run in background
-      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, adminId, selectedKocIds).catch(err => {
+      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, scope.adminId, selectedKocIds).catch(err => {
         ProgressService.error(taskId, err.message);
       });
     } catch (error) {
@@ -192,10 +200,10 @@ export class EmailController {
       const { default: prisma } = await import('../../config/database');
 
       const authReq = _req as import('../../types').AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
+      const scope = await getAccessScope(authReq);
 
       const cycles = await (prisma as any).revenueCycle.findMany({
-        where: adminId ? { admin_id: adminId } : {},
+        where: scope.adminId ? { admin_id: scope.adminId } : {},
         orderBy: { month: 'desc' },
         select: {
           id: true,

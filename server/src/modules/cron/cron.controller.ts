@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { CronService } from './cron.service';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope } from '../../utils/access-scope';
 import { AuditLogService } from '../audit/audit.service';
 
 export class CronController {
@@ -11,9 +12,9 @@ export class CronController {
   static async getConfig(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const authReq = _req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      const config = await CronService.getConfig(adminId);
-      const status = CronService.getSchedulerStatus(adminId);
+      const scope = await getAccessScope(authReq);
+      const config = await CronService.getConfig(scope.adminId);
+      const status = CronService.getSchedulerStatus(scope.adminId);
 
       const t = (_req as any).t;
       res.status(200).json({
@@ -37,14 +38,14 @@ export class CronController {
     try {
       const { enabled, schedule, autoCreateCycle, autoScrapeRevenue } = req.body;
 
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
-      const oldConfig = await CronService.getConfig(adminId);
+      const scope = await getAccessScope(req);
+      const oldConfig = await CronService.getConfig(scope.adminId);
       const newConfig = await CronService.updateConfig({
         ...(enabled !== undefined && { enabled }),
         ...(schedule !== undefined && { schedule }),
         ...(autoCreateCycle !== undefined && { autoCreateCycle }),
         ...(autoScrapeRevenue !== undefined && { autoScrapeRevenue }),
-      }, adminId);
+      }, scope.adminId);
 
       // Audit log (non-blocking)
       try {
@@ -60,7 +61,7 @@ export class CronController {
         console.error('Failed to create audit log:', auditError);
       }
 
-      const status = CronService.getSchedulerStatus(adminId);
+      const status = CronService.getSchedulerStatus(scope.adminId);
       const t = (req as any).t;
 
       res.status(200).json({
@@ -83,9 +84,9 @@ export class CronController {
   static async runNow(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const scope = await getAccessScope(req);
 
-      const result = await CronService.runJob(adminId);
+      const result = await CronService.runJob(scope.adminId);
 
       // Audit log (non-blocking)
       try {
@@ -118,8 +119,8 @@ export class CronController {
   static async getHistory(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const authReq = _req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      const config = await CronService.getConfig(adminId);
+      const scope = await getAccessScope(authReq);
+      const config = await CronService.getConfig(scope.adminId);
       const t = (_req as any).t;
 
       res.status(200).json({
@@ -144,8 +145,8 @@ export class CronController {
     try {
       const { targetMonth, canRun, reason } = await CronService.getNextCycleMonth();
       const authReq = _req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      const config = await CronService.getConfig(adminId);
+      const scope = await getAccessScope(authReq);
+      const config = await CronService.getConfig(scope.adminId);
       const t = (_req as any).t;
 
       res.status(200).json({

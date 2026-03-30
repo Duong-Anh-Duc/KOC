@@ -6,6 +6,7 @@ import { PaginationQuery } from '../../types';
 
 interface KOCQuery extends PaginationQuery {
   adminId?: string; // Filter KOCs managed by this admin
+  allowedKocIds?: string[]; // Filter KOCs accessible to ACCOUNTANT user
 }
 
 export class KOCService {
@@ -19,10 +20,15 @@ export class KOCService {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    
+
     // Filter by admin
     if (query.adminId) {
       where.admin_id = query.adminId;
+    }
+
+    // Filter by allowed KOC IDs (for ACCOUNTANT users)
+    if (query.allowedKocIds) {
+      where.id = { in: query.allowedKocIds };
     }
 
     // Search filter
@@ -189,10 +195,13 @@ export class KOCService {
    * Get all active KOCs (for dropdowns/selects)
    * If adminId is provided, only return KOCs managed by that admin
    */
-  static async getActiveKOCs(adminId?: string) {
+  static async getActiveKOCs(adminId?: string, allowedKocIds?: string[]) {
     const where: any = { status: 'ACTIVE' as const };
     if (adminId) {
       where.admin_id = adminId;
+    }
+    if (allowedKocIds) {
+      where.id = { in: allowedKocIds };
     }
     return prisma.kOC.findMany({
       where,

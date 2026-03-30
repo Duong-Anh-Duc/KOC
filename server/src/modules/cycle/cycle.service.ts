@@ -9,17 +9,17 @@ export class CycleService {
   /**
    * Get all revenue cycles — scoped by admin_id
    */
-  static async getAll(adminId?: string) {
-    // Get admin's KOC IDs for count filtering
-    const adminKocIds = adminId
+  static async getAll(adminId?: string, allowedKocIds?: string[]) {
+    // Get KOC IDs for count filtering
+    const scopedKocIds = adminId
       ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
-      : null;
+      : allowedKocIds || null;
 
     const cycles = await db.revenueCycle.findMany({
       where: adminId ? { admin_id: adminId } : {},
       orderBy: { created_at: 'desc' },
       include: {
-        _count: { select: { revenue_records: adminKocIds ? { where: { koc_id: { in: adminKocIds } } } : true } },
+        _count: { select: { revenue_records: scopedKocIds ? { where: { koc_id: { in: scopedKocIds } } } : true } },
       },
     });
 
@@ -29,17 +29,17 @@ export class CycleService {
   /**
    * Get cycle by ID with records summary — checks admin ownership
    */
-  static async getById(id: number, adminId?: string) {
-    // Build record filter for admin scoping
-    const adminKocIds = adminId
+  static async getById(id: number, adminId?: string, allowedKocIds?: string[]) {
+    // Build record filter for scoping
+    const scopedKocIds = adminId
       ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
-      : null;
+      : allowedKocIds || null;
 
     const cycle = await db.revenueCycle.findUnique({
       where: { id },
       include: {
         revenue_records: {
-          where: adminKocIds ? { koc_id: { in: adminKocIds } } : undefined,
+          where: scopedKocIds ? { koc_id: { in: scopedKocIds } } : undefined,
           include: {
             koc: {
               select: { full_name: true, channel_name: true, bank_name: true, bank_account_number: true },
@@ -57,7 +57,7 @@ export class CycleService {
   /**
    * Create a new revenue cycle — tied to admin
    */
-  static async create(month: string, exchangeRate: number, adminId?: string) {
+  static async create(month: string, exchangeRate: number, adminId?: string, allowedKocIds?: string[]) {
     // Check duplicate for this admin
     const existing = await db.revenueCycle.findFirst({
       where: { month, admin_id: adminId || null },
@@ -75,7 +75,11 @@ export class CycleService {
     // Auto-populate empty revenue records for all active KOCs so the table
     // shows all members immediately. Amounts are 0 and will be filled in by scraping.
     const activeKocs = await prisma.kOC.findMany({
-      where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) },
+      where: {
+        status: 'ACTIVE',
+        ...(adminId ? { admin_id: adminId } : {}),
+        ...(allowedKocIds ? { id: { in: allowedKocIds } } : {}),
+      },
       select: { id: true },
     });
 
@@ -104,21 +108,21 @@ export class CycleService {
   /**
    * Update a revenue cycle — checks admin ownership
    */
-  static async update(id: number, data: { exchange_rate?: number; status?: 'OPEN' | 'LOCKED' | 'PAYMENT_COMPLETED' }, adminId?: string) {
+  static async update(id: number, data: { exchange_rate?: number; status?: 'OPEN' | 'LOCKED' | 'PAYMENT_COMPLETED' }, adminId?: string, allowedKocIds?: string[]) {
     const cycle = await db.revenueCycle.findUnique({ where: { id } });
     if (!cycle) throw new ApiError(404, 'cycle.notFound');
     if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
 
     // If updating exchange rate, recalculate all records (only this admin's)
     if (data.exchange_rate && data.exchange_rate !== Number(cycle.exchange_rate)) {
-      const adminKocIds = adminId
+      const scopedKocIds = adminId
         ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
-        : null;
+        : allowedKocIds || null;
 
       const records = await prisma.revenueRecord.findMany({
         where: {
           cycle_id: id,
-          ...(adminKocIds ? { koc_id: { in: adminKocIds } } : {}),
+          ...(scopedKocIds ? { koc_id: { in: scopedKocIds } } : {}),
         },
         include: { koc: true },
       });
@@ -150,18 +154,25 @@ export class CycleService {
    * If kocIds is omitted, adds ALL active KOCs not yet in the cycle.
    * Already-added KOCs are silently skipped (no duplicate error).
    */
-  static async addKocs(cycleId: number, kocIds?: string[], adminId?: string) {
+  static async addKocs(cycleId: number, kocIds?: string[], adminId?: string, allowedKocIds?: string[]) {
     const cycle = await db.revenueCycle.findUnique({ where: { id: cycleId } });
     if (!cycle) throw new ApiError(404, 'cycle.notFound');
     if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
     if (cycle.status !== 'OPEN') throw new ApiError(400, 'revenue.cycleLocked');
 
     // Determine target KOCs
+    // Intersect kocIds with allowedKocIds if both present
+    let effectiveKocIds = kocIds;
+    if (allowedKocIds) {
+      effectiveKocIds = kocIds && kocIds.length > 0
+        ? kocIds.filter(id => allowedKocIds.includes(id))
+        : allowedKocIds;
+    }
     const targetKocs = await prisma.kOC.findMany({
       where: {
         status: 'ACTIVE',
         ...(adminId ? { admin_id: adminId } : {}),
-        ...(kocIds && kocIds.length > 0 ? { id: { in: kocIds } } : {}),
+        ...(effectiveKocIds && effectiveKocIds.length > 0 ? { id: { in: effectiveKocIds } } : {}),
       },
       select: { id: true },
     });

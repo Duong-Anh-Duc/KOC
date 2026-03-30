@@ -7,6 +7,7 @@ import { PubCodeService } from '../shared/pub-code.service';
 import { YouTubeScrapeResultService } from '../shared/youtube-scrape-result.service';
 import { YouTubeScraperService } from '../shared/youtube-scraper.service';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope, buildKocWhereFilter } from '../../utils/access-scope';
 import { AuditLogService } from '../audit/audit.service';
 import { CycleService } from './cycle.service';
 import { RevenueService } from '../revenue/revenue.service';
@@ -17,8 +18,8 @@ export class CycleActionsController {
    */
   static async lock(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
-      const cycle = await CycleService.lock(Number(req.params.id), adminId);
+      const scope = await getAccessScope(req);
+      const cycle = await CycleService.lock(Number(req.params.id), scope.adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -47,9 +48,9 @@ export class CycleActionsController {
    */
   static async reopen(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
-      const oldCycle = await CycleService.getById(Number(req.params.id), adminId);
-      const cycle = await CycleService.reopen(Number(req.params.id), adminId);
+      const scope = await getAccessScope(req);
+      const oldCycle = await CycleService.getById(Number(req.params.id), scope.adminId);
+      const cycle = await CycleService.reopen(Number(req.params.id), scope.adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -78,8 +79,8 @@ export class CycleActionsController {
    */
   static async complete(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
-      const cycle = await CycleService.complete(Number(req.params.id), adminId);
+      const scope = await getAccessScope(req);
+      const cycle = await CycleService.complete(Number(req.params.id), scope.adminId);
 
       if (req.user) {
         await AuditLogService.log(
@@ -111,9 +112,9 @@ export class CycleActionsController {
   static async scrapeRevenue(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
-      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
+      const scope = await getAccessScope(req);
       const cycleId = Number(req.params.id);
-      const cycle = await CycleService.getById(cycleId, adminId);
+      const cycle = await CycleService.getById(cycleId, scope.adminId);
 
       if (cycle.status !== 'OPEN') {
         res.status(400).json({ success: false, message: t ? t('ytScraper.cycleNotOpen') : 'Cycle is not OPEN' });
@@ -135,7 +136,7 @@ export class CycleActionsController {
 
       // Run scrape in background with progress reporting
       logger.info(`Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId}, kocIds: ${kocIds ? kocIds.length : 'all'})`);
-      CycleActionsController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null, kocIds).catch(err => {
+      CycleActionsController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null, scope, kocIds).catch(err => {
         logger.error(`scrape-revenue task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
@@ -159,6 +160,7 @@ export class CycleActionsController {
   static async checkPubCodes(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const t = (req as any).t;
+      const scope = await getAccessScope(req);
       const cycleId = Number(req.params.id);
       const taskId = ProgressService.generateTaskId('check-pub-codes');
       res.status(202).json({
@@ -167,7 +169,7 @@ export class CycleActionsController {
         data: { taskId },
       });
 
-      CycleActionsController.runCheckPubCodes(cycleId, taskId, req.user?.userId || null).catch(err => {
+      CycleActionsController.runCheckPubCodes(cycleId, taskId, req.user?.userId || null, scope.allowedKocIds).catch(err => {
         logger.error(`check-pub-codes task ${taskId} failed:`, err.message);
         ProgressService.error(taskId, err.message);
       });
@@ -176,7 +178,7 @@ export class CycleActionsController {
     }
   }
 
-  private static async runCheckPubCodes(cycleId: number, taskId: string, userId: string | null): Promise<void> {
+  private static async runCheckPubCodes(cycleId: number, taskId: string, userId: string | null, allowedKocIds?: string[]): Promise<void> {
     try {
       const { GemLoginService } = await import('../gemlogin/gemlogin.service');
       await GemLoginService.ensureRunning(() =>
@@ -185,7 +187,10 @@ export class CycleActionsController {
 
       // Get unique KOCs that have records in this cycle
       const records = await prisma.revenueRecord.findMany({
-        where: { cycle_id: cycleId },
+        where: {
+          cycle_id: cycleId,
+          ...(allowedKocIds ? { koc_id: { in: allowedKocIds } } : {}),
+        },
         include: { koc: { select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, pub_code: true } } },
       });
 
@@ -239,7 +244,7 @@ export class CycleActionsController {
   /**
    * Background method to run scrape revenue with progress
    */
-  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, kocIds?: string[]): Promise<void> {
+  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, scope: { adminId?: string; allowedKocIds?: string[] }, kocIds?: string[]): Promise<void> {
     try {
       const { GemLoginService } = await import('../gemlogin/gemlogin.service');
       await GemLoginService.ensureRunning(() =>
@@ -249,8 +254,9 @@ export class CycleActionsController {
       const kocs = await prisma.kOC.findMany({
         where: {
           status: 'ACTIVE',
-          ...(userId ? { admin_id: userId } : {}),
-          ...(kocIds && kocIds.length > 0 ? { id: { in: kocIds } } : {}),
+          ...(scope.adminId ? { admin_id: scope.adminId } : {}),
+          ...(scope.allowedKocIds ? { id: { in: kocIds && kocIds.length > 0 ? kocIds.filter(id => scope.allowedKocIds!.includes(id)) : scope.allowedKocIds } } : {}),
+          ...(!scope.adminId && !scope.allowedKocIds && kocIds && kocIds.length > 0 ? { id: { in: kocIds } } : {}),
         },
         select: { id: true, full_name: true, channel_name: true, youtube_channel_id: true, base_rate: true },
       });
@@ -350,7 +356,6 @@ export class CycleActionsController {
           }
 
           // ── Compute accumulated amounts for this KOC ──
-          // Previous PENDING months (other cycles) + this cycle's record
           try {
             const currentRecord = await prisma.revenueRecord.findUnique({
               where: { koc_id_cycle_id: { koc_id: koc.id, cycle_id: cycleId } },
@@ -386,8 +391,6 @@ export class CycleActionsController {
         );
       }
 
-      // Auto-approve removed — records accumulate until manually approved by admin.
-      // min_payment is only a display condition (belowThreshold flag) not a trigger.
       const autoApproved: Array<{ koc: string; accumulated: number }> = [];
 
       // Send final result via SSE

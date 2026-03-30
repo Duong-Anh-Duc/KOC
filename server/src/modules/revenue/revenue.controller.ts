@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { AUDIT_ACTIONS, ENTITIES } from '../../constants';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope } from '../../utils/access-scope';
 import { AuditLogService } from '../audit/audit.service';
 import { RevenueService } from './revenue.service';
 
@@ -18,8 +19,9 @@ export class RevenueController {
       }
 
       const authReq = req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      const result = await RevenueService.getRecordsByCycle(cycleId, undefined, adminId);
+      const scope = await getAccessScope(authReq);
+
+      const result = await RevenueService.getRecordsByCycle(cycleId, undefined, scope.adminId, scope.allowedKocIds);
 
       res.status(200).json({
         success: true,
@@ -339,8 +341,9 @@ export class RevenueController {
       }
 
       const authReq = req as AuthenticatedRequest;
-      const adminId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : undefined;
-      const paymentStatus = await RevenueService.getPaymentStatus(cycleId, adminId);
+      const scope = await getAccessScope(authReq);
+
+      const paymentStatus = await RevenueService.getPaymentStatus(cycleId, scope.adminId, scope.allowedKocIds);
 
       res.status(200).json({
         success: true,

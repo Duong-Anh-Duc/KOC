@@ -1,19 +1,27 @@
 import { NextFunction, Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../types';
+import { getAccessScope } from '../../utils/access-scope';
 import { AuditLogService } from './audit.service';
 
 export class AuditController {
   /**
    * GET /api/audit-logs
    * Admin only sees logs from their own actions
+   * ACCOUNTANT only sees logs related to their accessible KOCs
    */
   static async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { page, limit, entity, entity_id, user_id, action, start_date, end_date } = req.query;
 
       const authReq = req as AuthenticatedRequest;
-      // Admin: force filter to own user_id; others: allow filter param
-      const effectiveUserId = authReq.user?.role === 'ADMIN' ? authReq.user.userId : (user_id as string);
+      const scope = await getAccessScope(authReq);
+
+      // Admin: force filter to own user_id; ACCOUNTANT: force own user_id; others: allow filter param
+      const effectiveUserId = scope.adminId
+        ? scope.adminId
+        : scope.allowedKocIds
+          ? authReq.user?.userId
+          : (user_id as string);
 
       const result = await AuditLogService.getLogs({
         page: page ? Number(page) : undefined,

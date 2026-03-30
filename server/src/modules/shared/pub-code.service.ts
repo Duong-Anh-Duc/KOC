@@ -114,12 +114,15 @@ export class PubCodeService {
   /**
    * Verify pub codes for all active KOCs
    */
-  static async verifyAllPubCodes(adminId?: string): Promise<{
+  static async verifyAllPubCodes(adminId?: string, allowedKocIds?: string[]): Promise<{
     results: PubCodeVerificationResult[];
     summary: { total: number; matched: number; mismatched: number; noData: number; errors: number };
   }> {
     const kocs = await prisma.kOC.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        ...(allowedKocIds ? { id: { in: allowedKocIds } } : {}),
+      },
       select: { id: true, full_name: true, youtube_channel_id: true, pub_code: true },
     });
     return this.checkPubCodesParallel(kocs, adminId);
