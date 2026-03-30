@@ -8,10 +8,11 @@ export class PermissionController {
    */
   static async getPermissions(req: AuthenticatedRequest, res: Response) {
     try {
+      const adminId = req.user?.role === 'ADMIN' ? req.user.userId : undefined;
       const [managerKocAccess, managers, kocs, kocPermDefs] = await Promise.all([
-        PermissionService.getManagerKocAccess(),
+        PermissionService.getManagerKocAccess(adminId),
         PermissionService.getManagerUsers(),
-        PermissionService.getKocList(),
+        PermissionService.getKocList(adminId),
         PermissionService.getKocPermissionDefinitions(),
       ]);
 
