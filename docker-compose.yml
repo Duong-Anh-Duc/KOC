@@ -57,6 +57,7 @@ services:
       NODE_ENV: production
       # Allow requests from IP:port trực tiếp
       REDIS_URL: redis://redis:6379
+      ACCESS_TOKEN_EXPIRES_IN: 7d
       CORS_ORIGIN: http://46.62.170.132:8080
     env_file:
       # Secrets từ .env.production (SMTP, JWT, etc.)
