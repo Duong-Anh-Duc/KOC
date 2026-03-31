@@ -25,7 +25,7 @@ services:
     ports:
       - "5434:5432"   # 5432 và 5433 đã dùng bởi service khác
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - koc_koc_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -74,4 +74,5 @@ services:
       - server
 
 volumes:
-  postgres_data:
+  koc_koc_postgres_data:
+    external: true
