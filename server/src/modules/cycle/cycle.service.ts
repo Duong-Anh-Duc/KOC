@@ -17,10 +17,18 @@ export class CycleService {
 
     const cycles = await db.revenueCycle.findMany({
       where: adminId ? { admin_id: adminId } : {},
-      orderBy: { created_at: 'desc' },
       include: {
         _count: { select: { revenue_records: scopedKocIds ? { where: { koc_id: { in: scopedKocIds } } } : true } },
       },
+    });
+
+    // Sort by month (MM/YYYY) descending — newest month first
+    cycles.sort((a: any, b: any) => {
+      const [mm1, yyyy1] = a.month.split('/');
+      const [mm2, yyyy2] = b.month.split('/');
+      const keyA = parseInt(yyyy1, 10) * 100 + parseInt(mm1, 10);
+      const keyB = parseInt(yyyy2, 10) * 100 + parseInt(mm2, 10);
+      return keyB - keyA;
     });
 
     return cycles;

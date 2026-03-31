@@ -67,11 +67,11 @@ export class YouTubeScrapeResultService {
 
     if (adminId) {
       params.push(adminId);
-      conditions.push(`k.admin_id = $${params.length}`);
+      conditions.push(`k.admin_id = $${params.length}::uuid`);
     }
     if (allowedKocIds && allowedKocIds.length > 0) {
       params.push(allowedKocIds);
-      conditions.push(`k.id = ANY($${params.length})`);
+      conditions.push(`k.id = ANY($${params.length}::uuid[])`);
     }
 
     const whereClause = conditions.join(' AND ');

@@ -53,45 +53,11 @@ const YouTubeScraperPage: React.FC = () => {
     },
   });
 
-  // Check login status — poll every 3s while waiting for user to log in
   const [loginBrowserOpen, setLoginBrowserOpen] = React.useState(false);
-  const {
-    data: statusData,
-    isLoading: statusLoading,
-    refetch: refetchStatus,
-  } = useQuery({
-    queryKey: ['yt-scraper-status'],
-    queryFn: async () => {
-      // Extra: when login is confirmed, clear vncUrl and stop waiting
-      const res = await ytScraperApi.checkStatus();
-      const data = res.data?.data;
-      setLoginBrowserOpen(!!data?.loginBrowserOpen);
-      if (data?.loggedIn && waitingForLogin) {
-        setWaitingForLogin(false);
-        setVncUrl(null);
-        notification.destroy('vnc-login');
-        message.success(t('ytScraper.loginSuccess'));
-      }
-      return data;
-    },
-    retry: false,
-    refetchInterval: (waitingForLogin || loginBrowserOpen) ? 3000 : false,
-  });
-
-  // Auto-connect on first load
-  useQuery({
-    queryKey: ['yt-scraper-auto-connect'],
-    queryFn: async () => {
-      const res = await ytScraperApi.autoConnect();
-      if (res.data?.success) {
-        queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
-      }
-      return res.data?.data;
-    },
-    retry: false,
-  });
-
-  const isLoggedIn = statusData?.loggedIn ?? false;
+  const statusData = undefined as any;
+  const statusLoading = false;
+  const refetchStatus = () => Promise.resolve();
+  const isLoggedIn = false;
 
   // Fetch latest scrape results from database
   const {

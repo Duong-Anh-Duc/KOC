@@ -13,14 +13,6 @@ export const ytScraperApi = {
   openLogin: () =>
     apiClient.post<ApiResponse>('/yt-scraper/login'),
 
-  /** Check YouTube Studio login status */
-  checkStatus: () =>
-    apiClient.get<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string; loginBrowserOpen?: boolean }>>('/yt-scraper/status'),
-
-  /** Try to auto-connect using existing session */
-  autoConnect: () =>
-    apiClient.post<ApiResponse<{ loggedIn: boolean; channelName?: string; email?: string }>>('/yt-scraper/auto-connect'),
-
   /** Scrape all active KOCs (returns taskId for SSE progress) */
   scrapeAll: () =>
     apiClient.post<ApiResponse<{ taskId: string }>>('/yt-scraper/scrape-all'),

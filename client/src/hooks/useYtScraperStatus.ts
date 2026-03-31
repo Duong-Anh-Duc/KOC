@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, notification } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,42 +21,10 @@ export function useYtScraperStatus() {
   const [loginBrowserOpen, setLoginBrowserOpen] = useState(false);
   const [cookieModalOpen, setCookieModalOpen] = useState(false);
 
-  // Status polling
-  const {
-    data: statusData,
-    isLoading: statusLoading,
-    refetch: refetchStatus,
-  } = useQuery({
-    queryKey: ['yt-scraper-status'],
-    queryFn: async () => {
-      const res = await ytScraperApi.checkStatus();
-      const data = res.data?.data;
-      setLoginBrowserOpen(!!data?.loginBrowserOpen);
-      if (data?.loggedIn && waitingForLogin) {
-        setWaitingForLogin(false);
-        notification.destroy('vnc-login');
-        toastSuccess('ytLoginSuccess', t('ytScraper.loginSuccess'));
-      }
-      return data;
-    },
-    retry: false,
-    refetchInterval: (waitingForLogin || loginBrowserOpen) ? 3000 : 15 * 60 * 1000,
-  });
-
-  const isLoggedIn = statusData?.loggedIn ?? false;
-
-  // Auto-connect on first load
-  useQuery({
-    queryKey: ['yt-scraper-auto-connect'],
-    queryFn: async () => {
-      const res = await ytScraperApi.autoConnect();
-      if (res.data?.success) {
-        queryClient.invalidateQueries({ queryKey: ['yt-scraper-status'] });
-      }
-      return res.data?.data;
-    },
-    retry: false,
-  });
+  const statusData = undefined as { loggedIn?: boolean; channelName?: string; email?: string; loginBrowserOpen?: boolean } | undefined;
+  const statusLoading = false;
+  const refetchStatus = () => Promise.resolve();
+  const isLoggedIn = false;
 
   // Auto-fetch account info
   const refreshAccountInfoMutation = useMutation({
