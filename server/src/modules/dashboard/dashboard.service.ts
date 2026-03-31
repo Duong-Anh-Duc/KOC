@@ -47,10 +47,17 @@ export class DashboardService {
       prisma.kOC.count({ where: kocFilter }),
       prisma.kOC.count({ where: kocActiveFilter }),
       prisma.revenueCycle.count({ where: cycleFilter }),
-      prisma.revenueCycle.findFirst({
+      prisma.revenueCycle.findMany({
         where: cycleFilter,
-        orderBy: { created_at: 'desc' },
         include: { _count: { select: { revenue_records: scopedKocIds ? { where: { koc_id: { in: scopedKocIds } } } : true } } },
+      }).then(cycles => {
+        // Sort by month (MM/YYYY) descending — newest month first
+        cycles.sort((a, b) => {
+          const [mm1, yyyy1] = a.month.split('/');
+          const [mm2, yyyy2] = b.month.split('/');
+          return (parseInt(yyyy2) * 100 + parseInt(mm2)) - (parseInt(yyyy1) * 100 + parseInt(mm1));
+        });
+        return cycles[0] || null;
       }),
       prisma.revenueRecord.findMany({
         where: recordFilter,
@@ -204,10 +211,8 @@ export class DashboardService {
       cycleFilter = { id: { in: scopedRecordCycles.map(r => r.cycle_id) } };
     }
 
-    const cycles = await prisma.revenueCycle.findMany({
+    const allCycles = await prisma.revenueCycle.findMany({
       where: cycleFilter,
-      take: limit,
-      orderBy: { created_at: 'desc' },
       include: {
         revenue_records: {
           where: scopedKocIds ? { koc_id: { in: scopedKocIds } } : undefined,
@@ -221,6 +226,15 @@ export class DashboardService {
       },
     });
 
+    // Sort by month (MM/YYYY) descending — newest month first, then take limit
+    allCycles.sort((a, b) => {
+      const [mm1, yyyy1] = a.month.split('/');
+      const [mm2, yyyy2] = b.month.split('/');
+      return (parseInt(yyyy2) * 100 + parseInt(mm2)) - (parseInt(yyyy1) * 100 + parseInt(mm1));
+    });
+    const cycles = allCycles.slice(0, limit);
+
+    // Reverse to oldest-first for left-to-right chart display
     const mapped = cycles.reverse().map((cycle) => {
       const totalRevenue = cycle.revenue_records.reduce(
         (sum, r) => sum + Number(r.original_revenue_usd),
