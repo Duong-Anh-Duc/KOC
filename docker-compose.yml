@@ -65,8 +65,8 @@ services:
       dockerfile: Dockerfile
       args:
         # Trỏ thẳng vào IP:port của server, không qua proxy
-        VITE_API_URL: http://46.62.170.132:3002/api
-        VITE_SERVER_URL: http://46.62.170.132:3002
+        VITE_API_URL: /api
+        VITE_SERVER_URL:
     restart: unless-stopped
     ports:
       - "8181:80"   # Truy cập qua tunnel port 8181
