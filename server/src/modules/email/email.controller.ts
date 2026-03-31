@@ -204,7 +204,6 @@ export class EmailController {
 
       const cycles = await (prisma as any).revenueCycle.findMany({
         where: scope.adminId ? { admin_id: scope.adminId } : {},
-        orderBy: { month: 'desc' },
         select: {
           id: true,
           month: true,
@@ -213,6 +212,13 @@ export class EmailController {
             select: { revenue_records: true },
           },
         },
+      });
+
+      // Sort by month (MM/YYYY) descending — newest month first
+      cycles.sort((a: any, b: any) => {
+        const [mm1, yyyy1] = a.month.split('/');
+        const [mm2, yyyy2] = b.month.split('/');
+        return (parseInt(yyyy2) * 100 + parseInt(mm2)) - (parseInt(yyyy1) * 100 + parseInt(mm1));
       });
 
       res.status(200).json({

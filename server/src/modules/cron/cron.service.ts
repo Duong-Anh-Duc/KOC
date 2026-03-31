@@ -110,10 +110,17 @@ export class CronService {
     const now = new Date();
     const currentMonth = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
-    // Get the latest cycle by month
-    const latestCycle = await prisma.revenueCycle.findFirst({
-      orderBy: { month: 'desc' },
+    // Get the latest cycle by month (sort by parsed month, not string)
+    const allCycles = await prisma.revenueCycle.findMany({
+      select: { month: true },
     });
+    const latestCycle = allCycles.length > 0
+      ? allCycles.sort((a, b) => {
+          const [mm1, yyyy1] = a.month.split('/');
+          const [mm2, yyyy2] = b.month.split('/');
+          return (parseInt(yyyy2) * 100 + parseInt(mm2)) - (parseInt(yyyy1) * 100 + parseInt(mm1));
+        })[0]
+      : null;
 
     let targetMonth: string;
 
