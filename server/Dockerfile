@@ -65,9 +65,9 @@ COPY --from=build /app/package*.json ./
 # Create chrome-data directory (will be mounted as a volume)
 RUN mkdir -p .chrome-data
 
-# Copy entrypoint script
+# Copy entrypoint script and fix Windows line endings (CRLF → LF)
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh && chmod +x ./entrypoint.sh
 
 EXPOSE 3001
 
