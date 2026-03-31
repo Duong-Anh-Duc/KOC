@@ -1,4 +1,13 @@
-# ── Single-stage build: pre-built on host ─────────────────────
+# ── Stage 1: Build ─────────────────────────────────────────────
+FROM node:20-bullseye-slim AS build
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx prisma generate && npm run build
+
+# ── Stage 2: Production ───────────────────────────────────────
 FROM node:20-bullseye-slim
 
 # Install Chromium + Xvfb (virtual display) + noVNC (visual remote access) + system libs
@@ -47,13 +56,11 @@ ENV PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Copy pre-built artifacts from host
-COPY dist ./dist
-COPY node_modules ./node_modules
-COPY prisma ./prisma
-COPY package*.json ./
-
-# Prisma Client is pre-generated on host (includes linux-arm64-openssl-1.1.x binary target)
+# Copy built artifacts from build stage
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/package*.json ./
 
 # Create chrome-data directory (will be mounted as a volume)
 RUN mkdir -p .chrome-data
