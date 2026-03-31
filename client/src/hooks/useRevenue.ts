@@ -121,6 +121,36 @@ export const useCompleteCycle = () => {
   });
 };
 
+export const useLockExchangeRate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => cycleApi.lockExchangeRate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('exchangeRateLockSuccess');
+    },
+    onError: () => {
+      toastError('exchangeRateLockError');
+    },
+  });
+};
+
+export const useUnlockExchangeRate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => cycleApi.unlockExchangeRate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
+      toastSuccess('exchangeRateUnlockSuccess');
+    },
+    onError: () => {
+      toastError('exchangeRateUnlockError');
+    },
+  });
+};
+
 export const useFetchExchangeRate = () => {
   return useMutation({
     mutationFn: () => cycleApi.getExchangeRate(),

@@ -27,6 +27,8 @@ import {
     useDeleteRevenueRecord,
     useFetchExchangeRate,
     useLockCycle,
+    useLockExchangeRate,
+    useUnlockExchangeRate,
     usePaymentStatus,
     useReopenCycle,
     useRevenueRecords,
@@ -73,6 +75,8 @@ const RevenueControlPage: React.FC = () => {
   const lockCycleMutation = useLockCycle();
   const reopenCycleMutation = useReopenCycle();
   const completeCycleMutation = useCompleteCycle();
+  const lockExchangeRateMutation = useLockExchangeRate();
+  const unlockExchangeRateMutation = useUnlockExchangeRate();
   const createRecordMutation = useCreateRevenueRecord();
   const updateRecordMutation = useUpdateRevenueRecord();
   const deleteRecordMutation = useDeleteRevenueRecord();
@@ -314,6 +318,9 @@ const RevenueControlPage: React.FC = () => {
                   reopenLoading={reopenCycleMutation.isPending}
                   onCompleteCycle={(id) => completeCycleMutation.mutate(id)}
                   completeLoading={completeCycleMutation.isPending}
+                  onLockExchangeRate={(id) => lockExchangeRateMutation.mutate(id)}
+                  onUnlockExchangeRate={(id) => unlockExchangeRateMutation.mutate(id)}
+                  lockExchangeRateLoading={lockExchangeRateMutation.isPending || unlockExchangeRateMutation.isPending}
                 />
               ),
             },

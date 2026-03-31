@@ -44,6 +44,66 @@ export class CycleActionsController {
   }
 
   /**
+   * PATCH /api/cycles/:id/lock-rate
+   */
+  static async lockExchangeRate(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const scope = await getAccessScope(req);
+      const cycle = await CycleService.lockExchangeRate(Number(req.params.id), scope.adminId);
+
+      if (req.user) {
+        await AuditLogService.log(
+          req.user.userId,
+          AUDIT_ACTIONS.LOCK_EXCHANGE_RATE,
+          ENTITIES.REVENUE_CYCLE,
+          String(cycle.id),
+          { exchange_rate_locked: false },
+          { exchange_rate_locked: true }
+        );
+      }
+
+      const t = (req as any).t;
+      res.status(200).json({
+        success: true,
+        message: t ? t('cycle.exchangeRateLocked') : 'Exchange rate locked',
+        data: cycle,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /api/cycles/:id/unlock-rate
+   */
+  static async unlockExchangeRate(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const scope = await getAccessScope(req);
+      const cycle = await CycleService.unlockExchangeRate(Number(req.params.id), scope.adminId);
+
+      if (req.user) {
+        await AuditLogService.log(
+          req.user.userId,
+          AUDIT_ACTIONS.UNLOCK_EXCHANGE_RATE,
+          ENTITIES.REVENUE_CYCLE,
+          String(cycle.id),
+          { exchange_rate_locked: true },
+          { exchange_rate_locked: false }
+        );
+      }
+
+      const t = (req as any).t;
+      res.status(200).json({
+        success: true,
+        message: t ? t('cycle.exchangeRateUnlocked') : 'Exchange rate unlocked',
+        data: cycle,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * PATCH /api/cycles/:id/reopen
    */
   static async reopen(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {

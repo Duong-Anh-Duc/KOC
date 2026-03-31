@@ -33,6 +33,12 @@ export const cycleApi = {
   reopen: (id: number) =>
     apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/reopen`),
 
+  lockExchangeRate: (id: number) =>
+    apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/lock-rate`),
+
+  unlockExchangeRate: (id: number) =>
+    apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/unlock-rate`),
+
   complete: (id: number) =>
     apiClient.patch<ApiResponse<RevenueCycle>>(`/cycles/${id}/complete`),
 

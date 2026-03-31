@@ -62,9 +62,9 @@ export class ExchangeRateService {
         this.cachedRate = data;
         const newRate = data.averageRate;
 
-        // Find all OPEN cycles
+        // Find all OPEN cycles that are NOT exchange-rate-locked
         const openCycles = await prisma.revenueCycle.findMany({
-          where: { status: 'OPEN' },
+          where: { status: 'OPEN', exchange_rate_locked: false },
           include: { revenue_records: { include: { koc: true } } },
         });
 
@@ -78,8 +78,11 @@ export class ExchangeRateService {
             data: { exchange_rate: newRate },
           });
 
-          // Recalculate all revenue records for this cycle
+          // Recalculate only PENDING records (APPROVED records keep their rate at approval time)
+          let updatedCount = 0;
           for (const record of cycle.revenue_records) {
+            if (record.status === 'APPROVED') continue; // Skip approved records
+
             const calculated = RevenueService.calculate({
               originalRevenueUsd: Number(record.original_revenue_usd),
               usTaxDeduction: Number(record.us_tax_deduction),
@@ -91,10 +94,12 @@ export class ExchangeRateService {
               where: { id: record.id },
               data: calculated,
             });
+            updatedCount++;
           }
 
+          const skippedCount = cycle.revenue_records.length - updatedCount;
           logger.info(
-            `[AutoRate] Cycle ${cycle.month}: ${currentRate.toLocaleString()} → ${newRate.toLocaleString()} VND/USD (${cycle.revenue_records.length} records updated)`,
+            `[AutoRate] Cycle ${cycle.month}: ${currentRate.toLocaleString()} → ${newRate.toLocaleString()} VND/USD (${updatedCount} records updated, ${skippedCount} approved skipped)`,
           );
         }
 

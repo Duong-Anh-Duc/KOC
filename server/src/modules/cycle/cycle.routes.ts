@@ -15,6 +15,8 @@ router.get('/:id', CycleController.getById);
 router.post('/', adminOnly, validate(createCycleSchema), CycleController.create);
 router.put('/:id', adminOnly, validate(updateCycleSchema), CycleController.update);
 router.patch('/:id/lock', adminOnly, CycleController.lock);
+router.patch('/:id/lock-rate', adminOnly, CycleController.lockExchangeRate);
+router.patch('/:id/unlock-rate', adminOnly, CycleController.unlockExchangeRate);
 router.patch('/:id/reopen', adminOnly, CycleController.reopen);
 router.patch('/:id/complete', adminOnly, CycleController.complete);
 router.post('/:id/add-kocs', adminOnly, CycleController.addKocs);

@@ -90,6 +90,7 @@ export interface RevenueCycle {
   month: string;
   status: 'OPEN' | 'LOCKED' | 'PAYMENT_COMPLETED';
   exchange_rate: number;
+  exchange_rate_locked: boolean;
   created_at: string;
   updated_at: string;
   _count?: { revenue_records: number };

@@ -16,6 +16,8 @@ export const CycleController = {
 
   // Actions
   lock: CycleActionsController.lock,
+  lockExchangeRate: CycleActionsController.lockExchangeRate,
+  unlockExchangeRate: CycleActionsController.unlockExchangeRate,
   reopen: CycleActionsController.reopen,
   complete: CycleActionsController.complete,
   scrapeRevenue: CycleActionsController.scrapeRevenue,

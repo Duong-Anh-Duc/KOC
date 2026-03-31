@@ -113,7 +113,7 @@ export class CycleService {
     if (!cycle) throw new ApiError(404, 'cycle.notFound');
     if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
 
-    // If updating exchange rate, recalculate all records (only this admin's)
+    // If updating exchange rate, recalculate only PENDING records (APPROVED records keep their rate)
     if (data.exchange_rate && data.exchange_rate !== Number(cycle.exchange_rate)) {
       const scopedKocIds = adminId
         ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
@@ -122,12 +122,13 @@ export class CycleService {
       const records = await prisma.revenueRecord.findMany({
         where: {
           cycle_id: id,
+          status: 'PENDING', // Only recalculate PENDING records; APPROVED keep their rate
           ...(scopedKocIds ? { koc_id: { in: scopedKocIds } } : {}),
         },
         include: { koc: true },
       });
 
-      // Full recalculation for each record using new exchange rate
+      // Full recalculation for each PENDING record using new exchange rate
       for (const record of records) {
         const calculated = RevenueService.calculate({
           originalRevenueUsd: Number(record.original_revenue_usd),
@@ -207,6 +208,28 @@ export class CycleService {
     }
 
     return { added: toAdd.length, skipped: existingIds.size };
+  }
+
+  /**
+   * Lock exchange rate for a cycle — prevents auto-refresh from updating rate
+   */
+  static async lockExchangeRate(id: number, adminId?: string) {
+    const cycle = await db.revenueCycle.findUnique({ where: { id } });
+    if (!cycle) throw new ApiError(404, 'cycle.notFound');
+    if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
+    if (cycle.exchange_rate_locked) throw new ApiError(400, 'cycle.exchangeRateAlreadyLocked');
+    return db.revenueCycle.update({ where: { id }, data: { exchange_rate_locked: true } });
+  }
+
+  /**
+   * Unlock exchange rate for a cycle — allows auto-refresh to update rate again
+   */
+  static async unlockExchangeRate(id: number, adminId?: string) {
+    const cycle = await db.revenueCycle.findUnique({ where: { id } });
+    if (!cycle) throw new ApiError(404, 'cycle.notFound');
+    if (adminId && cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
+    if (!cycle.exchange_rate_locked) throw new ApiError(400, 'cycle.exchangeRateNotLocked');
+    return db.revenueCycle.update({ where: { id }, data: { exchange_rate_locked: false } });
   }
 
   /**

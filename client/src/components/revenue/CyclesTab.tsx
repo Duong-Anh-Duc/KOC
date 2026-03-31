@@ -1,4 +1,4 @@
-import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
+import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { Button, Grid, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -24,6 +24,9 @@ interface CyclesTabProps {
   reopenLoading: boolean;
   onCompleteCycle: (id: number) => void;
   completeLoading: boolean;
+  onLockExchangeRate: (id: number) => void;
+  onUnlockExchangeRate: (id: number) => void;
+  lockExchangeRateLoading: boolean;
 }
 
 const statusColorMap: Record<string, string> = {
@@ -47,6 +50,9 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
   reopenLoading,
   onCompleteCycle,
   completeLoading,
+  onLockExchangeRate,
+  onUnlockExchangeRate,
+  lockExchangeRateLoading,
 }) => {
   const { t } = useTranslation();
   const screens = useBreakpoint();
@@ -67,9 +73,18 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
     {
       title: t('revenue.exchangeRate'),
       dataIndex: 'exchange_rate',
-      width: 140,
+      width: 170,
       responsive: ['sm'],
-      render: (val: string) => Number(val).toLocaleString() + ' ' + t('common.vnd'),
+      render: (val: string, record: RevenueCycle) => (
+        <Space size={4}>
+          <span>{Number(val).toLocaleString()} {t('common.vnd')}</span>
+          {record.exchange_rate_locked && (
+            <Tooltip title={t('cycle.exchangeRateLocked')}>
+              <LockOutlined style={{ color: '#faad14', fontSize: 12 }} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
     {
       title: t('common.status'),
@@ -112,6 +127,39 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                   onClick={() => onEditCycle(record)}
                 />
               </Tooltip>
+              {record.exchange_rate_locked ? (
+                <Popconfirm
+                  title={t('confirm.unlockExchangeRate')}
+                  onConfirm={() => onUnlockExchangeRate(record.id)}
+                  okText={t('common.yes')}
+                  cancelText={t('common.no')}
+                >
+                  <Tooltip title={t('cycle.unlockExchangeRate')}>
+                    <Button
+                      type="text"
+                      size="small"
+                      loading={lockExchangeRateLoading}
+                      icon={<DollarCircleOutlined style={{ color: '#faad14' }} />}
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              ) : (
+                <Popconfirm
+                  title={t('confirm.lockExchangeRate')}
+                  onConfirm={() => onLockExchangeRate(record.id)}
+                  okText={t('common.yes')}
+                  cancelText={t('common.no')}
+                >
+                  <Tooltip title={t('cycle.lockExchangeRate')}>
+                    <Button
+                      type="text"
+                      size="small"
+                      loading={lockExchangeRateLoading}
+                      icon={<DollarCircleOutlined style={{ color: '#52c41a' }} />}
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              )}
               {canManageCycle && (
                 <Popconfirm
                   title={t('confirm.lockCycle')}
