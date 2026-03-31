@@ -32,6 +32,18 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Backend (Express + Prisma + Puppeteer) ─────────────────
   server:
     build:
@@ -44,6 +56,7 @@ services:
       PORT: 3002
       NODE_ENV: production
       # Allow requests from IP:port trực tiếp
+      REDIS_URL: redis://redis:6379
       CORS_ORIGIN: http://46.62.170.132:8080
     env_file:
       # Secrets từ .env.production (SMTP, JWT, etc.)
@@ -56,6 +69,8 @@ services:
       - ./server/.chrome-data:/app/.chrome-data
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # ── Frontend (Vite build → nginx nội bộ) ────────────────────
