@@ -69,7 +69,7 @@ services:
         VITE_SERVER_URL: http://46.62.170.132:3002
     restart: unless-stopped
     ports:
-      - "8080:80"   # Truy cập qua http://46.62.170.132:8080
+      - "8181:80"   # Truy cập qua tunnel port 8181
     depends_on:
       - server
 
