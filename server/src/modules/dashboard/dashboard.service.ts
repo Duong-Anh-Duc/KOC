@@ -15,11 +15,13 @@ export class DashboardService {
         : {};
     const kocActiveFilter = { status: 'ACTIVE' as const, ...kocFilter };
 
-    // Get KOC IDs for filtering revenue records
+    // Get ACTIVE KOC IDs for filtering revenue records (exclude INACTIVE KOCs)
     const scopedKocIds = adminId
-      ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
+      ? (await prisma.kOC.findMany({ where: { admin_id: adminId, status: 'ACTIVE' }, select: { id: true } })).map(k => k.id)
       : allowedKocIds || null;
-    const recordFilter = scopedKocIds ? { koc_id: { in: scopedKocIds } } : {};
+    const recordFilter = scopedKocIds
+      ? { koc_id: { in: scopedKocIds } }
+      : { koc: { status: 'ACTIVE' as const } };
 
     // If scoped, find only cycles that contain their KOCs' records
     let scopedCycleIds: number[] | null = null;
@@ -195,9 +197,9 @@ export class DashboardService {
    * Get revenue trend data (last N cycles)
    */
   static async getRevenueTrend(limit: number = 12, adminId?: string, allowedKocIds?: string[]) {
-    // Get KOC IDs for filtering
+    // Get ACTIVE KOC IDs for filtering (exclude INACTIVE KOCs)
     const scopedKocIds = adminId
-      ? (await prisma.kOC.findMany({ where: { admin_id: adminId }, select: { id: true } })).map(k => k.id)
+      ? (await prisma.kOC.findMany({ where: { admin_id: adminId, status: 'ACTIVE' }, select: { id: true } })).map(k => k.id)
       : allowedKocIds || null;
 
     // Only show cycles that contain scoped records
@@ -215,7 +217,9 @@ export class DashboardService {
       where: cycleFilter,
       include: {
         revenue_records: {
-          where: scopedKocIds ? { koc_id: { in: scopedKocIds } } : undefined,
+          where: scopedKocIds
+            ? { koc_id: { in: scopedKocIds } }
+            : { koc: { status: 'ACTIVE' } },
           select: {
             status: true,
             original_revenue_usd: true,

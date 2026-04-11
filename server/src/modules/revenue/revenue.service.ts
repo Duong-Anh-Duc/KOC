@@ -231,11 +231,12 @@ export class RevenueService {
    */
   static async getRecordsByCycle(cycleId: number, statusFilter?: 'APPROVED' | 'PENDING', adminId?: string, allowedKocIds?: string[]) {
     // Build KOC filter for admin scoping or manager-level KOC filtering
+    // Always exclude INACTIVE KOCs — their scraped revenue should not appear on UI
     const kocFilter = adminId
-      ? { koc: { admin_id: adminId } }
+      ? { koc: { admin_id: adminId, status: 'ACTIVE' as const } }
       : allowedKocIds
-        ? { koc_id: { in: allowedKocIds } }
-        : {};
+        ? { koc_id: { in: allowedKocIds }, koc: { status: 'ACTIVE' as const } }
+        : { koc: { status: 'ACTIVE' as const } };
 
     const records = await prisma.revenueRecord.findMany({
       where: {
@@ -489,11 +490,12 @@ export class RevenueService {
     const relevantCycles = allCycles.filter(c => RevenueService.monthToSortKey(c.month) <= currentKey);
 
     // Get all records for relevant cycles (scoped to admin's KOCs or manager's allowed KOCs)
+    // Exclude INACTIVE KOCs — their revenue should not appear on UI
     const kocFilter = adminId
-      ? { koc: { admin_id: adminId } }
+      ? { koc: { admin_id: adminId, status: 'ACTIVE' as const } }
       : allowedKocIds
-        ? { koc_id: { in: allowedKocIds } }
-        : {};
+        ? { koc_id: { in: allowedKocIds }, koc: { status: 'ACTIVE' as const } }
+        : { koc: { status: 'ACTIVE' as const } };
     const records = await prisma.revenueRecord.findMany({
       where: { cycle_id: { in: relevantCycles.map(c => c.id) }, ...kocFilter },
       include: { cycle: true },
