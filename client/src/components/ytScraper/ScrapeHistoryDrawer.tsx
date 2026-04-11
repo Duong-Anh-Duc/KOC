@@ -93,7 +93,7 @@ const ScrapeHistoryDrawer: React.FC<ScrapeHistoryDrawerProps> = ({
       }
       open={!!selectedKocId}
       onClose={onClose}
-      width={900}
+      width={Math.min(900, typeof window !== 'undefined' ? window.innerWidth : 900)}
       destroyOnClose
     >
       <Table

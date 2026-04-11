@@ -6,7 +6,9 @@ import {
     ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Form, Space, Tabs, Typography, message } from 'antd';
+import { Button, Form, Grid, Space, Tabs, Typography, message } from 'antd';
+
+const { useBreakpoint } = Grid;
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useProgress } from '../hooks/useProgress';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +51,8 @@ const RevenueControlPage: React.FC = () => {
   const isViewer = user?.role === 'VIEWER';
   const { hasPermission } = usePermissions();
   const canManageCycle = isAdmin || hasPermission('manage_cycle');
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('cycles');
@@ -279,9 +283,9 @@ const RevenueControlPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 8 : 0, marginBottom: 16 }}>
         <Title level={3} style={{ margin: 0 }}>{t('menu.revenue')}</Title>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={() => refetchCycles()} />
             {canManageCycle && (
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCycle}>

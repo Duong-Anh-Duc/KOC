@@ -38,7 +38,7 @@ const CookieImportModal: React.FC<CookieImportModalProps> = ({ open, loading, on
       okText={t('ytScraper.importCookiesSubmit')}
       okButtonProps={{ loading, disabled: !cookieText.trim() }}
       cancelText={t('common.cancel')}
-      width={640}
+      width="min(640px, 100vw - 32px)"
     >
       <div style={{ marginBottom: 16 }}>
         <Typography.Paragraph style={{ marginBottom: 8 }}>

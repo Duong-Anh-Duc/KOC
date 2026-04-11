@@ -1,5 +1,7 @@
-import { Card, Col, Row, Statistic } from 'antd';
+import { Card, Col, Grid, Row, Statistic } from 'antd';
 import React, { ReactNode } from 'react';
+
+const { useBreakpoint } = Grid;
 
 export interface SummaryItem {
   title: string;
@@ -20,23 +22,32 @@ interface SummaryBarProps {
 const defaultBorderColors = ['#1677ff', '#52c41a', '#faad14', '#722ed1', '#fa8c16'];
 
 const SummaryBar: React.FC<SummaryBarProps> = ({ items, loading = false }) => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.sm;
+
   return (
-    <Row gutter={[12, 12]} style={{ marginBottom: 16 }} wrap={false}>
+    <Row gutter={[8, 8]} style={{ marginBottom: 16 }} wrap>
       {items.map((item, index) => (
-        <Col flex="1" key={index} style={{ minWidth: 0, animationDelay: `${index * 0.08}s` }}>
+        <Col
+          key={index}
+          xs={items.length <= 3 ? 8 : 12}
+          sm={0}
+          style={{ minWidth: 0, animationDelay: `${index * 0.08}s` }}
+          flex={isMobile ? undefined : '1'}
+        >
           <Card
             loading={loading}
             size="small"
-            styles={{ body: { padding: '10px 14px' } }}
+            styles={{ body: { padding: isMobile ? '8px 10px' : '10px 14px' } }}
             style={{ border: `1px solid ${item.borderColor || defaultBorderColors[index % defaultBorderColors.length]}` }}
           >
             <Statistic
-              title={<span style={{ fontSize: 12 }}>{item.title}</span>}
+              title={<span style={{ fontSize: isMobile ? 11 : 12 }}>{item.title}</span>}
               value={item.value}
-              prefix={item.prefix}
+              prefix={isMobile ? undefined : item.prefix}
               suffix={item.suffix}
               precision={item.precision}
-              valueStyle={{ ...item.valueStyle, fontSize: 18 }}
+              valueStyle={{ ...item.valueStyle, fontSize: isMobile ? 14 : 18 }}
               formatter={item.formatter}
             />
           </Card>

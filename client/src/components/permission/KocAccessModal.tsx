@@ -134,7 +134,7 @@ const KocAccessModal: React.FC<Props> = ({
       open={!!manager}
       onCancel={onClose}
       footer={null}
-      width={900}
+      width="min(900px, 100vw - 32px)"
       styles={{ body: { paddingTop: 12 } }}
       destroyOnClose
     >

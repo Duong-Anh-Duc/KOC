@@ -9,12 +9,13 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Col, Dropdown, Row, Space, Tag, Typography } from 'antd';
+import { Button, Card, Dropdown, Grid, Space, Tag, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle, RevenueRecord } from '../../types';
 
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 const statusColorMap: Record<string, string> = {
   OPEN: 'blue',
@@ -71,29 +72,29 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
   onOpenAddKocModal,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const gemLoginScraping = scrapeLoading || scrapeMonthlyLoading;
 
   return (
     <Card size="small" style={{ marginBottom: 16 }}>
-      <Row gutter={16} align="middle">
-        <Col flex="auto">
-          <Space size="large">
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 8 }}>
+        <div style={{ flex: isMobile ? undefined : 'auto' }}>
+          <Space size={isMobile ? 'small' : 'large'} wrap>
             <Text strong>
-              {t('revenue.month')}: {selectedCycle.month}
+              {isMobile ? selectedCycle.month : `${t('revenue.month')}: ${selectedCycle.month}`}
             </Text>
-            <Space size="small">
-              <Text>
-                {t('revenue.exchangeRate')}:{' '}
-                <strong>{Number(selectedCycle.exchange_rate).toLocaleString()} {t('common.vndUsd')}</strong>
-              </Text>
-            </Space>
-            <Tag color={statusColorMap[selectedCycle.status]}>
+            <Text style={{ fontSize: isMobile ? 12 : 14 }}>
+              {isMobile ? '' : `${t('revenue.exchangeRate')}: `}
+              <strong>{Number(selectedCycle.exchange_rate).toLocaleString()} {t('common.vndUsd')}</strong>
+            </Text>
+            <Tag color={statusColorMap[selectedCycle.status]} style={{ margin: 0 }}>
               {t(`status.${selectedCycle.status}`, selectedCycle.status)}
             </Tag>
           </Space>
-        </Col>
-        <Col>
-          <Space>
+        </div>
+        <div>
+          <Space wrap size="small">
             {canRunScraper && !cycleLocked && (
               <Dropdown
                 menu={{
@@ -176,8 +177,8 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
               </Button>
             )}
           </Space>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Card>
   );
 };

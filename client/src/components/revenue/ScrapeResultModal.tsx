@@ -20,7 +20,7 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
       open={open}
       onCancel={onClose}
       footer={<Button onClick={onClose}>{t('common.close')}</Button>}
-      width={700}
+      width="min(700px, 100vw - 32px)"
     >
       {data && (
         <div>

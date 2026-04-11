@@ -157,7 +157,7 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
       onCancel={onCancel}
       onOk={() => form.submit()}
       confirmLoading={loading}
-      width={720}
+      width="min(720px, 100vw - 32px)"
       destroyOnClose
     >
       <Form form={form} layout="vertical" onFinish={handleFinish}>

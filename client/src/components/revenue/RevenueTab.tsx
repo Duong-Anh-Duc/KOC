@@ -1,6 +1,8 @@
-import { Empty, Select, Space } from 'antd';
+import { Empty, Grid, Select, Space } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const { useBreakpoint } = Grid;
 import type { PaymentStatusMap, RevenueCycle, RevenueRecord, YouTubeScrapeResult } from '../../types';
 import { RevenueTable } from '../features';
 import AddKocModal from './AddKocModal';
@@ -100,6 +102,8 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
   readOnly,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [selectKocModalOpen, setSelectKocModalOpen] = useState(false);
   const [selectedKocIds, setSelectedKocIds] = useState<string[]>([]);
   const [gemLoginSelectOpen, setGemLoginSelectOpen] = useState(false);
@@ -124,7 +128,7 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
     <>
       <Space style={{ marginBottom: 16 }} wrap>
         <Select
-          style={{ width: 220 }}
+          style={{ width: isMobile ? '100%' : 220, minWidth: isMobile ? 0 : undefined }}
           placeholder={t('revenue.selectCycle')}
           loading={loadingCycles}
           value={selectedCycleId}

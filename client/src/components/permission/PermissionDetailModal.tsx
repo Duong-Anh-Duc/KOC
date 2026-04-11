@@ -67,7 +67,7 @@ const PermissionDetailModal: React.FC<Props> = ({
       open={!!koc}
       onCancel={onClose}
       footer={null}
-      width={480}
+      width="min(480px, 100vw - 32px)"
       destroyOnClose
     >
       {koc && manager && entry && (

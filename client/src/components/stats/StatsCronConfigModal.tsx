@@ -117,7 +117,7 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
       okText={t('common.save')}
       cancelText={t('common.cancel')}
       confirmLoading={updateMutation.isPending}
-      width={520}
+      width="min(520px, 100vw - 32px)"
     >
       <Spin spinning={isLoading}>
         <div style={{ marginBottom: 16 }}>

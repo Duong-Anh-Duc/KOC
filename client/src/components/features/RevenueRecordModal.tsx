@@ -44,7 +44,7 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
       onCancel={onCancel}
       onOk={() => form.submit()}
       confirmLoading={loading}
-      width={520}
+      width="min(520px, 100vw - 32px)"
       destroyOnClose
     >
       <Form

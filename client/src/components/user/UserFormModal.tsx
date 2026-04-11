@@ -34,7 +34,7 @@ const UserFormModal: React.FC<Props> = ({ open, editing, submitting, form, onClo
       }
       footer={null}
       destroyOnClose
-      width={480}
+      width="min(480px, 100vw - 32px)"
     >
       <Form form={form} layout="vertical" onFinish={onFinish} style={{ marginTop: 16 }}>
         <Form.Item

@@ -26,7 +26,7 @@ const CreateRevenueResultModal: React.FC<CreateRevenueResultModalProps> = ({ ope
       open={open}
       onCancel={onClose}
       footer={<Button onClick={onClose}>{t('common.close')}</Button>}
-      width={600}
+      width="min(600px, 100vw - 32px)"
     >
       {data && (
         <div>

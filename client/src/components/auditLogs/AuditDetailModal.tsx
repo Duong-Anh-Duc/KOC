@@ -30,7 +30,7 @@ const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose }) => 
       open={!!log}
       onCancel={onClose}
       footer={null}
-      width={700}
+      width="min(700px, 100vw - 32px)"
     >
       {log && (
         <Descriptions bordered column={1} size="small">

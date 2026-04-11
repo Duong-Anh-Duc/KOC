@@ -1,11 +1,12 @@
 import { ReloadOutlined } from '@ant-design/icons';
-import { Button, DatePicker, Select, Space, Typography } from 'antd';
+import { Button, DatePicker, Grid, Select, Space, Typography } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
+const { useBreakpoint } = Grid;
 
 interface AuditLogsHeaderProps {
   dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null;
@@ -27,11 +28,13 @@ const AuditLogsHeader: React.FC<AuditLogsHeaderProps> = ({
   onRefresh,
 }) => {
   const { t } = useTranslation();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 0, marginBottom: 16 }}>
       <Title level={3} style={{ margin: 0 }}>{t('menu.audit')}</Title>
-      <Space wrap>
+      <Space wrap size="small">
         <RangePicker
           format="DD/MM/YYYY"
           placeholder={[t('common.startDate'), t('common.endDate')]}
@@ -46,7 +49,7 @@ const AuditLogsHeader: React.FC<AuditLogsHeaderProps> = ({
           allowClear
         />
         <Select
-          style={{ width: 180 }}
+          style={{ width: isMobile ? 140 : 180 }}
           placeholder={t('audit.filterEntity')}
           allowClear
           value={entityFilter}
@@ -61,7 +64,7 @@ const AuditLogsHeader: React.FC<AuditLogsHeaderProps> = ({
           ]}
         />
         <Select
-          style={{ width: 220 }}
+          style={{ width: isMobile ? 160 : 220 }}
           placeholder={t('audit.filterAction')}
           allowClear
           value={actionFilter}

@@ -31,7 +31,7 @@ const EmailSendResultModal: React.FC<EmailSendResultModalProps> = ({ open, onClo
           {t('common.close')}
         </Button>,
       ]}
-      width={700}
+      width="min(700px, 100vw - 32px)"
     >
       {sendResults && (
         <div>
