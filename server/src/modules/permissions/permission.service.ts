@@ -43,10 +43,10 @@ export class PermissionService {
    * Returns: { "manager-id": [{ koc_id, permissions }, ...] }
    */
   static async getManagerKocAccess(adminId?: string): Promise<Record<string, KocAccessEntry[]>> {
-    // If adminId provided, only return access entries for KOCs owned by this admin
-    const kocFilter = adminId
-      ? { koc: { admin_id: adminId } }
-      : {};
+    // Only count access entries whose KOC is still ACTIVE
+    // (and, if adminId provided, owned by this admin)
+    const kocFilter: any = { koc: { status: 'ACTIVE' } };
+    if (adminId) kocFilter.koc.admin_id = adminId;
     const rows = await prisma.managerKocAccess.findMany({
       where: kocFilter,
       select: { manager_id: true, koc_id: true, permissions: true },
