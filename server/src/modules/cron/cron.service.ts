@@ -108,7 +108,6 @@ export class CronService {
     reason?: string;
   }> {
     const now = new Date();
-    const currentMonth = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
     // Get the latest cycle by month (sort by parsed month, not string)
     const allCycles = await prisma.revenueCycle.findMany({
@@ -125,8 +124,9 @@ export class CronService {
     let targetMonth: string;
 
     if (!latestCycle) {
-      // No cycles exist, target previous month
-      targetMonth = this.getPreviousMonth();
+      // No cycles exist, target current month
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      targetMonth = `${mm}/${now.getFullYear()}`;
     } else {
       // Parse the latest cycle month and compute the next one
       const [mm, yyyy] = latestCycle.month.split('/');
@@ -137,18 +137,16 @@ export class CronService {
       targetMonth = `${nextMM}/${nextYYYY}`;
     }
 
-    // Check if target month is current or future month
+    // Only block strictly-future months; current month is allowed
     const [targetMM, targetYYYY] = targetMonth.split('/');
     const targetDate = new Date(parseInt(targetYYYY), parseInt(targetMM) - 1, 1);
     const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    if (targetDate >= currentMonthDate) {
+    if (targetDate > currentMonthDate) {
       return {
         targetMonth,
         canRun: false,
-        reason: targetMonth === currentMonth
-          ? `MONTH_NOT_COMPLETED`
-          : `MONTH_IN_FUTURE`,
+        reason: `MONTH_IN_FUTURE`,
       };
     }
 
@@ -166,12 +164,10 @@ export class CronService {
     const config = await this.getConfig(adminId);
 
     // Calculate the actual next cycle month
-    const { targetMonth: nextMonth, canRun, reason } = await this.getNextCycleMonth();
+    const { targetMonth: nextMonth, canRun } = await this.getNextCycleMonth();
 
     if (!canRun) {
-      const msg = reason === 'MONTH_NOT_COMPLETED'
-        ? `Cannot create cycle for ${nextMonth}: the month has not ended yet`
-        : `Cannot create cycle for ${nextMonth}: the month is in the future`;
+      const msg = `Cannot create cycle for ${nextMonth}: the month is in the future`;
       logger.warn(`[CronJob] ${msg}`);
       await this.addRunHistory(false, msg, nextMonth, adminId);
       return { success: false, message: msg, cycleMonth: nextMonth };
