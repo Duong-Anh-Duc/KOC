@@ -184,7 +184,7 @@ export class EmailService {
       const transporter = await this.createTransporter();
 
       const html = buildRevenueEmailHtml(data);
-      const logoPath = path.join(__dirname, '../assets/logo.jpg');
+      const logoPath = path.join(__dirname, '../../assets/logo.jpg');
 
       const result = await transporter.sendMail({
         from: `"${emailConfig.fromName}" <${emailConfig.fromEmail}>`,
