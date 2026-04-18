@@ -9,6 +9,7 @@ export { default as PermissionManagementPage } from './PermissionManagementPage'
 export { default as RevenueControlPage } from './RevenueControlPage';
 export { default as SendRevenueEmailPage } from './SendRevenueEmailPage';
 export { default as StatsPage } from './StatsPage';
+export { default as UniversePage } from './UniversePage';
 export { default as UserManagementPage } from './UserManagementPage';
 export { default as YouTubeScraperPage } from './YouTubeScraperPage';
 

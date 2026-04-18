@@ -3,6 +3,7 @@ import {
     ClockCircleOutlined,
     DashboardOutlined,
     DollarOutlined,
+    GlobalOutlined,
     LineChartOutlined,
     MailOutlined,
     SafetyOutlined,
@@ -41,6 +42,11 @@ const Sidebar: React.FC = () => {
       icon: <DollarOutlined />,
       label: t('kocPortal.title'),
     },
+    {
+      key: '/universe',
+      icon: <GlobalOutlined />,
+      label: t('menu.universe'),
+    },
   ];
 
   // Manager menu: flat list filtered by permissions (no groups to keep it simple)
@@ -70,6 +76,11 @@ const Sidebar: React.FC = () => {
       icon: <SendOutlined />,
       label: t('menu.sendRevenueEmail'),
     } : null,
+    {
+      key: '/universe',
+      icon: <GlobalOutlined />,
+      label: t('menu.universe'),
+    },
     null,
   ].filter(Boolean) as NonNullable<MenuProps['items']>;
 
@@ -79,6 +90,11 @@ const Sidebar: React.FC = () => {
       key: '/',
       icon: <DashboardOutlined />,
       label: t('menu.dashboard'),
+    },
+    {
+      key: '/universe',
+      icon: <GlobalOutlined />,
+      label: t('menu.universe'),
     },
     {
       type: 'group',

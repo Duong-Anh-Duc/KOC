@@ -15,6 +15,7 @@ import {
   RevenueControlPage,
   SendRevenueEmailPage,
   StatsPage,
+  UniversePage,
   UserManagementPage,
   YouTubeScraperPage,
 } from './pages';
@@ -61,6 +62,14 @@ const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/universe"
+            element={
+              <PrivateRoute>
+                <UniversePage />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/"
             element={

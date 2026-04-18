@@ -17,6 +17,7 @@
     "sendRevenueEmail": "Gửi Email Doanh thu",
     "permissions": "Phân quyền",
     "users": "Người dùng",
+    "universe": "Vũ trụ EBE",
     "groupManagement": "Quản lý",
     "groupChannel": "Kênh & Tích hợp",
     "groupSystem": "Hệ thống"
@@ -963,5 +964,106 @@
     "initialPassword": "Mật khẩu ban đầu",
     "passwordPlaceholder": "Tối thiểu 6 ký tự",
     "searchPlaceholder": "Tìm tên hoặc email..."
+  },
+  "universe": {
+    "title": "Vũ trụ EBE",
+    "subtitle": "HỆ SINH THÁI TÍNH NĂNG",
+    "coreStaff": "EBE Core",
+    "corePortal": "EBE Portal",
+    "systemPulse": "NHỊP HỆ THỐNG",
+    "perMinute": "hoạt động / phút",
+    "recentEvents": "bản ghi gần đây",
+    "stats": {
+      "features": "Tính năng",
+      "activeKocs": "KOC hoạt động",
+      "cycles": "Chu kỳ"
+    },
+    "timeAgo": {
+      "justNow": "vừa xong",
+      "seconds": "{{n}} giây trước",
+      "minutes": "{{n}} phút trước",
+      "hours": "{{n}} giờ trước",
+      "days": "{{n}} ngày trước"
+    },
+    "modules": {
+      "dashboard": "Tổng quan",
+      "koc": "Creator",
+      "revenue": "Doanh thu",
+      "stats": "Thống kê",
+      "sendEmail": "Gửi Email DT",
+      "audit": "Nhật ký",
+      "users": "Người dùng",
+      "ytScraper": "YT Scraper",
+      "cron": "Cron",
+      "email": "Gmail",
+      "permissions": "Phân quyền",
+      "myRevenue": "Doanh thu của tôi",
+      "clock": "Chu kỳ",
+      "growth": "Tăng trưởng"
+    },
+    "metrics": {
+      "cycles": "Chu kỳ",
+      "active": "Hoạt động",
+      "net": "Net",
+      "growth": "Tăng trưởng",
+      "sent": "Gửi",
+      "log": "Log",
+      "manage": "Quản lý",
+      "scraper": "Scraper",
+      "cron": "Cron",
+      "gmail": "Gmail",
+      "roles": "Roles",
+      "received": "Nhận",
+      "company": "Công ty",
+      "period": "Kỳ",
+      "empty": "—"
+    },
+    "hints": {
+      "drag": "Kéo xoay",
+      "zoom": "Scroll zoom",
+      "click": "Click",
+      "openFeature": "tính năng để mở"
+    },
+    "controls": {
+      "realtime": "Realtime",
+      "labels": "Nhãn",
+      "reset": "Đặt lại"
+    },
+    "actions": {
+      "sync": "ĐỒNG BỘ",
+      "write": "GHI",
+      "read": "ĐỌC",
+      "calc": "TÍNH"
+    },
+    "drawer": {
+      "open": "Mở trang",
+      "close": "Đóng",
+      "viewDetail": "Xem chi tiết",
+      "hoverHint": "Nhấp để mở chi tiết",
+      "quickStats": "Thông số nhanh",
+      "topGrowth": "Top tăng trưởng",
+      "recentRecords": "Bản ghi gần đây",
+      "recentLogs": "Nhật ký gần đây",
+      "latestCycle": "Chu kỳ gần nhất",
+      "noData": "Chưa có dữ liệu",
+      "views": "Lượt xem",
+      "subs": "Sub",
+      "noCycle": "Chưa có chu kỳ nào"
+    },
+    "desc": {
+      "dashboard": "Tổng quan toàn hệ thống: số KOC, chu kỳ, doanh thu gần nhất.",
+      "koc": "Quản lý danh sách creator, thêm/sửa/xóa và cấu hình tài khoản đăng nhập.",
+      "revenue": "Điều phối chu kỳ doanh thu: tạo kỳ, cào YouTube, duyệt bản ghi.",
+      "stats": "Thống kê tăng trưởng views / subs của từng kênh theo thời gian.",
+      "sendEmail": "Gửi email báo cáo doanh thu cho từng creator trong chu kỳ.",
+      "audit": "Nhật ký hệ thống — mọi thao tác thêm / sửa / xoá được ghi lại.",
+      "users": "Quản lý người dùng nội bộ (Admin / Manager) và phân quyền truy cập.",
+      "cron": "Cấu hình các tiến trình tự động: cào YouTube, đồng bộ dữ liệu theo lịch.",
+      "email": "Kết nối Gmail gửi email thay mặt hệ thống.",
+      "permissions": "Gán quyền chi tiết cho Manager trên từng KOC hoặc nhóm chức năng.",
+      "myRevenue": "Doanh thu cá nhân của bạn theo từng chu kỳ.",
+      "clock": "Chu kỳ doanh thu gần nhất đã có bản ghi.",
+      "growth": "Tăng trưởng kênh của bạn."
+    }
   }
 }

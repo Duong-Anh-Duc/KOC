@@ -17,6 +17,7 @@
     "sendRevenueEmail": "Send Revenue Email",
     "permissions": "Permissions",
     "users": "Users",
+    "universe": "EBE Universe",
     "groupManagement": "Management",
     "groupChannel": "Channel & Integration",
     "groupSystem": "System"
@@ -963,5 +964,106 @@
     "initialPassword": "Initial Password",
     "passwordPlaceholder": "Min. 6 characters",
     "searchPlaceholder": "Search name or email..."
+  },
+  "universe": {
+    "title": "EBE Universe",
+    "subtitle": "FEATURE ECOSYSTEM",
+    "coreStaff": "EBE Core",
+    "corePortal": "EBE Portal",
+    "systemPulse": "SYSTEM PULSE",
+    "perMinute": "events / minute",
+    "recentEvents": "recent records",
+    "stats": {
+      "features": "Features",
+      "activeKocs": "Active KOC",
+      "cycles": "Cycles"
+    },
+    "timeAgo": {
+      "justNow": "just now",
+      "seconds": "{{n}}s ago",
+      "minutes": "{{n}}m ago",
+      "hours": "{{n}}h ago",
+      "days": "{{n}}d ago"
+    },
+    "modules": {
+      "dashboard": "Dashboard",
+      "koc": "Creator",
+      "revenue": "Revenue",
+      "stats": "Stats",
+      "sendEmail": "Send Revenue",
+      "audit": "Audit Log",
+      "users": "Users",
+      "ytScraper": "YT Scraper",
+      "cron": "Cron",
+      "email": "Gmail",
+      "permissions": "Permissions",
+      "myRevenue": "My Revenue",
+      "clock": "Period",
+      "growth": "Growth"
+    },
+    "metrics": {
+      "cycles": "Cycles",
+      "active": "Active",
+      "net": "Net",
+      "growth": "Growth",
+      "sent": "Sent",
+      "log": "Log",
+      "manage": "Manage",
+      "scraper": "Scraper",
+      "cron": "Cron",
+      "gmail": "Gmail",
+      "roles": "Roles",
+      "received": "Received",
+      "company": "Company",
+      "period": "Period",
+      "empty": "—"
+    },
+    "hints": {
+      "drag": "Drag to rotate",
+      "zoom": "Scroll to zoom",
+      "click": "Click",
+      "openFeature": "an orb to open"
+    },
+    "controls": {
+      "realtime": "Realtime",
+      "labels": "Labels",
+      "reset": "Reset"
+    },
+    "actions": {
+      "sync": "SYNC",
+      "write": "WRITE",
+      "read": "READ",
+      "calc": "CALC"
+    },
+    "drawer": {
+      "open": "Open page",
+      "close": "Close",
+      "viewDetail": "View details",
+      "hoverHint": "Click to open details",
+      "quickStats": "Quick stats",
+      "topGrowth": "Top growth",
+      "recentRecords": "Recent records",
+      "recentLogs": "Recent audit logs",
+      "latestCycle": "Latest cycle",
+      "noData": "No data yet",
+      "views": "Views",
+      "subs": "Subs",
+      "noCycle": "No cycles yet"
+    },
+    "desc": {
+      "dashboard": "System-wide overview: KOC counts, cycles, latest revenue.",
+      "koc": "Manage creators — add, edit, remove and configure login accounts.",
+      "revenue": "Orchestrate revenue cycles: create, scrape YouTube, approve records.",
+      "stats": "Track views / subs growth of each channel over time.",
+      "sendEmail": "Send revenue email reports to each creator for a cycle.",
+      "audit": "System audit log — every create / update / delete action is recorded.",
+      "users": "Manage internal users (Admin / Manager) and access permissions.",
+      "cron": "Configure automated jobs: YouTube scraping, scheduled syncs.",
+      "email": "Gmail integration for sending emails on behalf of the system.",
+      "permissions": "Assign granular permissions to Managers per KOC or feature group.",
+      "myRevenue": "Your personal revenue by cycle.",
+      "clock": "Most recent revenue cycle with records.",
+      "growth": "Your channel growth."
+    }
   }
 }
