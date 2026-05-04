@@ -24,6 +24,14 @@ import { GoogleAutoLoginService } from './google-login.service';
 import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
+/**
+ * Timeout tunable qua env (cho máy RAM yếu / mạng chậm tăng lên):
+ *   SCRAPE_GOTO_TIMEOUT_MS  — timeout page.goto YouTube Studio (mặc định 5 phút)
+ *   SCRAPE_POLL_TIMEOUT_MS  — deadline đợi bảng analytics load (mặc định 10 phút)
+ */
+const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
+const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
+
 // Re-export types so existing imports from this file still work
 export type {
     ChannelStats28dData,
@@ -110,7 +118,7 @@ export class SocialBladeService {
     logger.info(`Scraping ${label}...`);
 
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT });
     } catch (err: any) {
       logger.warn(`Page load warning for ${label}: ${err.message}`);
     }
@@ -138,7 +146,7 @@ export class SocialBladeService {
     // Poll mỗi 5s tối đa 3 phút — đợi bảng analytics load xong (có dòng "Tổng")
     logger.info(`Polling ${label} for analytics table...`);
     let text = '';
-    const deadline = Date.now() + 180000;
+    const deadline = Date.now() + SCRAPE_POLL_TIMEOUT;
 
     while (Date.now() < deadline) {
       await new Promise(r => setTimeout(r, 5000));
@@ -472,7 +480,7 @@ export class SocialBladeService {
       await Promise.all(pages.map(async (entry) => {
         try {
           const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
-          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch(() => {});
           if (entry.page.url().includes('accounts.google.com')) {
             entry.error = 'NOT_LOGGED_IN';
           }
@@ -518,7 +526,7 @@ export class SocialBladeService {
         if (entry.error) return;
         try {
           const url = this.buildDayExploreUrl(entry.koc.youtube_channel_id);
-          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch(() => {});
         } catch (err: any) {
           entry.error = `Day navigate failed: ${err.message}`;
         }
@@ -622,7 +630,7 @@ export class SocialBladeService {
       await Promise.all(pages.map(async (entry) => {
         try {
           const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
-          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch(() => {});
 
           if (entry.page.url().includes('accounts.google.com')) {
             entry.error = 'NOT_LOGGED_IN';
@@ -694,7 +702,7 @@ export class SocialBladeService {
         if (entry.error) return;
         try {
           const url = this.buildDayExploreUrl(entry.koc.youtube_channel_id);
-          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch(() => {});
         } catch (err: any) {
           entry.error = `Day navigate failed: ${err.message}`;
         }
@@ -767,7 +775,7 @@ export class SocialBladeService {
    * Timeout: 3 minutes per page.
    */
   private static async pollAllPagesForTable(entries: { page: Page; label: string }[]): Promise<void> {
-    const deadline = Date.now() + 180000; // 3 minutes
+    const deadline = Date.now() + SCRAPE_POLL_TIMEOUT;
     const pending = new Set(entries.map((_, i) => i));
 
     while (pending.size > 0 && Date.now() < deadline) {

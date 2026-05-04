@@ -1,7 +1,7 @@
 import { CheckCircleTwoTone, CloseCircleTwoTone, GoogleOutlined, SyncOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Form, Input, Space, Switch, Tag, Tooltip, Typography, message } from 'antd';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { googleLoginApi } from '../../api';
 import { useGoogleLoginStatus } from '../../hooks';
@@ -14,7 +14,6 @@ const GoogleLoginConfigCard: React.FC = () => {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const status = useGoogleLoginStatus();
-  const autoChecked = useRef(false);
 
   const { data: configRes, isLoading } = useQuery({
     queryKey: ['google-login-config'],
@@ -32,20 +31,6 @@ const GoogleLoginConfigCard: React.FC = () => {
       });
     }
   }, [config, form]);
-
-  // Auto-check 1 lần khi mở page (nếu đã có credentials và chưa biết status)
-  useEffect(() => {
-    if (autoChecked.current) return;
-    if (!config) return;
-    if (!config.hasPassword) return;       // Chưa cấu hình thì không check
-    if (status.isChecking) return;
-    autoChecked.current = true;
-    // Delay nhẹ để form hiện ra trước
-    const t = setTimeout(() => {
-      status.checkNow().catch(() => {});
-    }, 800);
-    return () => clearTimeout(t);
-  }, [config, status]);
 
   const saveMutation = useMutation({
     mutationFn: googleLoginApi.updateConfig,

@@ -21,6 +21,10 @@ import {
 // Session management removed (using GemLogin profiles)
 const markSessionDisconnected = (..._args: any[]) => Promise.resolve();
 
+/** Timeout tunable qua env (xem SCRAPE_GOTO_TIMEOUT_MS / SCRAPE_POLL_TIMEOUT_MS trong .env). */
+const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
+const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
+
 // ============================================================
 // KOC LOGGING
 // ============================================================
@@ -1062,7 +1066,7 @@ export async function scrapeMultipleChannelsParallel(
   onProgress?: (channelId: string, index: number, total: number) => void,
   adminId?: string,
   batchSize = 3,
-  waitMs = 300000,
+  waitMs = SCRAPE_POLL_TIMEOUT,
 ): Promise<{
   results: YouTubeAnalyticsData[];
   errors: Array<{ channelId: string; error: string }>;
@@ -1122,7 +1126,7 @@ export async function scrapeMultipleChannelsParallel(
         }).catch(() => {});
 
         const url = buildRevenueExploreUrl(channelId, month);
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e) => {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch((e) => {
           logger.warn(`[Parallel] Navigate ${channelId} error (continuing): ${e.message}`);
         });
         logger.info(`[Parallel] Tab ${i + 1}/${batch.length} loaded: ${channelId}`);

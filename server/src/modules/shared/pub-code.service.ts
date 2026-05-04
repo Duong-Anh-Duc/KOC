@@ -3,6 +3,10 @@ import logger from '../../middlewares/logger.middleware';
 import { YouTubeScraperService } from './youtube-scraper.service';
 import { GoogleAutoLoginService } from './google-login.service';
 
+/** Timeout tunable qua env (xem SCRAPE_GOTO_TIMEOUT_MS / SCRAPE_POLL_TIMEOUT_MS trong .env). */
+const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
+const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
+
 export interface PubCodeVerificationResult {
   kocId: string;
   channelId: string;
@@ -39,7 +43,7 @@ export class PubCodeService {
       // Stealth scripts already injected at context level via addInitScript
 
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT });
       } catch (err: any) {
         logger.warn(`Page load timeout for monetization page, continuing...`, err.message);
       }
@@ -52,7 +56,7 @@ export class PubCodeService {
 
       // Poll mỗi 10s tối đa 3 phút — AdSense section load lazily
       let text = '';
-      const deadline = Date.now() + 180000;
+      const deadline = Date.now() + SCRAPE_POLL_TIMEOUT;
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 10000));
         try {
@@ -171,7 +175,7 @@ export class PubCodeService {
           }).catch(() => {});
 
           const url = this.buildMonetizationUrl(koc.youtube_channel_id);
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 }).catch((e: any) => {
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch((e: any) => {
             logger.warn(`[PubCode Parallel] Navigate ${koc.full_name} lỗi: ${e.message}`);
           });
           logger.info(`[PubCode Parallel] Tab ${batchStart + i + 1}/${total} đã load: ${koc.full_name}`);
@@ -191,7 +195,7 @@ export class PubCodeService {
 
         // Bước 2: Poll đến khi pub code xuất hiện
         const POLL_MS = 5000;
-        const WAIT_LIMIT = Date.now() + 300000;
+        const WAIT_LIMIT = Date.now() + SCRAPE_POLL_TIMEOUT;
         const pageReady = new Array(batchLen).fill(false);
 
         while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {

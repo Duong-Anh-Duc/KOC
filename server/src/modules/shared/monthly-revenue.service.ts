@@ -14,6 +14,10 @@ import { RevenueService } from '../revenue/revenue.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 import { GoogleAutoLoginService } from './google-login.service';
 
+/** Timeout tunable qua env (xem SCRAPE_GOTO_TIMEOUT_MS / SCRAPE_POLL_TIMEOUT_MS trong .env). */
+const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
+const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
+
 // Re-export types so existing imports from this file still work
 export type { MonthlyRevenueData, MonthlyRevenueRow } from '../../types/stats.types';
 
@@ -580,7 +584,7 @@ export class MonthlyRevenueService {
           }).catch(() => {});
 
           const url = this.buildMonthlyRevenueUrl(koc.youtube_channel_id);
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch((e: any) => {
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch((e: any) => {
             logger.warn(`[Monthly Parallel] Navigate ${koc.channel_name} lỗi: ${e.message}`);
           });
           logger.info(`[Monthly Parallel] Tab ${batchStart + i + 1}/${total} đã load: ${koc.channel_name}`);
@@ -590,7 +594,7 @@ export class MonthlyRevenueService {
 
         // Poll đợi nội dung
         const POLL_MS = 5000;
-        const WAIT_LIMIT = Date.now() + 300000;
+        const WAIT_LIMIT = Date.now() + SCRAPE_POLL_TIMEOUT;
         const pageReady = new Array(batchLen).fill(false);
 
         while (!pageReady.every(Boolean) && Date.now() < WAIT_LIMIT) {
