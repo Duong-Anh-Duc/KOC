@@ -104,34 +104,29 @@ export function useProgress(onComplete?: (result: unknown) => void) {
     });
 
     es.addEventListener('error', (event) => {
-      try {
-        const msgEvent = event as MessageEvent;
-        if (msgEvent.data) {
-          // Named 'error' event from server
+      const msgEvent = event as MessageEvent;
+      if (msgEvent.data) {
+        // Server chủ động gửi error event (có data) → terminal, đóng connection
+        try {
           const data = JSON.parse(msgEvent.data);
           setState(prev => ({
             ...prev,
             active: false,
             error: data.message || 'progress.unknownError',
           }));
-        } else {
-          // Native EventSource connection error - ignore if already completed
-          if (!completedRef.current) {
-            setState(prev => {
-              if (prev.completed) return prev;
-              return { ...prev, active: false, error: 'progress.connectionLost' };
-            });
-          }
+        } catch {
+          setState(prev => ({ ...prev, active: false, error: 'progress.unknownError' }));
         }
-      } catch {
-        if (!completedRef.current) {
-          setState(prev => {
-            if (prev.completed) return prev;
-            return { ...prev, active: false, error: 'progress.connectionError' };
-          });
-        }
+        es.close();
+        return;
       }
-      es.close();
+
+      // Native connection error (network blip) — đã completed thì bỏ qua,
+      // chưa thì để EventSource tự reconnect (KHÔNG set error + KHÔNG close).
+      if (completedRef.current) {
+        es.close();
+      }
+      // Else: browser tự retry với exponential backoff. Giữ nguyên state.
     });
   }, [cleanup, onComplete]);
 

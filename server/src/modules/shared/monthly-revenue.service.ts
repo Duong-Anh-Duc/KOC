@@ -13,6 +13,7 @@ import {
 import { RevenueService } from '../revenue/revenue.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 import { GoogleAutoLoginService } from './google-login.service';
+import { logScrapeError } from './scrape-error-log';
 
 /** Timeout + concurrency tunable qua env — xem doc trong socialblade.service.ts. */
 const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
@@ -641,6 +642,7 @@ export class MonthlyRevenueService {
             logger.error(`[Monthly Parallel] ${koc.channel_name}: ${errMsg}`);
             this.writeMonthlyLog(koc.youtube_channel_id, koc.channel_name, null, errMsg);
             errors.push({ kocId: koc.id, channelName: koc.channel_name, error: errMsg });
+            logScrapeError('monthly-revenue', koc.channel_name, errMsg);
             // Session disconnect tracking removed (GemLogin manages sessions)
           } finally {
             try { await page.close(); } catch { /* ignore */ }

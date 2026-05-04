@@ -8,6 +8,7 @@ import { Page } from 'playwright';
 import logger from '../../../middlewares/logger.middleware';
 import { ExchangeRateService } from '../exchange-rate.service';
 import { GoogleAutoLoginService } from '../google-login.service';
+import { logScrapeError } from '../scrape-error-log';
 import { YouTubeAnalyticsData, RevenueByCountry, safeClosePage } from './types';
 import {
   contexts,
@@ -525,6 +526,7 @@ export async function scrapeMultipleChannels(
           const errMsg = r.reason?.message || 'Unknown error';
           errors.push({ channelId, error: errMsg });
           logger.warn(`[Batch ${batchIdx + 1}] FAIL ${channelId}: ${errMsg}`);
+          logScrapeError('revenue', channelId, r.reason || errMsg);
           writeKocLog(channelId, month, null, errMsg, channelLabels);
           if (errMsg === 'NOT_LOGGED_IN') sessionExpired = true;
         }
@@ -1248,6 +1250,7 @@ export async function scrapeMultipleChannelsParallel(
         } catch (err: any) {
           errors.push({ channelId, error: err.message });
           logger.warn(`[Parallel] FAIL ${channelId}: ${err.message}`);
+          logScrapeError('revenue-parallel', channelId, err);
         }
       }));
 

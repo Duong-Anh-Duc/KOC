@@ -2,6 +2,7 @@ import prisma from '../../config/database';
 import logger from '../../middlewares/logger.middleware';
 import { YouTubeScraperService } from './youtube-scraper.service';
 import { GoogleAutoLoginService } from './google-login.service';
+import { logScrapeError } from './scrape-error-log';
 
 /** Timeout + concurrency tunable qua env — xem doc trong socialblade.service.ts. */
 const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
@@ -232,6 +233,7 @@ export class PubCodeService {
           } catch (err: any) {
             results.push({ kocId: koc.id, channelId: cleanId, kocName: koc.full_name, storedPubCode: koc.pub_code, scrapedPubCode: null, matched: null, error: err.message });
             logger.error(`[PubCode Parallel] ${koc.full_name}: ${err.message}`);
+            logScrapeError('pub-code', koc.full_name, err);
           } finally {
             progressCount++;
             if (onProgress) onProgress(progressCount, total, koc.full_name);
