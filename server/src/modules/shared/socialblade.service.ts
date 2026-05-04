@@ -32,7 +32,7 @@ import { YouTubeScraperService } from './youtube-scraper.service';
  */
 const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
 const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
-const SCRAPE_BATCH_SIZE = parseInt(process.env.SCRAPE_BATCH_SIZE || '1', 10);
+const SCRAPE_BATCH_SIZE = parseInt(process.env.SCRAPE_BATCH_SIZE || '2', 10);
 
 // Re-export types so existing imports from this file still work
 export type {
@@ -632,10 +632,17 @@ export class SocialBladeService {
       await Promise.all(pages.map(async (entry) => {
         try {
           const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
-          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch(() => {});
+          await entry.page.goto(url, { waitUntil: 'domcontentloaded', timeout: SCRAPE_GOTO_TIMEOUT }).catch((e: any) => {
+            logger.warn(`[28d Stats] Goto ${entry.koc.channel_name} fail: ${e.message} — page url=${entry.page.url()}`);
+          });
 
           if (entry.page.url().includes('accounts.google.com')) {
             entry.error = 'NOT_LOGGED_IN';
+            return;
+          }
+          // Phát hiện tab kẹt about:blank (goto có thể fail silently)
+          if (entry.page.url() === 'about:blank') {
+            entry.error = `Tab kẹt about:blank — goto fail. Có thể CDP relay (Docker) hoặc network bị block.`;
             return;
           }
 

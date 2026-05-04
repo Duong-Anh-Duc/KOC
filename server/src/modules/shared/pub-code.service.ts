@@ -6,7 +6,7 @@ import { GoogleAutoLoginService } from './google-login.service';
 /** Timeout + concurrency tunable qua env — xem doc trong socialblade.service.ts. */
 const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
 const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
-const SCRAPE_BATCH_SIZE = parseInt(process.env.SCRAPE_BATCH_SIZE || '1', 10);
+const SCRAPE_BATCH_SIZE = parseInt(process.env.SCRAPE_BATCH_SIZE || '2', 10);
 
 export interface PubCodeVerificationResult {
   kocId: string;
