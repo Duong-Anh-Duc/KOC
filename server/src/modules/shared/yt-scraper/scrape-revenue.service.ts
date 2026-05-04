@@ -21,9 +21,10 @@ import {
 // Session management removed (using GemLogin profiles)
 const markSessionDisconnected = (..._args: any[]) => Promise.resolve();
 
-/** Timeout tunable qua env (xem SCRAPE_GOTO_TIMEOUT_MS / SCRAPE_POLL_TIMEOUT_MS trong .env). */
+/** Timeout + concurrency tunable qua env — xem doc trong socialblade.service.ts. */
 const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
 const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
+const SCRAPE_BATCH_SIZE = parseInt(process.env.SCRAPE_BATCH_SIZE || '2', 10);
 
 // ============================================================
 // KOC LOGGING
@@ -1065,7 +1066,7 @@ export async function scrapeMultipleChannelsParallel(
   month?: string,
   onProgress?: (channelId: string, index: number, total: number) => void,
   adminId?: string,
-  batchSize = 3,
+  batchSize = SCRAPE_BATCH_SIZE,
   waitMs = SCRAPE_POLL_TIMEOUT,
 ): Promise<{
   results: YouTubeAnalyticsData[];

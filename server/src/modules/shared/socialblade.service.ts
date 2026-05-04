@@ -25,12 +25,14 @@ import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
 /**
- * Timeout tunable qua env (cho máy RAM yếu / mạng chậm tăng lên):
+ * Timeout + concurrency tunable qua env:
  *   SCRAPE_GOTO_TIMEOUT_MS  — timeout page.goto YouTube Studio (mặc định 5 phút)
  *   SCRAPE_POLL_TIMEOUT_MS  — deadline đợi bảng analytics load (mặc định 10 phút)
+ *   SCRAPE_BATCH_SIZE       — số tab mở song song mỗi batch (mặc định 2 — tăng nếu máy mạnh)
  */
 const SCRAPE_GOTO_TIMEOUT = parseInt(process.env.SCRAPE_GOTO_TIMEOUT_MS || '300000', 10);
 const SCRAPE_POLL_TIMEOUT = parseInt(process.env.SCRAPE_POLL_TIMEOUT_MS || '600000', 10);
+const SCRAPE_BATCH_SIZE = parseInt(process.env.SCRAPE_BATCH_SIZE || '2', 10);
 
 // Re-export types so existing imports from this file still work
 export type {
@@ -456,7 +458,7 @@ export class SocialBladeService {
     const kocs = await prisma.kOC.findMany({ where: { status: 'ACTIVE', ...(adminId ? { admin_id: adminId } : {}) } });
     const results: any[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
-    const BATCH_SIZE = 3;
+    const BATCH_SIZE = SCRAPE_BATCH_SIZE;
 
     logger.info(`Starting 28d stats for ${kocs.length} KOCs, batch ${BATCH_SIZE} tabs...`);
 
@@ -598,7 +600,7 @@ export class SocialBladeService {
     const total = kocs.length;
     const results: string[] = [];
     const errors: { kocId: string; channelName: string; error: string }[] = [];
-    const BATCH_SIZE = 3;
+    const BATCH_SIZE = SCRAPE_BATCH_SIZE;
 
     logger.info(`Starting 28d stats for ${total} KOCs, batch ${BATCH_SIZE} tabs (taskId: ${taskId})...`);
 
