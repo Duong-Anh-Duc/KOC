@@ -1,5 +1,6 @@
 export { useLogin, useLogout } from './useAuth';
 export { useGemLoginAutoStart } from './useGemLoginAutoStart';
+export { useGoogleLoginStatus } from './useGoogleLoginStatus';
 export { useDashboardOverview, useRevenueTrend } from './useDashboard';
 export { useMyRevenue, useMyStats } from './useKocPortal';
 export {

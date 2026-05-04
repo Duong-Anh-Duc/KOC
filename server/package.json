@@ -4,14 +4,16 @@
   "description": "YouTube Revenue & KOC Management System - Backend",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "nodemon",
     "build": "tsc && cp -r src/assets dist/",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "tsx src/prisma/seed.ts",
-    "yt-login": "tsx src/cli/yt-login.ts"
+    "yt-login": "tsx src/cli/yt-login.ts",
+    "debug:google-login": "tsx src/cli/debug-google-login.ts",
+    "debug:weblite": "tsx src/cli/debug-weblite.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
@@ -52,6 +54,7 @@
     "@types/node": "^22.13.1",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.9",
+    "nodemon": "^3.1.14",
     "prisma": "^6.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3"

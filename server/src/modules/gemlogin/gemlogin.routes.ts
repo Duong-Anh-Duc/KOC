@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { GemLoginController } from './gemlogin.controller';
+import { SettingsController } from '../settings/settings.controller';
 import { authMiddleware, canModify } from '../../middlewares';
 
 const router = Router();
@@ -22,6 +23,8 @@ router.post('/profiles/fingerprint', canModify, GemLoginController.changeFingerp
 router.post('/start', canModify, GemLoginController.startProfile);
 router.post('/close', canModify, GemLoginController.closeProfile);
 router.get('/status', GemLoginController.getStatus);
+router.get('/google-status', SettingsController.getGoogleStatus);
+router.post('/google-status/check', canModify, SettingsController.checkGoogleStatus);
 
 // ── Cào doanh thu qua GemLogin ────────────────────────────────────────────────
 router.post('/scrape-revenue', canModify, GemLoginController.scrapeRevenue);

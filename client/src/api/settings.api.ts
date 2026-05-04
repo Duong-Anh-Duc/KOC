@@ -118,3 +118,65 @@ export const cronApi = {
       };
     }>>('/cron/next-month'),
 };
+
+// ============================================================
+// GOOGLE LOGIN AUTO-LOGIN API
+// ============================================================
+export interface GoogleLoginStatus {
+  email: string | null;
+  hasPassword: boolean;
+  hasTotpSecret: boolean;
+  /** Password đã giải mã — admin có thể xem qua eye toggle */
+  password: string | null;
+  /** TOTP secret đã giải mã */
+  totpSecret: string | null;
+  autoLoginEnabled: boolean;
+  lastResult: string | null;
+  lastAttemptAt: string | null;
+}
+
+export const googleLoginApi = {
+  /** Lấy trạng thái credentials (KHÔNG trả password/secret thô) */
+  getConfig: () =>
+    apiClient.get<ApiResponse<GoogleLoginStatus>>('/settings/google-login'),
+
+  /** Cập nhật credentials — chỉ field truyền sẽ update */
+  updateConfig: (data: {
+    email?: string | null;
+    password?: string | null;
+    totpSecret?: string | null;
+    autoLoginEnabled?: boolean;
+  }) =>
+    apiClient.put<ApiResponse<GoogleLoginStatus>>('/settings/google-login', data),
+
+  /** Trigger auto-login ngay để verify credentials. incognito=true → context mới, không cookie. */
+  test: (incognito = true) =>
+    apiClient.post<{
+      success: boolean;
+      loggedIn: boolean;
+      incognito: boolean;
+      message: string;
+      finalUrl?: string;
+    }>('/settings/google-login/test', { incognito }),
+
+  /** Trạng thái Google đã login chưa (đọc DB, nhẹ) */
+  getGoogleStatus: () =>
+    apiClient.get<{
+      success: boolean;
+      loggedIn: boolean;
+      verifiedAt: string | null;
+      disconnectedAt: string | null;
+      disconnectReason: string | null;
+      message: string;
+    }>('/gemlogin/google-status'),
+
+  /**
+   * Live check + auto-login nếu cần. Trả `taskId` ngay → FE subscribe SSE
+   * `/api/progress/:taskId` để xem step text trực tiếp ("Đang nhập mật khẩu..." v.v.).
+   */
+  checkGoogleStatusNow: () =>
+    apiClient.post<{
+      success: boolean;
+      taskId: string;
+    }>('/gemlogin/google-status/check'),
+};

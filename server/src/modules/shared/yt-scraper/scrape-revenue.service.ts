@@ -7,6 +7,7 @@ import path from 'path';
 import { Page } from 'playwright';
 import logger from '../../../middlewares/logger.middleware';
 import { ExchangeRateService } from '../exchange-rate.service';
+import { GoogleAutoLoginService } from '../google-login.service';
 import { YouTubeAnalyticsData, RevenueByCountry, safeClosePage } from './types';
 import {
   contexts,
@@ -181,12 +182,14 @@ async function scrapeRevenueExplore(
     );
   }
 
-  const currentUrl = page.url();
+  let currentUrl = page.url();
   if (currentUrl.includes('accounts.google.com')) {
     const bodySnippet = await page.evaluate(() => document.body?.innerText?.substring(0, 200)).catch(() => '') as string;
     logger.warn(`[Scrape] Redirected to login for channel ${channelId}: ${currentUrl}`);
     logger.warn(`[Scrape] Page snippet: ${bodySnippet.substring(0, 200)}`);
-    throw new Error('NOT_LOGGED_IN');
+    const ok = await GoogleAutoLoginService.ensureLoggedIn(page, url);
+    if (!ok) throw new Error('NOT_LOGGED_IN');
+    currentUrl = page.url();
   }
 
   // Verify we actually navigated to the correct channel page
@@ -424,11 +427,20 @@ export async function scrapeMultipleChannels(
         return route.continue();
       });
       await warmPage.goto('https://studio.youtube.com', { waitUntil: 'domcontentloaded', timeout: 1800000 });
-      const warmUrl = warmPage.url();
+      let warmUrl = warmPage.url();
+      let bodySnippet = '';
       if (warmUrl.includes('accounts.google.com')) {
-        const bodySnippet = await warmPage.evaluate(() => document.body?.innerText?.substring(0, 300)).catch(() => '') as string;
+        bodySnippet = await warmPage.evaluate(() => document.body?.innerText?.substring(0, 300)).catch(() => '') as string;
         logger.error(`[WarmUp] Session expired — redirected to: ${warmUrl}`);
         logger.error(`[WarmUp] Page snippet: ${bodySnippet.substring(0, 200)}`);
+        // Thử auto-login trước khi báo lỗi
+        const ok = await GoogleAutoLoginService.ensureLoggedIn(warmPage, 'https://studio.youtube.com');
+        if (ok) {
+          warmUrl = warmPage.url();
+          logger.info(`[WarmUp] Auto-login OK, redirected: ${warmUrl}`);
+        }
+      }
+      if (warmUrl.includes('accounts.google.com')) {
         try {
           const logDir = path.join(process.cwd(), 'logs', 'session-errors');
           fs.mkdirSync(logDir, { recursive: true });
@@ -1115,6 +1127,16 @@ export async function scrapeMultipleChannelsParallel(
         });
         logger.info(`[Parallel] Tab ${i + 1}/${batch.length} loaded: ${channelId}`);
       }));
+
+      // Auto-login: chạy tuần tự để chỉ 1 tab login, các tab khác wait + re-navigate qua lock
+      for (let i = 0; i < batch.length; i++) {
+        const page = pages[i];
+        if (!page) continue;
+        if (page.url().includes('accounts.google.com')) {
+          const url = buildRevenueExploreUrl(batch[i], month);
+          await GoogleAutoLoginService.ensureLoggedIn(page, url);
+        }
+      }
 
       await minimizeWindow(adminId);
 

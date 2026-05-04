@@ -212,19 +212,15 @@ export class GemLoginService {
     }
 
     const inDocker = this.isDocker();
+    let cdpUrl: string | null = null;
 
-    // Kiểm tra CDP đã sẵn sàng chưa (browser đang chạy từ trước)
-    logger.info('[GemLogin] Kiểm tra CDP đã sẵn sàng chưa (browser có thể đang chạy)...');
-    let cdpUrl = await GemLoginService.discoverCdp(5_000).catch(() => null);
+    // Gọi GemLogin API trực tiếp (idempotent — trả lại port hiện tại nếu profile đã chạy).
+    // Tránh scan port toàn bộ vì có thể "vớ" phải Chrome instance khác (puppeteer headless...).
+    logger.info(`[GemLogin] Gửi lệnh khởi động profile: ${profileId}`);
 
-    if (cdpUrl) {
-      logger.info(`[GemLogin] CDP đã sẵn sàng: ${cdpUrl} — bỏ qua bước mở browser`);
-    } else {
-      // Browser chưa chạy — gọi GemLogin API để mở browser
-      logger.info(`[GemLogin] Gửi lệnh khởi động profile: ${profileId}`);
-
+    {
       // Trong Docker: đợi response để lấy remote_debugging_address, rồi dùng relay
-      // Ngoài Docker: fire-and-forget rồi scan port
+      // Ngoài Docker: gọi API + parse remote_debugging_address từ response
       if (inDocker) {
         try {
           const raw = await request<any>('GET', `/api/profiles/start/${profileId}`, undefined, 300_000);
@@ -282,15 +278,35 @@ export class GemLoginService {
           cdpUrl = await GemLoginService.discoverCdp(60_000);
         }
       } else {
-        // Ngoài Docker: fire-and-forget + scan port như cũ
-        request<unknown>('GET', `/api/profiles/start/${profileId}`, undefined, 300_000)
-          .then(raw => logger.info(`[GemLogin] Start API cuối cùng đã trả về: ${JSON.stringify(raw)}`))
-          .catch(err => logger.info(`[GemLogin] Start API kết thúc: ${err.message}`));
+        // Ngoài Docker: gọi API đợi response (~1s), parse port từ remote_debugging_address
+        try {
+          const raw = await request<any>('GET', `/api/profiles/start/${profileId}`, undefined, 60_000);
+          logger.info(`[GemLogin] Start API trả về: ${JSON.stringify(raw)}`);
+          const addr: string = raw?.data?.remote_debugging_address || raw?.remote_debugging_address || '';
+          if (addr) {
+            const testUrl = `http://${addr}`;
+            // Verify port thực sự là CDP của GemLogin (responds /json/version)
+            const deadline = Date.now() + 30_000;
+            while (Date.now() < deadline) {
+              try {
+                const r = await fetch(`${testUrl}/json/version`, { signal: AbortSignal.timeout(2000) });
+                if (r.ok) {
+                  const j = await r.json() as any;
+                  if (j?.webSocketDebuggerUrl) { cdpUrl = testUrl; break; }
+                }
+              } catch { /* chưa sẵn sàng */ }
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        } catch (err: any) {
+          logger.warn(`[GemLogin] Start API lỗi: ${err.message}`);
+        }
 
-        await new Promise(r => setTimeout(r, 2000));
-
-        logger.info('[GemLogin] Scanning CDP port...');
-        cdpUrl = await GemLoginService.discoverCdp(90_000);
+        // Fallback cuối: scan port (chỉ khi API không trả về addr)
+        if (!cdpUrl) {
+          logger.warn('[GemLogin] API không trả remote_debugging_address — fallback scan port');
+          cdpUrl = await GemLoginService.discoverCdp(90_000);
+        }
       }
     }
 

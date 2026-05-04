@@ -2,18 +2,21 @@ import {
   BulbOutlined,
   EditOutlined,
   GlobalOutlined,
+  GoogleOutlined,
   LoadingOutlined,
   LockOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Avatar, Button, Dropdown, Grid, Layout, Space, Tag, Tooltip } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLogout } from '../../hooks';
+import { useNavigate } from 'react-router-dom';
+import { useGoogleLoginStatus, useLogout } from '../../hooks';
 import { useAppStore, useAuthStore } from '../../stores';
 import ChangePasswordModal from './ChangePasswordModal';
 import ProfileModal from './ProfileModal';
@@ -33,6 +36,8 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
   const handleLogout = useLogout();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const navigate = useNavigate();
+  const googleStatus = useGoogleLoginStatus();
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -116,6 +121,27 @@ const Navbar: React.FC<NavbarProps> = ({ gemLogin }) => {
                 style={{ cursor: 'default', userSelect: 'none' }}
               >
                 {gemLogin.isRunning ? 'GemLogin' : t('common.loading')}
+              </Tag>
+            </Tooltip>
+          )}
+
+          {gemLogin?.isRunning && !isMobile && (
+            <Tooltip
+              title={
+                googleStatus.loggedIn
+                  ? t('googleLogin.navTagTooltipLogged', {
+                      time: googleStatus.verifiedAt ? new Date(googleStatus.verifiedAt).toLocaleString() : '?',
+                    })
+                  : `${t('googleLogin.navTagTooltipNeedLoginPrefix')}${googleStatus.message ? ` — ${googleStatus.message}` : ''}${t('googleLogin.navTagTooltipNeedLoginSuffix')}`
+              }
+            >
+              <Tag
+                icon={googleStatus.loggedIn ? <GoogleOutlined style={{ marginRight: 4 }} /> : <WarningOutlined style={{ marginRight: 4 }} />}
+                color={googleStatus.loggedIn ? 'success' : 'warning'}
+                style={{ cursor: googleStatus.loggedIn ? 'default' : 'pointer', userSelect: 'none' }}
+                onClick={() => { if (!googleStatus.loggedIn) navigate('/email-settings'); }}
+              >
+                {googleStatus.loggedIn ? t('googleLogin.navTagLogged') : t('googleLogin.navTagNeedLogin')}
               </Tag>
             </Tooltip>
           )}

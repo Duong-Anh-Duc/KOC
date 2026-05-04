@@ -20,6 +20,7 @@ import {
     parseTotalRow,
 } from '../../utils/parseHelpers';
 import { ExchangeRateService } from './exchange-rate.service';
+import { GoogleAutoLoginService } from './google-login.service';
 import { ProgressService } from './progress.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
 
@@ -115,7 +116,8 @@ export class SocialBladeService {
     }
 
     if (page.url().includes('accounts.google.com')) {
-      throw new Error('NOT_LOGGED_IN');
+      const ok = await GoogleAutoLoginService.ensureLoggedIn(page, url);
+      if (!ok) throw new Error('NOT_LOGGED_IN');
     }
 
     // Click through "unsupported browser" page if shown
@@ -479,6 +481,14 @@ export class SocialBladeService {
         }
       }));
 
+      // Auto-login: chạy tuần tự để chỉ 1 tab login, các tab khác sẽ wait + re-navigate qua lock
+      for (const entry of pages) {
+        if (entry.error !== 'NOT_LOGGED_IN') continue;
+        const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
+        const ok = await GoogleAutoLoginService.ensureLoggedIn(entry.page, url);
+        if (ok) entry.error = undefined;
+      }
+
       // Check NOT_LOGGED_IN
       if (pages.some(p => p.error === 'NOT_LOGGED_IN')) {
         logger.error('NOT_LOGGED_IN detected — aborting');
@@ -633,6 +643,14 @@ export class SocialBladeService {
           entry.error = err.message;
         }
       }));
+
+      // Auto-login: chạy tuần tự để chỉ 1 tab login, các tab khác wait + re-navigate qua lock
+      for (const entry of pages) {
+        if (entry.error !== 'NOT_LOGGED_IN') continue;
+        const url = this.buildCountryExploreUrl(entry.koc.youtube_channel_id);
+        const ok = await GoogleAutoLoginService.ensureLoggedIn(entry.page, url);
+        if (ok) entry.error = undefined;
+      }
 
       // Check NOT_LOGGED_IN
       const notLoggedIn = pages.find(p => p.error === 'NOT_LOGGED_IN');

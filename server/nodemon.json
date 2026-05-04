@@ -1,0 +1,13 @@
+{
+  "watch": ["src", "prisma/schema.prisma"],
+  "ext": "ts,json",
+  "ignore": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "logs",
+    "dist",
+    "node_modules"
+  ],
+  "exec": "tsx src/index.ts",
+  "delay": "500"
+}

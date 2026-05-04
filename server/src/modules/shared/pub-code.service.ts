@@ -1,6 +1,7 @@
 import prisma from '../../config/database';
 import logger from '../../middlewares/logger.middleware';
 import { YouTubeScraperService } from './youtube-scraper.service';
+import { GoogleAutoLoginService } from './google-login.service';
 
 export interface PubCodeVerificationResult {
   kocId: string;
@@ -43,9 +44,10 @@ export class PubCodeService {
         logger.warn(`Page load timeout for monetization page, continuing...`, err.message);
       }
 
-      // Check login
+      // Check login — thử auto-login nếu có cấu hình
       if (page.url().includes('accounts.google.com')) {
-        throw new Error('NOT_LOGGED_IN');
+        const ok = await GoogleAutoLoginService.ensureLoggedIn(page, url);
+        if (!ok) throw new Error('NOT_LOGGED_IN');
       }
 
       // Poll mỗi 10s tối đa 3 phút — AdSense section load lazily
@@ -174,6 +176,16 @@ export class PubCodeService {
           });
           logger.info(`[PubCode Parallel] Tab ${batchStart + i + 1}/${total} đã load: ${koc.full_name}`);
         }));
+
+        // Auto-login nếu có tab bị redirect login (chạy tuần tự để chỉ 1 tab login)
+        for (let i = 0; i < batchLen; i++) {
+          const page = pages[i];
+          if (!page) continue;
+          if (page.url().includes('accounts.google.com')) {
+            const url = this.buildMonetizationUrl(batchKocs[i].youtube_channel_id);
+            await GoogleAutoLoginService.ensureLoggedIn(page, url);
+          }
+        }
 
         // minimizeWindow removed (GemLogin manages browser)
 

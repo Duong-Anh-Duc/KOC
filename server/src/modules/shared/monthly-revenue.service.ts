@@ -12,6 +12,7 @@ import {
 } from '../../utils/parseHelpers';
 import { RevenueService } from '../revenue/revenue.service';
 import { YouTubeScraperService } from './youtube-scraper.service';
+import { GoogleAutoLoginService } from './google-login.service';
 
 // Re-export types so existing imports from this file still work
 export type { MonthlyRevenueData, MonthlyRevenueRow } from '../../types/stats.types';
@@ -63,9 +64,10 @@ export class MonthlyRevenueService {
           logger.warn(`Page load timeout (attempt ${attempt}), continuing...`, err.message);
         }
 
-        // Check login
+        // Check login — thử auto-login nếu cấu hình
         if (page.url().includes('accounts.google.com')) {
-          throw new Error('NOT_LOGGED_IN');
+          const ok = await GoogleAutoLoginService.ensureLoggedIn(page, url);
+          if (!ok) throw new Error('NOT_LOGGED_IN');
         }
 
         // YouTube Studio shows "unsupported browser" page for headless/automated browsers.
