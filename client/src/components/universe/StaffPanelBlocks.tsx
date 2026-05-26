@@ -1,5 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { Button, Col, Divider, Empty, List, Row, Space, Statistic, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import type { AuditLog, DashboardOverview } from '../../types';
@@ -85,7 +86,7 @@ export const DashboardPanel: React.FC<PanelProps> = ({ overview, onOpen }) => {
         {summary ? (
           <>
             <div style={{ marginTop: 8 }}>
-              <Tag color="orange">{summary.cycle?.month}</Tag>
+              <AppTag color="orange">{summary.cycle?.month}</AppTag>
             </div>
             <Row gutter={12} style={{ marginTop: 10 }}>
               <Col span={12}>
@@ -164,7 +165,7 @@ export const KocPanel: React.FC<PanelProps> = ({ overview, onOpen }) => {
               <div style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ color: '#fff' }}>{item.full_name}</Text>
-                  <Tag color="green">{formatNumber(item.views_growth, 2)}%</Tag>
+                  <AppTag color="green">{formatNumber(item.views_growth, 2)}%</AppTag>
                 </div>
                 <Text style={{ color: '#888', fontSize: 12 }}>{item.channel_name}</Text>
               </div>
@@ -195,7 +196,7 @@ export const RevenuePanel: React.FC<PanelProps> = ({ overview, onOpen }) => {
         <>
           <Space>
             <Text style={labelStyle}>{t('universe.drawer.latestCycle')}</Text>
-            <Tag color="orange">{summary.cycle?.month}</Tag>
+            <AppTag color="orange">{summary.cycle?.month}</AppTag>
           </Space>
           <Row gutter={12} style={{ marginTop: 12 }}>
             <Col span={12}>
@@ -335,7 +336,7 @@ export const AuditPanel: React.FC<PanelProps> = ({ auditLogs, onOpen }) => {
               <List.Item style={listItemStyle}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Space>
-                    <Tag color="geekblue">{action}</Tag>
+                    <AppTag color="geekblue">{action}</AppTag>
                     <Text style={{ color: '#e0e0e0' }}>{entity}</Text>
                   </Space>
                   <Text style={{ color: '#888', fontSize: 12 }}>

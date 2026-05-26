@@ -1,10 +1,14 @@
 import { CameraOutlined, LoadingOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, Col, Form, Input, InputNumber, message, Modal, Row, Select, Tooltip, Upload } from 'antd';
+import { Button, Col, Form, Input, Modal, Row, Upload } from 'antd';
+import { appMessage as message } from '../../utils';
+import { AppAvatar, AppTooltip, NativeBankSelect, NativeNumberInput, NativeSelect } from '../common';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import { uploadApi } from '../../api/upload.api';
-import { VIETNAM_BANK_SELECT_OPTIONS } from '../../constants/banks';
+// ⚡ Lightweight replacements for AntD (giảm tải máy yếu)
+// AntD-original — backup nếu muốn revert sang Select với search:
+// import { VIETNAM_BANK_SELECT_OPTIONS } from '../../constants/banks';
 import type { CreateKOCInput, KOC } from '../../types';
 
 interface KOCFormModalProps {
@@ -172,7 +176,8 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
             }}
           >
             <div style={{ cursor: 'pointer', position: 'relative', display: 'inline-block' }}>
-              <Avatar
+              {/* AntD-original: <Avatar size={80} src={...} icon={...} /> */}
+              <AppAvatar
                 size={80}
                 src={editingKOC ? avatarUrl : pendingAvatarPreview}
                 icon={!(editingKOC ? avatarUrl : pendingAvatarPreview) ? <UserOutlined /> : undefined}
@@ -277,6 +282,9 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               name="bank_name"
               label={t('koc.bankName')}
             >
+              {/* ⚡ Native <select> — nhẹ hơn AntD Select, OS render dropdown */}
+              <NativeBankSelect placeholder={t('koc.bankNamePlaceholder')} />
+              {/* AntD-original — uncomment + xoá NativeBankSelect ở trên để revert:
               <Select
                 showSearch
                 allowClear
@@ -287,6 +295,7 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
                 }
                 options={VIETNAM_BANK_SELECT_OPTIONS}
               />
+              */}
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -305,6 +314,7 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               name="base_rate"
               label={t('koc.baseRate')}
             >
+              {/* AntD-original:
               <InputNumber
                 min={0}
                 max={1}
@@ -313,6 +323,8 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
                 formatter={(value) => `${(Number(value) * 100).toFixed(0)}%`}
                 parser={(value) => (parseFloat(value?.replace('%', '') || '80') / 100) as 0}
               />
+              */}
+              <NativeNumberInput min={0} max={1} step={0.05} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -324,6 +336,7 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
                 { type: 'number', min: 0, message: t('validation.required') },
               ]}
             >
+              {/* AntD-original:
               <InputNumber
                 min={0}
                 step={10}
@@ -331,6 +344,8 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
                 style={{ width: '100%' }}
                 addonBefore="$"
               />
+              */}
+              <NativeNumberInput min={0} step={10} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>
@@ -342,7 +357,7 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
               label={
                 <span>
                   {t('koc.pubCode')}
-                  <Tooltip title={t('koc.fetchPubCodeTooltip')}>
+                  <AppTooltip title={t('koc.fetchPubCodeTooltip')}>
                     <Button
                       type="link"
                       size="small"
@@ -353,7 +368,7 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
                     >
                       {t('koc.fetchPubCode')}
                     </Button>
-                  </Tooltip>
+                  </AppTooltip>
                 </span>
               }
               extra={t('koc.pubCodeHint')}
@@ -364,10 +379,18 @@ const KOCFormModal: React.FC<KOCFormModalProps> = ({
           {editingKOC && (
             <Col span={12}>
               <Form.Item name="status" label={t('koc.status')}>
+                {/* AntD-original:
                 <Select>
                   <Select.Option value="ACTIVE">{t('status.active')}</Select.Option>
                   <Select.Option value="INACTIVE">{t('status.inactive')}</Select.Option>
                 </Select>
+                */}
+                <NativeSelect
+                  options={[
+                    { value: 'ACTIVE', label: t('status.active') },
+                    { value: 'INACTIVE', label: t('status.inactive') },
+                  ]}
+                />
               </Form.Item>
             </Col>
           )}

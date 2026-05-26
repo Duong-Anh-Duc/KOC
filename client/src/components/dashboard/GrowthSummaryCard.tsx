@@ -1,5 +1,6 @@
-import { ArrowDownOutlined, ArrowUpOutlined, EyeOutlined, UserAddOutlined } from '@ant-design/icons';
+﻿import { ArrowDownOutlined, ArrowUpOutlined, EyeOutlined, UserAddOutlined } from '@ant-design/icons';
 import { Card, Table, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,14 +27,14 @@ const GrowthSummaryCard: React.FC<GrowthSummaryCardProps> = ({ growthSummary }) 
       width: 110,
       align: 'center' as const,
       render: (val: number) => (
-        <Tag
+        <AppTag
           color={val >= 0 ? 'green' : 'red'}
           icon={val >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
           style={{ margin: 0 }}
         >
           {val >= 0 ? '+' : ''}
           {val.toFixed(2)}%
-        </Tag>
+        </AppTag>
       ),
     },
     {

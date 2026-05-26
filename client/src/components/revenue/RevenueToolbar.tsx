@@ -1,16 +1,16 @@
-import {
+﻿import {
   CalendarOutlined,
   CheckCircleOutlined,
   CloudSyncOutlined,
-  DownOutlined,
   LoadingOutlined,
   LockOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Dropdown, Grid, Space, Tag, Typography } from 'antd';
-import React from 'react';
+import { Button, Card, Grid, Space, Typography } from 'antd';
+import { AppTag } from '../common';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle, RevenueRecord } from '../../types';
 
@@ -75,6 +75,7 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const gemLoginScraping = scrapeLoading || scrapeMonthlyLoading;
+  const recordKocIds = useMemo(() => records.map((r) => r.koc_id), [records]);
 
   return (
     <Card size="small" style={{ marginBottom: 16 }}>
@@ -88,14 +89,16 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
               {isMobile ? '' : `${t('revenue.exchangeRate')}: `}
               <strong>{Number(selectedCycle.exchange_rate).toLocaleString()} {t('common.vndUsd')}</strong>
             </Text>
-            <Tag color={statusColorMap[selectedCycle.status]} style={{ margin: 0 }}>
+            <AppTag color={statusColorMap[selectedCycle.status]} style={{ margin: 0 }}>
               {t(`status.${selectedCycle.status}`, selectedCycle.status)}
-            </Tag>
+            </AppTag>
           </Space>
         </div>
         <div>
           <Space wrap size="small">
             {canRunScraper && !cycleLocked && (
+              <div className="revenue-action-grid">
+              {/* AntD-original:
               <Dropdown
                 menu={{
                   items: [
@@ -144,6 +147,53 @@ const RevenueToolbar: React.FC<RevenueToolbarProps> = ({
                   {t('revenue.updateRevenue')} <DownOutlined />
                 </Button>
               </Dropdown>
+              */}
+                <button
+                  type="button"
+                  className="revenue-action-button revenue-action-button-primary"
+                  disabled={gemLoginScraping || checkPubCodesLoading}
+                  onClick={() => onScrapeRevenue(selectedCycle.id, recordKocIds)}
+                >
+                  {gemLoginScraping ? <LoadingOutlined /> : <CloudSyncOutlined />}
+                  <span>Cào tất cả</span>
+                </button>
+                <button
+                  type="button"
+                  className="revenue-action-button"
+                  disabled={gemLoginScraping || checkPubCodesLoading}
+                  onClick={onOpenGemLoginSelect}
+                >
+                  <TeamOutlined />
+                  <span>Chọn KOC</span>
+                </button>
+                <button
+                  type="button"
+                  className="revenue-action-button"
+                  disabled={gemLoginScraping || checkPubCodesLoading}
+                  onClick={() => onScrapeMonthly(recordKocIds)}
+                >
+                  <CalendarOutlined />
+                  <span>Cào tháng</span>
+                </button>
+                <button
+                  type="button"
+                  className="revenue-action-button"
+                  disabled={gemLoginScraping || checkPubCodesLoading}
+                  onClick={onOpenMonthlyModal}
+                >
+                  <TeamOutlined />
+                  <span>Tháng/KOC</span>
+                </button>
+                <button
+                  type="button"
+                  className="revenue-action-button"
+                  disabled={gemLoginScraping || checkPubCodesLoading || !onCheckPubCodes}
+                  onClick={() => onCheckPubCodes?.(selectedCycle.id)}
+                >
+                  <SafetyCertificateOutlined />
+                  <span>Kiểm Pub</span>
+                </button>
+              </div>
             )}
             {canManageCycle && !cycleLocked && (
               <Button

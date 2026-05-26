@@ -1,4 +1,5 @@
-import { Modal, Switch, Tag, Typography } from 'antd';
+﻿import { Modal, Switch, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { KocAccessEntry, KocItem, KocPermDef, ManagerUser } from '../../api/permission.api';
@@ -60,7 +61,7 @@ const PermissionDetailModal: React.FC<Props> = ({
         koc ? (
           <span>
             {t('permissions.detailTitle')}{' '}
-            <Tag color="orange" style={{ fontSize: 14 }}>{koc.full_name}</Tag>
+            <AppTag color="orange" style={{ fontSize: 14 }}>{koc.full_name}</AppTag>
           </span>
         ) : null
       }

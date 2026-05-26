@@ -1,4 +1,4 @@
-import {
+﻿import {
     CalendarOutlined,
     DatabaseOutlined,
     HistoryOutlined,
@@ -7,6 +7,7 @@ import {
     ReloadOutlined,
 } from '@ant-design/icons';
 import { Alert, Button, Card, Grid, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -127,7 +128,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       key: 'period',
       width: 140,
       responsive: ['lg'] as any,
-      render: (val: string | null) => (val ? <Tag>{val}</Tag> : '-'),
+      render: (val: string | null) => (val ? <AppTag>{val}</AppTag> : '-'),
     },
     {
       title: t('ytScraper.lastScraped'),
@@ -138,11 +139,11 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
       sorter: (a: YouTubeScrapeResult, b: YouTubeScrapeResult) =>
         new Date(a.scraped_at).getTime() - new Date(b.scraped_at).getTime(),
       render: (val: string) => (
-        <Tooltip title={dayjs(val).format('DD/MM/YYYY HH:mm')}>
+        <AppTooltip title={dayjs(val).format('DD/MM/YYYY HH:mm')}>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {dayjs(val).format('DD/MM/YYYY HH:mm')}
           </Text>
-        </Tooltip>
+        </AppTooltip>
       ),
     },
     {
@@ -243,7 +244,7 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
         <Space>
           <DatabaseOutlined />
           {t('ytScraper.latestResults')}
-          {latestResults && latestResults.length > 0 && <Tag color="green">{latestResults.length} {t('common.kocs')}</Tag>}
+          {latestResults && latestResults.length > 0 && <AppTag color="green">{latestResults.length} {t('common.kocs')}</AppTag>}
         </Space>
       }
       extra={
@@ -269,9 +270,9 @@ const LatestResultsTable: React.FC<LatestResultsTableProps> = ({
               </Button>
             </>
           )}
-          <Tooltip title={t('ytScraper.refreshResults')}>
+          <AppTooltip title={t('ytScraper.refreshResults')}>
             <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={latestLoading} />
-          </Tooltip>
+          </AppTooltip>
         </Space>
       }
       style={{ marginBottom: 16 }}

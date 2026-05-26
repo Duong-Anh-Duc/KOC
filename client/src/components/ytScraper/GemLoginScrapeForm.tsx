@@ -4,29 +4,13 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert,
-  Button,
-  Col,
-  Collapse,
-  DatePicker,
-  Divider,
-  InputNumber,
-  Row,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
-import { Dayjs } from 'dayjs';
+import { Alert, Button, Col, Collapse, Divider, Row, Space, Table, Typography } from 'antd';
+import { appMessage as message } from '../../utils';
+import { AppTag, AppTooltip, NativeMultiSelect, NativeNumberInput, TaskProgressBar } from '../common';
+import dayjs, { Dayjs } from 'dayjs';
 import React, { useState } from 'react';
 import { gemloginApi, kocApi } from '../../api';
 import { useProgress } from '../../hooks/useProgress';
-import { TaskProgressBar } from '../common';
-
 const { Text } = Typography;
 
 interface ScrapeResultItem {
@@ -144,7 +128,7 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
       title: 'Kỳ',
       dataIndex: 'period',
       key: 'period',
-      render: (v: string) => <Tag>{v}</Tag>,
+      render: (v: string) => <AppTag>{v}</AppTag>,
     },
     {
       title: '',
@@ -173,6 +157,7 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
             Chọn KOC cần cào (để trống = cào tất cả):
           </Text>
+          {/* AntD-original:
           <Select
             mode="multiple"
             allowClear
@@ -188,9 +173,19 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
               (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
             }
           />
+          */}
+          <NativeMultiSelect
+            placeholder="Chọn KOC..."
+            options={kocOptions}
+            value={selectedKocIds}
+            onChange={setSelectedKocIds}
+            style={{ width: '100%' }}
+            disabled={isBusy}
+          />
         </Col>
         <Col>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Tháng:</Text>
+          {/* AntD-original:
           <DatePicker
             picker="month"
             value={selectedMonth}
@@ -200,6 +195,16 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
             disabled={isBusy}
             format="MM/YYYY"
           />
+          */}
+          <input
+            type="month"
+            value={selectedMonth ? selectedMonth.format('YYYY-MM') : ''}
+            onChange={(e) => setSelectedMonth(e.target.value ? dayjs(e.target.value, 'YYYY-MM') : null)}
+            placeholder="Tháng hiện tại"
+            className="native-bank-select"
+            style={{ width: 150 }}
+            disabled={isBusy}
+          />
         </Col>
       </Row>
 
@@ -208,10 +213,20 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
         <Col>
           <Space size="small">
             <Text type="secondary" style={{ fontSize: 12 }}>Chờ (giây):</Text>
+            {/* AntD-original:
             <InputNumber
               min={30} max={600} value={waitSeconds}
               onChange={(v) => setWaitSeconds(v ?? 150)}
               size="small" style={{ width: 68 }}
+              disabled={isBusy}
+            />
+            */}
+            <NativeNumberInput
+              min={30}
+              max={600}
+              value={waitSeconds}
+              onChange={(v) => setWaitSeconds(v ?? 150)}
+              style={{ width: 68 }}
               disabled={isBusy}
             />
           </Space>
@@ -230,7 +245,7 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
           </Button>
         </Col>
         <Col>
-          <Tooltip title="Chạy full cron: tạo cycle tháng trước + cào doanh thu + lưu records">
+          <AppTooltip title="Chạy full cron: tạo cycle tháng trước + cào doanh thu + lưu records">
             <Button
               icon={<RocketOutlined />}
               loading={cronMutation.isPending}
@@ -239,7 +254,7 @@ const GemLoginScrapeForm: React.FC<GemLoginScrapeFormProps> = ({ onViewDetail })
             >
               Chạy cron đầy đủ
             </Button>
-          </Tooltip>
+          </AppTooltip>
         </Col>
       </Row>
 

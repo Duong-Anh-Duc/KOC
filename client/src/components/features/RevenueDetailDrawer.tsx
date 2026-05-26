@@ -1,9 +1,10 @@
-import type { RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
+﻿import type { RevenueByCountry, RevenueRecord, YouTubeScrapeResult } from '@/types';
 import {
     EyeOutlined,
     HistoryOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -95,7 +96,7 @@ const RevenueDetailDrawer: React.FC<RevenueDetailDrawerProps> = ({
           <EyeOutlined />
           {t('common.viewDetails')}
           {detailRecord && (
-            <Tag color="blue">{detailRecord.koc?.full_name} - {detailRecord.koc?.channel_name}</Tag>
+            <AppTag color="blue">{detailRecord.koc?.full_name} - {detailRecord.koc?.channel_name}</AppTag>
           )}
         </Space>
       }

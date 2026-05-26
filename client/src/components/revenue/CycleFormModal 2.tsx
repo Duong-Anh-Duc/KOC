@@ -1,5 +1,6 @@
-import { CloudDownloadOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Form, Input, InputNumber, Modal, Space, Tooltip } from 'antd';
+﻿import { CloudDownloadOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Modal, Space } from 'antd';
+import { AppTooltip, NativeNumberInput } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
@@ -55,6 +56,7 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
               noStyle
               rules={[{ required: true, message: t('validation.required') }]}
             >
+              {/* AntD-original:
               <InputNumber
                 min={0}
                 style={{ width: '100%' }}
@@ -62,14 +64,16 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
                 parser={(value) => value?.replace(/,/g, '') as unknown as 0}
                 placeholder="25400"
               />
+              */}
+              <NativeNumberInput min={0} style={{ width: '100%' }} placeholder="25400" />
             </Form.Item>
-            <Tooltip title={t('cycle.fetchExchangeRate')}>
+            <AppTooltip title={t('cycle.fetchExchangeRate')}>
               <Button
                 icon={fetchExchangeRateLoading ? <LoadingOutlined /> : <CloudDownloadOutlined />}
                 loading={fetchExchangeRateLoading}
                 onClick={onFetchExchangeRate}
               />
-            </Tooltip>
+            </AppTooltip>
           </Space.Compact>
         </Form.Item>
       </Form>

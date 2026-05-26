@@ -1,5 +1,6 @@
-import { EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
+﻿import { EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Table, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTableLocale } from '../../utils';
@@ -104,11 +105,11 @@ const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading
       align: 'center' as const,
       render: (val: string, record: any) =>
         !record.has_data ? (
-          <Tooltip title={t('stats.needMoreData')}>
-            <Tag color="default">
+          <AppTooltip title={t('stats.needMoreData')}>
+            <AppTag color="default">
               <InfoCircleOutlined /> {t('stats.noData')}
-            </Tag>
-          </Tooltip>
+            </AppTag>
+          </AppTooltip>
         ) : val ? (
           new Date(val).toLocaleString()
         ) : (
@@ -121,7 +122,7 @@ const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading
       align: 'center' as const,
       fixed: 'right' as const,
       render: (_: unknown, record: any) => (
-        <Tooltip title={record.has_data ? t('common.viewDetails') : t('stats.noData')}>
+        <AppTooltip title={record.has_data ? t('common.viewDetails') : t('stats.noData')}>
           <Button
             type="link"
             size="small"
@@ -129,7 +130,7 @@ const StatsGrowthTable: React.FC<StatsGrowthTableProps> = ({ growthList, loading
             onClick={() => record.has_data && onViewKOC(record.koc_id)}
             disabled={!record.has_data}
           />
-        </Tooltip>
+        </AppTooltip>
       ),
     },
   ];

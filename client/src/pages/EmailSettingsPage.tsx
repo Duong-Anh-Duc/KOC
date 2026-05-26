@@ -1,5 +1,6 @@
-import { GoogleOutlined, MailOutlined, SettingOutlined } from '@ant-design/icons';
+﻿import { GoogleOutlined, MailOutlined, SettingOutlined } from '@ant-design/icons';
 import { Spin, Tabs, Typography } from 'antd';
+import { AppSpin, AppTabs, AppTooltip } from '../components/common';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EmailConfigCard } from '../components/cron';
@@ -12,7 +13,7 @@ const EmailSettingsPage: React.FC = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   return (
-    <Spin spinning={isSendingEmail} tip={t('email.sendingEmails')} size="large" className="stats-page-spin">
+    <AppSpin spinning={isSendingEmail} tip={t('email.sendingEmails')} size="large" className="stats-page-spin">
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <Title level={3} style={{ margin: 0 }}>
@@ -21,7 +22,8 @@ const EmailSettingsPage: React.FC = () => {
           </Title>
         </div>
 
-        <Tabs
+        {/* AntD-original: <Tabs defaultActiveKey="email" items={...} /> */}
+        <AppTabs
           defaultActiveKey="email"
           items={[
             {
@@ -44,8 +46,9 @@ const EmailSettingsPage: React.FC = () => {
             },
           ]}
         />
+        {/* End AntD-original Tabs */}
       </div>
-    </Spin>
+    </AppSpin>
   );
 };
 

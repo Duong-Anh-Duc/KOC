@@ -33,6 +33,7 @@ export function useProgress(onComplete?: (result: unknown) => void) {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const completedRef = useRef(false);
+  const lastProgressAtRef = useRef(0);
 
   const cleanup = useCallback(() => {
     if (eventSourceRef.current) {
@@ -44,6 +45,7 @@ export function useProgress(onComplete?: (result: unknown) => void) {
   const reset = useCallback(() => {
     cleanup();
     completedRef.current = false;
+    lastProgressAtRef.current = 0;
     setState({
       taskId: null,
       active: false,
@@ -74,6 +76,11 @@ export function useProgress(onComplete?: (result: unknown) => void) {
     es.addEventListener('progress', (event) => {
       try {
         const data: ProgressEvent = JSON.parse(event.data);
+        const now = Date.now();
+        if ((data.percent ?? 0) < 100 && now - lastProgressAtRef.current < 500) {
+          return;
+        }
+        lastProgressAtRef.current = now;
         setState(prev => ({ ...prev, progress: data }));
       } catch {
         // ignore parse errors

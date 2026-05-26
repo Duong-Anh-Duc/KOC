@@ -1,4 +1,4 @@
-import type { PaymentStatusMap, RevenueRecord } from '@/types';
+﻿import type { PaymentStatusMap, RevenueRecord } from '@/types';
 import { formatUSD, formatVND } from '@/utils';
 import {
     BarChartOutlined,
@@ -11,6 +11,7 @@ import {
     WarningOutlined,
 } from '@ant-design/icons';
 import { Button, Popconfirm, Space, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import type { TFunction } from 'i18next';
 
@@ -66,9 +67,9 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       width: 160,
       ellipsis: { showTitle: false },
       render: (val: string) => (
-        <Tooltip title={val} placement="topLeft">
+        <AppTooltip title={val} placement="topLeft">
           <Text strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val || '-'}</Text>
-        </Tooltip>
+        </AppTooltip>
       ),
     },
     {
@@ -78,9 +79,9 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       width: 140,
       ellipsis: { showTitle: false },
       render: (val: string) => val ? (
-        <Tooltip title={val} placement="topLeft">
+        <AppTooltip title={val} placement="topLeft">
           <Text style={{ color: '#1677ff', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
-        </Tooltip>
+        </AppTooltip>
       ) : <Text type="secondary">-</Text>,
     },
     {
@@ -111,9 +112,9 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
           <span>
             {formatUSD(val)}
             {record.status === 'PENDING' && belowThreshold && tooltipContent && (
-              <Tooltip title={tooltipContent}>
+              <AppTooltip title={tooltipContent}>
                 <WarningOutlined style={{ color: '#faad14', marginLeft: 6, fontSize: 12 }} />
-              </Tooltip>
+              </AppTooltip>
             )}
           </span>
         );
@@ -133,9 +134,9 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
         }
         const acc = Number(val || 0);
         return (
-          <Tooltip title={paymentStatus?.[record.koc_id]?.accumulatedMonths?.map(m => `${m.month}: $${m.revenue.toFixed(2)}`).join(' + ') || ''}>
+          <AppTooltip title={paymentStatus?.[record.koc_id]?.accumulatedMonths?.map(m => `${m.month}: $${m.revenue.toFixed(2)}`).join(' + ') || ''}>
             <Text strong style={{ color: acc > 0 ? '#722ed1' : undefined }}>{formatUSD(acc)}</Text>
-          </Tooltip>
+          </AppTooltip>
         );
       },
     },
@@ -239,12 +240,12 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       width: 110,
       align: 'center',
       render: (status: string) => (
-        <Tag
+        <AppTag
           color={status === 'APPROVED' ? 'success' : 'warning'}
           style={{ fontWeight: 600, minWidth: 64, textAlign: 'center', borderRadius: 12 }}
         >
           {status === 'APPROVED' ? t('status.approved') : t('status.pending')}
-        </Tag>
+        </AppTag>
       ),
     },
     {
@@ -260,21 +261,21 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
 
         if (match === true) {
           return (
-            <Tooltip title={t('revenue.pubCodeMatched', { code: scraped })}>
+            <AppTooltip title={t('revenue.pubCodeMatched', { code: scraped })}>
               <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
-            </Tooltip>
+            </AppTooltip>
           );
         } else if (match === false) {
           return (
-            <Tooltip title={t('revenue.pubCodeMismatch', { stored, scraped })}>
+            <AppTooltip title={t('revenue.pubCodeMismatch', { stored, scraped })}>
               <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
-            </Tooltip>
+            </AppTooltip>
           );
         } else {
           return (
-            <Tooltip title={t('revenue.pubCodeNotScraped')}>
+            <AppTooltip title={t('revenue.pubCodeNotScraped')}>
               <QuestionCircleOutlined style={{ color: '#8c8c8c', fontSize: 18 }} />
-            </Tooltip>
+            </AppTooltip>
           );
         }
       },
@@ -288,7 +289,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
       render: (_: unknown, record: RevenueRecord) => (
         <Space size="small">
           {/* Monthly Revenue Analytics button */}
-          <Tooltip title={t('ytScraper.viewMonthlyRevenue')}>
+          <AppTooltip title={t('ytScraper.viewMonthlyRevenue')}>
             <Button
               type="text"
               size="small"
@@ -296,9 +297,9 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               onClick={() => onViewMonthly(record)}
               style={{ padding: '4px 8px' }}
             />
-          </Tooltip>
+          </AppTooltip>
           {scrapeResults && (
-            <Tooltip title={t('common.viewDetails')}>
+            <AppTooltip title={t('common.viewDetails')}>
               <Button
                 type="text"
                 size="small"
@@ -306,10 +307,10 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
                 onClick={() => onViewDetail(record.koc_id)}
                 style={{ padding: '4px 8px' }}
               />
-            </Tooltip>
+            </AppTooltip>
           )}
           {!cycleLocked && onEdit && (
-            <Tooltip title={t('common.edit')}>
+            <AppTooltip title={t('common.edit')}>
               <Button
                 type="text"
                 size="small"
@@ -317,13 +318,13 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
                 onClick={() => onEdit(record)}
                 style={{ padding: '4px 8px' }}
               />
-            </Tooltip>
+            </AppTooltip>
           )}
           {canApprove && record.status === 'PENDING' && onApprove && (() => {
             const status = paymentStatus?.[record.koc_id];
             const belowThreshold = status?.belowThreshold;
             return belowThreshold ? (
-              <Tooltip title={t('revenue.cannotApproveThreshold', { accumulated: status?.accumulated?.toFixed(2), threshold: status?.threshold ?? 100 })}>
+              <AppTooltip title={t('revenue.cannotApproveThreshold', { accumulated: status?.accumulated?.toFixed(2), threshold: status?.threshold ?? 100 })}>
                 <Button
                   type="text"
                   size="small"
@@ -331,9 +332,9 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
                   disabled
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
             ) : (
-              <Tooltip title={t('revenue.approve')}>
+              <AppTooltip title={t('revenue.approve')}>
                 <Button
                   type="text"
                   size="small"
@@ -341,7 +342,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
                   onClick={() => onApprove(record.id)}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
             );
           })()}
           {canApprove && record.status === 'APPROVED' && onUnapprove && (
@@ -351,14 +352,14 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               okText={t('common.yes')}
               cancelText={t('common.no')}
             >
-              <Tooltip title={t('revenue.unapprove')}>
+              <AppTooltip title={t('revenue.unapprove')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
             </Popconfirm>
           )}
           {canDelete && !cycleLocked && onDelete && (
@@ -368,14 +369,14 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
               okText={t('common.yes')}
               cancelText={t('common.no')}
             >
-              <Tooltip title={t('common.delete')}>
+              <AppTooltip title={t('common.delete')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
             </Popconfirm>
           )}
         </Space>

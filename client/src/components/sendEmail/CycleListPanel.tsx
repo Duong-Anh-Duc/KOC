@@ -1,5 +1,6 @@
-import { CalendarOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
+﻿import { CalendarOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { Button, Card, Empty, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -58,16 +59,16 @@ const CycleListPanel: React.FC<Props> = ({ cycles, selectedMonth, isSending, onS
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text strong={isActive} style={{ fontSize: 14 }}>{c.month}</Text>
-                <Tag color={statusColor} style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}>
+                <AppTag color={statusColor} style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}>
                   {String(t(`status.${c.status}`, c.status))}
-                </Tag>
+                </AppTag>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   <TeamOutlined style={{ marginRight: 3 }} />
                   {c.recordCount} {t('common.kocs')}
                 </Text>
-                <Tooltip title={t('email.sendAll')}>
+                <AppTooltip title={t('email.sendAll')}>
                   <Button
                     type="text"
                     size="small"
@@ -76,7 +77,7 @@ const CycleListPanel: React.FC<Props> = ({ cycles, selectedMonth, isSending, onS
                     onClick={(e) => { e.stopPropagation(); onQuickSend(c.month); }}
                     style={{ fontSize: 12, color: '#ED8F3A', padding: '0 4px', height: 22 }}
                   />
-                </Tooltip>
+                </AppTooltip>
               </div>
             </div>
           );

@@ -1,5 +1,6 @@
-import { CalendarOutlined, ClockCircleOutlined, SettingOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Col, Divider, Form, Row, Select, Space, Spin, Switch, Typography } from 'antd';
+﻿import { CalendarOutlined, ClockCircleOutlined, SettingOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, Divider, Form, Row, Space, Switch, Typography } from 'antd';
+import { AppSpin, NativeSelect } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,7 +49,7 @@ const CronConfigCard: React.FC<CronConfigCardProps> = ({
       }
       style={{ marginBottom: 16 }}
     >
-      <Spin spinning={configLoading}>
+      <AppSpin spinning={configLoading}>
         <Form form={form} layout="vertical">
           <Form.Item name="enabled" label={t('cron.enableCron')} valuePropName="checked">
             <Switch
@@ -68,9 +69,10 @@ const CronConfigCard: React.FC<CronConfigCardProps> = ({
                   <CalendarOutlined style={{ marginRight: 4 }} />
                   {t('cron.dayOfMonth')}
                 </Text>
-                <Select
+                {/* AntD-original: <Select value={day} ... /> */}
+                <NativeSelect
                   value={day}
-                  onChange={onDayChange}
+                  onChange={(v) => onDayChange(Number(v))}
                   style={{ width: '100%' }}
                   options={Array.from({ length: 31 }, (_, i) => ({
                     value: i + 1,
@@ -83,9 +85,10 @@ const CronConfigCard: React.FC<CronConfigCardProps> = ({
                   <ClockCircleOutlined style={{ marginRight: 4 }} />
                   {t('cron.hour')}
                 </Text>
-                <Select
+                {/* AntD-original: <Select value={hour} ... /> */}
+                <NativeSelect
                   value={hour}
-                  onChange={onHourChange}
+                  onChange={(v) => onHourChange(Number(v))}
                   style={{ width: '100%' }}
                   options={Array.from({ length: 24 }, (_, i) => ({
                     value: i,
@@ -98,9 +101,10 @@ const CronConfigCard: React.FC<CronConfigCardProps> = ({
                   <ClockCircleOutlined style={{ marginRight: 4 }} />
                   {t('cron.minute')}
                 </Text>
-                <Select
+                {/* AntD-original: <Select value={minute} ... /> */}
+                <NativeSelect
                   value={minute}
-                  onChange={onMinuteChange}
+                  onChange={(v) => onMinuteChange(Number(v))}
                   style={{ width: '100%' }}
                   options={Array.from({ length: 60 }, (_, i) => ({
                     value: i,
@@ -149,7 +153,7 @@ const CronConfigCard: React.FC<CronConfigCardProps> = ({
             {t('common.save')}
           </Button>
         </Form>
-      </Spin>
+      </AppSpin>
     </Card>
   );
 };

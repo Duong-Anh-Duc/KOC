@@ -11,6 +11,24 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-core': ['react', 'react-dom', 'react-router-dom'],
+          'antd': ['antd', '@ant-design/icons'],
+          'charts': ['recharts', '@ant-design/charts'],
+          'three': [
+            'three',
+            '@react-three/fiber',
+            '@react-three/drei',
+            '@react-three/postprocessing',
+          ],
+          'i18n': ['i18next', 'react-i18next'],
+          'query': ['@tanstack/react-query', 'axios'],
+        },
+      },
+    },
   },
   server: {
     host: '0.0.0.0',

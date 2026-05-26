@@ -1,12 +1,12 @@
-import { CopyOutlined, DeleteOutlined, EditOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons';
+﻿import { CopyOutlined, DeleteOutlined, EditOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Grid, Popconfirm, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { AppAvatar, AppSpin, AppTag, AppTooltip } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores';
 import type { KOC } from '../../types';
 import { getTableLocale } from '../../utils';
-
 const { useBreakpoint } = Grid;
 
 const { Text } = Typography;
@@ -67,15 +67,16 @@ const KOCTable: React.FC<KOCTableProps> = ({
       ellipsis: { showTitle: false },
       render: (val: string, record: KOC) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Avatar
+          {/* AntD-original: <Avatar size={32} src={...} icon={...} /> */}
+          <AppAvatar
             size={32}
             src={record.avatar_url}
             icon={!record.avatar_url ? <UserOutlined /> : undefined}
-            style={{ flexShrink: 0, backgroundColor: record.avatar_url ? undefined : '#ED8F3A' }}
+            style={{ backgroundColor: record.avatar_url ? undefined : '#ED8F3A' }}
           />
-          <Tooltip title={val} placement="topLeft">
+          <AppTooltip title={val} placement="topLeft">
             <Text strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val || '-'}</Text>
-          </Tooltip>
+          </AppTooltip>
         </div>
       ),
     },
@@ -86,9 +87,9 @@ const KOCTable: React.FC<KOCTableProps> = ({
       width: 150,
       ellipsis: { showTitle: false },
       render: (val: string) => val ? (
-        <Tooltip title={val} placement="topLeft">
+        <AppTooltip title={val} placement="topLeft">
           <Text style={{ color: '#1677ff', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
-        </Tooltip>
+        </AppTooltip>
       ) : <Text type="secondary">-</Text>,
     },
     {
@@ -98,9 +99,9 @@ const KOCTable: React.FC<KOCTableProps> = ({
       width: 190,
       ellipsis: { showTitle: false },
       render: (val: string) => val ? (
-        <Tooltip title={val} placement="topLeft">
+        <AppTooltip title={val} placement="topLeft">
           <Text style={{ fontSize: 12, color: darkMode ? '#d9d9d9' : '#434343', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
-        </Tooltip>
+        </AppTooltip>
       ) : <Text type="secondary">-</Text>,
     },
     {
@@ -121,9 +122,9 @@ const KOCTable: React.FC<KOCTableProps> = ({
       ellipsis: { showTitle: false },
       responsive: ['lg'],
       render: (val: string) => val ? (
-        <Tooltip title={val} placement="topLeft">
+        <AppTooltip title={val} placement="topLeft">
           <Text style={{ fontSize: 12, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</Text>
-        </Tooltip>
+        </AppTooltip>
       ) : <Text type="secondary">-</Text>,
     },
     {
@@ -133,7 +134,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
       width: 150,
       responsive: ['lg'],
       render: (val: string | null) => val ? (
-        <Tag color="geekblue" style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>{val}</Tag>
+        <AppTag color="geekblue" style={{ fontFamily: 'monospace', fontSize: 11, margin: 0 }}>{val}</AppTag>
       ) : <Text type="secondary">-</Text>,
     },
     {
@@ -143,9 +144,9 @@ const KOCTable: React.FC<KOCTableProps> = ({
       width: 90,
       align: 'center',
       render: (val: number) => (
-        <Tag color="cyan" style={{ fontWeight: 600, minWidth: 40, textAlign: 'center' }}>
+        <AppTag color="cyan" style={{ fontWeight: 600, minWidth: 40, textAlign: 'center' }}>
           {`${(Number(val) * 100).toFixed(0)}%`}
-        </Tag>
+        </AppTag>
       ),
     },
     {
@@ -156,9 +157,9 @@ const KOCTable: React.FC<KOCTableProps> = ({
       ellipsis: { showTitle: false },
       responsive: ['xl'],
       render: (val: string | null) => val ? (
-        <Tooltip title={val}>
-          <Tag color="purple" style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'default', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{val}</Tag>
-        </Tooltip>
+        <AppTooltip title={val}>
+          <AppTag color="purple" style={{ fontFamily: 'monospace', fontSize: 11, cursor: 'default', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{val}</AppTag>
+        </AppTooltip>
       ) : (
         <Text type="secondary">-</Text>
       ),
@@ -170,12 +171,12 @@ const KOCTable: React.FC<KOCTableProps> = ({
       width: 100,
       align: 'center',
       render: (status: string) => (
-        <Tag
+        <AppTag
           color={status === 'ACTIVE' ? 'success' : 'default'}
           style={{ fontWeight: 600, minWidth: 60, textAlign: 'center', borderRadius: 12 }}
         >
           {status === 'ACTIVE' ? t('status.active') : t('status.inactive')}
-        </Tag>
+        </AppTag>
       ),
     },
     {
@@ -189,7 +190,7 @@ const KOCTable: React.FC<KOCTableProps> = ({
           {canEdit && (
             <>
               {onCreateAccount && !kocHasAccount?.[record.id] && (
-                <Tooltip title={t('kocAccount.createTitle')}>
+                <AppTooltip title={t('kocAccount.createTitle')}>
                   <Button
                     type="text"
                     size="small"
@@ -197,16 +198,16 @@ const KOCTable: React.FC<KOCTableProps> = ({
                     onClick={() => onCreateAccount(record)}
                     style={{ padding: '4px 8px' }}
                   />
-                </Tooltip>
+                </AppTooltip>
               )}
               {kocHasAccount?.[record.id] && (
-                <Tooltip title={t('kocAccount.hasAccount')}>
-                  <Tag color="green" style={{ margin: 0, fontSize: 11 }}>
+                <AppTooltip title={t('kocAccount.hasAccount')}>
+                  <AppTag color="green" style={{ margin: 0, fontSize: 11 }}>
                     {t('kocAccount.hasAccountShort')}
-                  </Tag>
-                </Tooltip>
+                  </AppTag>
+                </AppTooltip>
               )}
-              <Tooltip title={t('common.edit')}>
+              <AppTooltip title={t('common.edit')}>
                 <Button
                   type="text"
                   size="small"
@@ -214,8 +215,8 @@ const KOCTable: React.FC<KOCTableProps> = ({
                   onClick={() => onEdit(record)}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
-              <Tooltip title={t('koc.duplicate')}>
+              </AppTooltip>
+              <AppTooltip title={t('koc.duplicate')}>
                 <Button
                   type="text"
                   size="small"
@@ -223,21 +224,21 @@ const KOCTable: React.FC<KOCTableProps> = ({
                   onClick={() => onDuplicate(record)}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
               <Popconfirm
                 title={t('confirm.delete')}
                 onConfirm={() => onDelete(record.id)}
                 okText={t('common.yes')}
                 cancelText={t('common.no')}
               >
-                <Tooltip title={t('common.delete')}>
+                <AppTooltip title={t('common.delete')}>
                   <Button
                     type="text"
                     size="small"
                     icon={<DeleteOutlined style={{ color: '#ff4d4f' }} />}
                     style={{ padding: '4px 8px' }}
                   />
-                </Tooltip>
+                </AppTooltip>
               </Popconfirm>
             </>
           )}

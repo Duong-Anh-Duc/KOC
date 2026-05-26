@@ -1,7 +1,8 @@
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, Grid, Input, Select, Space, Typography } from 'antd';
+import { Button, Grid, Input, Space, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { NativeSelect } from '../common';
 
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -44,7 +45,17 @@ const KOCHeader: React.FC<KOCHeaderProps> = ({
           style={{ width: isMobile ? '100%' : 250, minWidth: isMobile ? 0 : undefined }}
           allowClear
         />
+        {/* AntD-original:
         <Select
+          placeholder={t('koc.status')}
+          style={{ width: isMobile ? 120 : 150 }}
+          value={statusFilter}
+          onChange={onStatusFilterChange}
+          allowClear
+          options={[...]}
+        />
+        */}
+        <NativeSelect
           placeholder={t('koc.status')}
           style={{ width: isMobile ? 120 : 150 }}
           value={statusFilter}

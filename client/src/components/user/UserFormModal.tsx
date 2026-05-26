@@ -1,9 +1,10 @@
 import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Modal, Select, Space } from 'antd';
+import { Button, Form, Input, Modal, Space } from 'antd';
 import type { FormInstance } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StaffUser } from '../../api/auth.api';
+import { NativeSelect } from '../common';
 
 const ROLE_OPTIONS = [
   { value: 'ACCOUNTANT', labelKey: 'users.roleAccountant', color: '#1677ff' },
@@ -90,19 +91,19 @@ const UserFormModal: React.FC<Props> = ({ open, editing, submitting, form, onClo
           initialValue="ACCOUNTANT"
           rules={[{ required: true }]}
         >
+          {/* AntD-original:
           <Select size="large" style={{ borderRadius: 8 }}>
-            {ROLE_OPTIONS.map((r) => (
-              <Select.Option key={r.value} value={r.value}>
-                <Space>
-                  <span style={{
-                    display: 'inline-block', width: 8, height: 8,
-                    borderRadius: '50%', background: r.color,
-                  }} />
-                  {t(r.labelKey)}
-                </Space>
-              </Select.Option>
-            ))}
+            {ROLE_OPTIONS.map((r) => <Select.Option key={r.value} value={r.value}>{t(r.labelKey)}</Select.Option>)}
           </Select>
+          */}
+          <NativeSelect
+            size="large"
+            style={{ borderRadius: 8 }}
+            options={ROLE_OPTIONS.map((r) => ({
+              value: r.value,
+              label: t(r.labelKey),
+            }))}
+          />
         </Form.Item>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>

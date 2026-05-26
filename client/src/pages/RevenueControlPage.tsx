@@ -1,4 +1,4 @@
-import type { ProgressState } from '@/hooks/useProgress';
+﻿import type { ProgressState } from '@/hooks/useProgress';
 import {
     CalendarOutlined,
     DollarOutlined,
@@ -6,14 +6,15 @@ import {
     ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Form, Grid, Space, Tabs, Typography, message } from 'antd';
+import { Button, Form, Grid, Space, Tabs, Typography } from 'antd';
+import { appMessage as message } from '../utils';
 
 const { useBreakpoint } = Grid;
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useProgress } from '../hooks/useProgress';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
-import { TaskProgressBar } from '../components/common';
+import { AppTabs, TaskProgressBar } from '../components/common';
 import { RevenueRecordModal } from '../components/features';
 import { CycleFormModal, CyclesTab, RevenueTab, ScrapeResultModal } from '../components/revenue';
 import {
@@ -118,6 +119,7 @@ const RevenueControlPage: React.FC = () => {
   // Batch scrape progress state (replaces SSE useProgress hook)
   const EMPTY_PROGRESS: ProgressState = { taskId: null, active: false, progress: null, completed: false, result: null, error: null };
   const [batchProgress, setBatchProgress] = useState<ProgressState>(EMPTY_PROGRESS);
+  const lastBatchProgressAtRef = useRef(0);
 
   // Scrape result modal
   const [scrapeResultOpen, setScrapeResultOpen] = useState(false);
@@ -211,6 +213,7 @@ const RevenueControlPage: React.FC = () => {
     if (ids.length === 0) return;
 
     setBatchProgress({ taskId: null, active: true, progress: { step: 0, total: ids.length, percent: 0, message: 'Chuẩn bị...' }, completed: false, result: null, error: null });
+    lastBatchProgressAtRef.current = 0;
     const apiBase = import.meta.env.VITE_API_URL || '/api';
 
     try {
@@ -225,9 +228,15 @@ const RevenueControlPage: React.FC = () => {
         es.addEventListener('progress', (event: MessageEvent) => {
           try {
             const d = JSON.parse(event.data);
+            const now = Date.now();
+            const percent = d.percent ?? 0;
+            if (percent < 100 && now - lastBatchProgressAtRef.current < 500) {
+              return;
+            }
+            lastBatchProgressAtRef.current = now;
             setBatchProgress((prev) => ({
               ...prev,
-              progress: { step: d.step ?? 0, total: d.total ?? ids.length, percent: d.percent ?? 0, message: d.message ?? '' },
+              progress: { step: d.step ?? 0, total: d.total ?? ids.length, percent, message: d.message ?? '' },
             }));
           } catch { /* ignore */ }
         });
@@ -298,7 +307,8 @@ const RevenueControlPage: React.FC = () => {
         {/* Batch scrape progress overlay */}
         <TaskProgressBar state={batchProgress} onDismiss={() => setBatchProgress((p) => ({ ...p, active: false, completed: false }))} />
 
-        <Tabs
+        {/* AntD-original: <Tabs activeKey={...} onChange={...} items={...} /> */}
+        <AppTabs
           activeKey={activeTab}
           onChange={setActiveTab}
           items={[

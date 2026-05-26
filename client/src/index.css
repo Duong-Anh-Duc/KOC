@@ -9,6 +9,391 @@ body {
   min-height: 100vh;
 }
 
+/* Lightweight AntD Tabs replacement (AppTabs) */
+.app-tabs { display: flex; flex-direction: column; }
+.app-tabs-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #f0f0f0;
+}
+.app-tabs-nav { display: flex; gap: 8px; }
+.app-tab {
+  background: transparent; border: none; cursor: pointer;
+  padding: 12px 16px; font-size: 14px; color: rgba(0,0,0,0.65);
+  border-bottom: 2px solid transparent; transition: color 0.15s;
+  font-family: inherit;
+}
+.app-tab:hover { color: #ED8F3A; }
+.app-tab[disabled] { cursor: not-allowed; opacity: 0.45; }
+.app-tab-active { color: #ED8F3A; border-bottom-color: #ED8F3A; font-weight: 500; }
+.app-tabs-extra { padding-left: 16px; }
+.app-tabs-content { padding-top: 16px; }
+html[data-theme='dark'] .app-tabs-bar { border-bottom-color: #303030; }
+html[data-theme='dark'] .app-tab { color: rgba(255,255,255,0.65); }
+html[data-theme='dark'] .app-tab-active { color: #ED8F3A; }
+
+/* Lightweight AntD Tag replacement (AppTag) — span + color classes */
+.app-tag {
+  display: inline-block;
+  padding: 0 7px;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.88);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.app-tag-default { background: #fafafa; color: rgba(0,0,0,0.85); border-color: #d9d9d9; }
+.app-tag-success, .app-tag-green   { background: #f6ffed; color: #389e0d; border-color: #b7eb8f; }
+.app-tag-processing, .app-tag-blue { background: #e6f4ff; color: #0958d9; border-color: #91caff; }
+.app-tag-error, .app-tag-red       { background: #fff1f0; color: #cf1322; border-color: #ffa39e; }
+.app-tag-warning, .app-tag-orange  { background: #fff7e6; color: #d46b08; border-color: #ffd591; }
+.app-tag-gold      { background: #fffbe6; color: #d48806; border-color: #ffe58f; }
+.app-tag-yellow    { background: #feffe6; color: #8c8c00; border-color: #fffb8f; }
+.app-tag-lime      { background: #fcffe6; color: #7cb305; border-color: #eaff8f; }
+.app-tag-cyan      { background: #e6fffb; color: #08979c; border-color: #87e8de; }
+.app-tag-geekblue  { background: #f0f5ff; color: #1d39c4; border-color: #adc6ff; }
+.app-tag-purple    { background: #f9f0ff; color: #531dab; border-color: #d3adf7; }
+.app-tag-magenta, .app-tag-pink { background: #fff0f6; color: #c41d7f; border-color: #ffadd2; }
+.app-tag-volcano   { background: #fff2e8; color: #d4380d; border-color: #ffbb96; }
+html[data-theme='dark'] .app-tag { background: #1f1f1f; color: rgba(255,255,255,0.85); border-color: #424242; }
+html[data-theme='dark'] .app-tag-success, html[data-theme='dark'] .app-tag-green   { background: #162312; color: #95de64; border-color: #274916; }
+html[data-theme='dark'] .app-tag-processing, html[data-theme='dark'] .app-tag-blue { background: #111d2c; color: #69b1ff; border-color: #15325b; }
+html[data-theme='dark'] .app-tag-error, html[data-theme='dark'] .app-tag-red       { background: #2a1215; color: #ff7875; border-color: #58181c; }
+html[data-theme='dark'] .app-tag-warning, html[data-theme='dark'] .app-tag-orange  { background: #2b1d11; color: #ffa940; border-color: #593815; }
+
+/* Lightweight spinner for AppSpin (replaces AntD Spin) */
+.app-spinner {
+  border: 2px solid rgba(237, 143, 58, 0.2);
+  border-top-color: #ED8F3A;
+  border-radius: 50%;
+  animation: app-spin 0.8s linear infinite;
+}
+@keyframes app-spin {
+  to { transform: rotate(360deg); }
+}
+html[data-theme='dark'] .app-spinner {
+  border-color: rgba(237, 143, 58, 0.25);
+  border-top-color: #f5a962;
+}
+
+/* Native <select> styled to match AntD Input look — used by NativeBankSelect
+   to avoid AntD's heavy Select component on weak machines. The dropdown
+   list itself is rendered by the OS, which is fast and accessible. */
+.native-bank-select {
+  width: 100%;
+  height: 32px;
+  padding: 4px 11px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.88);
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.native-bank-select:hover {
+  border-color: #ED8F3A;
+}
+.native-bank-select:focus {
+  border-color: #ED8F3A;
+  box-shadow: 0 0 0 2px rgba(237, 143, 58, 0.1);
+}
+.native-bank-select:disabled {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
+}
+html[data-theme='dark'] .native-bank-select {
+  background-color: #1f1f1f;
+  color: rgba(255, 255, 255, 0.85);
+  border-color: #424242;
+}
+  html[data-theme='dark'] .native-bank-select:hover {
+    border-color: #ED8F3A;
+  }
+
+  .native-number-input {
+    cursor: text;
+  }
+
+  .native-multi-select {
+    height: auto;
+    min-height: 96px;
+    padding: 4px;
+  }
+
+  .native-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+
+  .native-menu-item:hover {
+    background: rgba(237, 143, 58, 0.12);
+  }
+
+  .native-menu-item-danger {
+    color: #ff4d4f;
+  }
+
+  .native-floating-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 260px;
+    z-index: 50;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+    contain: layout paint;
+  }
+
+  .native-hover-menu {
+    position: relative;
+    display: inline-block;
+  }
+
+  .native-hover-menu-panel {
+    display: none;
+  }
+
+  .native-hover-menu:not(.native-hover-menu-disabled):hover .native-hover-menu-panel,
+  .native-hover-menu:not(.native-hover-menu-disabled):focus-within .native-hover-menu-panel {
+    display: block;
+  }
+
+  .native-primary-action-button {
+    min-width: 178px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 4px 15px;
+    border: 1px solid #ED8F3A;
+    border-radius: 6px;
+    background: #ED8F3A;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    line-height: 1;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .native-primary-action-button:hover:not(:disabled) {
+    background: #f5a962;
+    border-color: #f5a962;
+  }
+
+  .native-primary-action-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .native-primary-action-button-compact {
+    min-width: 132px;
+  }
+
+  .native-action-combo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+  }
+
+  .native-revenue-select {
+    height: 32px;
+    padding: 4px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    color: rgba(0, 0, 0, 0.88);
+    font: inherit;
+    outline: none;
+  }
+
+  .native-revenue-select:focus {
+    border-color: #ED8F3A;
+    box-shadow: 0 0 0 2px rgba(237, 143, 58, 0.1);
+  }
+
+  .native-revenue-select:disabled {
+    background: rgba(0, 0, 0, 0.04);
+    color: rgba(0, 0, 0, 0.25);
+  }
+
+  html[data-theme='dark'] .native-revenue-select {
+    background: #1f1f1f;
+    color: rgba(255, 255, 255, 0.85);
+    border-color: #424242;
+  }
+
+  .revenue-cycle-strip {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .revenue-cycle-empty {
+    color: rgba(0,0,0,0.45);
+    font-size: 13px;
+    padding: 6px 0;
+  }
+
+  .revenue-cycle-chip {
+    min-width: 104px;
+    height: 42px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
+    padding: 5px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 7px;
+    background: #fff;
+    color: rgba(0,0,0,0.88);
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .revenue-cycle-chip small {
+    color: rgba(0,0,0,0.45);
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .revenue-cycle-chip-active {
+    border-color: #ED8F3A;
+    background: rgba(237,143,58,0.1);
+    color: #b85f10;
+  }
+
+  .revenue-action-grid {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 100%;
+  }
+
+  .revenue-action-button {
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    color: rgba(0,0,0,0.88);
+    cursor: pointer;
+    font: inherit;
+    white-space: nowrap;
+  }
+
+  .revenue-action-button-primary {
+    border-color: #ED8F3A;
+    background: #ED8F3A;
+    color: #fff;
+  }
+
+  .revenue-action-button:hover:not(:disabled) {
+    border-color: #ED8F3A;
+    color: #b85f10;
+  }
+
+  .revenue-action-button-primary:hover:not(:disabled) {
+    background: #f5a962;
+    border-color: #f5a962;
+    color: #fff;
+  }
+
+  .revenue-action-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  html[data-theme='dark'] .revenue-cycle-empty {
+    color: rgba(255,255,255,0.45);
+  }
+
+  html[data-theme='dark'] .revenue-cycle-chip,
+  html[data-theme='dark'] .revenue-action-button {
+    background: #1f1f1f;
+    color: rgba(255,255,255,0.85);
+    border-color: #424242;
+  }
+
+  html[data-theme='dark'] .revenue-cycle-chip small {
+    color: rgba(255,255,255,0.45);
+  }
+
+  html[data-theme='dark'] .revenue-cycle-chip-active {
+    border-color: #ED8F3A;
+    background: rgba(237,143,58,0.16);
+    color: #f5a962;
+  }
+
+  html[data-theme='dark'] .revenue-action-button-primary {
+    background: #ED8F3A;
+    color: #fff;
+    border-color: #ED8F3A;
+  }
+
+  @media (max-width: 768px) {
+    .native-action-combo {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .native-primary-action-button-compact {
+      width: 100%;
+    }
+  }
+
+  .native-progress-track {
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.2);
+  }
+
+  .native-progress-track-inline {
+    height: 6px;
+    background: rgba(0,0,0,0.06);
+  }
+
+  .native-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #52c41a;
+    transition: width 0.18s linear;
+  }
+
 /* ===== Custom Spin Loading (full-screen overlay) ===== */
 .stats-page-spin > .ant-spin-spinning {
   position: fixed !important;

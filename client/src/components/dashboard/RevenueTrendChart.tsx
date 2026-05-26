@@ -1,4 +1,5 @@
-import { Card } from 'antd';
+﻿import { Card } from 'antd';
+import { AppSpin } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';

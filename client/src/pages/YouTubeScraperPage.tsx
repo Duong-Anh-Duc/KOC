@@ -1,16 +1,16 @@
-import {
+﻿import {
     LineChartOutlined,
     LinkOutlined,
     ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Grid, message, notification, Space, Spin, Tooltip, Typography } from 'antd';
-
+import { Button, Grid, Space, Spin, Tooltip, Typography } from 'antd';
+import { appMessage as message, appNotification as notification } from '../utils';
+import { AppSpin, AppTooltip, TaskProgressBar } from '../components/common';
 const { useBreakpoint } = Grid;
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cycleApi, ytScraperApi } from '../api';
-import { TaskProgressBar } from '../components/common';
 import { useProgress } from '../hooks/useProgress';
 import {
     CreateRevenueBar,
@@ -237,7 +237,7 @@ const YouTubeScraperPage: React.FC = () => {
   const isScraping = scrapeAllAsyncMutation.isPending || asyncJobStatus === 'running' || asyncJobStatus === 'pending';
 
   return (
-    <Spin spinning={isScraping} tip={t('ytScraper.scrapingAll')} size="large" className="stats-page-spin">
+    <AppSpin spinning={isScraping} tip={t('ytScraper.scrapingAll')} size="large" className="stats-page-spin">
       <div>
         {/* Page Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0, marginBottom: 16 }}>
@@ -246,9 +246,9 @@ const YouTubeScraperPage: React.FC = () => {
             {t('ytScraper.title')}
           </Title>
           <Space>
-            <Tooltip title={t('ytScraper.refreshStatus')}>
+            <AppTooltip title={t('ytScraper.refreshStatus')}>
               <Button icon={<ReloadOutlined />} onClick={() => refetchStatus()} loading={statusLoading} />
-            </Tooltip>
+            </AppTooltip>
           </Space>
         </div>
 
@@ -315,7 +315,7 @@ const YouTubeScraperPage: React.FC = () => {
           onClose={() => setCreateRevenueResultOpen(false)}
         />
       </div>
-    </Spin>
+    </AppSpin>
   );
 };
 

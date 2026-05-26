@@ -1,5 +1,6 @@
-import { ArrowDownOutlined, ArrowUpOutlined, CalendarOutlined } from '@ant-design/icons';
+﻿import { ArrowDownOutlined, ArrowUpOutlined, CalendarOutlined } from '@ant-design/icons';
 import { Card, Col, Row, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatUSD, formatVND } from '../../utils';
@@ -45,7 +46,7 @@ const CycleSummaryCard: React.FC<CycleSummaryCardProps> = ({ cycleSummary, reven
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CalendarOutlined style={{ color: '#ED8F3A' }} />
           <span>{t('dashboard.latestCycle')}: <strong>{cycleSummary.cycle.month}</strong></span>
-          <Tag
+          <AppTag
             color={
               cycleSummary.cycle.status === 'OPEN'
                 ? 'blue'
@@ -55,15 +56,15 @@ const CycleSummaryCard: React.FC<CycleSummaryCardProps> = ({ cycleSummary, reven
             }
           >
             {t(`status.${cycleSummary.cycle.status}`)}
-          </Tag>
+          </AppTag>
           {revenueGrowth != null && revenueGrowth !== 0 && (
-            <Tag
+            <AppTag
               icon={revenueGrowth >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
               color={revenueGrowth >= 0 ? 'success' : 'error'}
               style={{ fontSize: 13, padding: '2px 10px', margin: 0 }}
             >
               {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth}%
-            </Tag>
+            </AppTag>
           )}
         </div>
       }

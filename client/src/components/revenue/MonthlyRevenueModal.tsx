@@ -1,4 +1,4 @@
-import {
+﻿import {
     BarChartOutlined,
     CloudSyncOutlined,
     DollarOutlined,
@@ -6,7 +6,9 @@ import {
     FieldTimeOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Grid, Modal, Progress, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { Button, Grid, Modal, Progress, Space, Spin, Table, Tag, Typography } from 'antd';
+import { appMessage as message } from '../../utils';
+import { AppSpin, AppTag, AppTooltip } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 
 const { useBreakpoint } = Grid;
@@ -17,8 +19,6 @@ import { ytScraperApi } from '../../api/endpoints';
 import { useProgress } from '../../hooks/useProgress';
 import type { MonthlyRevenueAnalytics } from '../../types';
 import { formatUSD, getTableLocale } from '../../utils';
-import { TaskProgressBar } from '../common';
-
 const { Text } = Typography;
 
 interface MonthlyRevenueModalProps {
@@ -98,7 +98,7 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
         <Text strong>
           {val}
           {(record.month_label?.includes('đang diễn ra') || record.month_label?.includes('current')) && (
-            <Tag color="processing" style={{ marginLeft: 4, fontSize: 10 }}>{t('ytScraper.currentMonthTag')}</Tag>
+            <AppTag color="processing" style={{ marginLeft: 4, fontSize: 10 }}>{t('ytScraper.currentMonthTag')}</AppTag>
           )}
         </Text>
       ),
@@ -183,13 +183,13 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
           {kocName && (
             <>
               <span style={{ fontSize: 13, fontWeight: 'normal', color: '#666' }}>{t('ytScraper.creatorLabel')}:</span>
-              <Tag color="blue">{kocName}</Tag>
+              <AppTag color="blue">{kocName}</AppTag>
             </>
           )}
           {channelName && (
             <>
               <span style={{ fontSize: 13, fontWeight: 'normal', color: '#666' }}>{t('ytScraper.channelLabel')}:</span>
-              <Tag color="orange">{channelName}</Tag>
+              <AppTag color="orange">{channelName}</AppTag>
             </>
           )}
         </Space>
@@ -223,7 +223,7 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
         </Space>
       }
     >
-      <Spin
+      <AppSpin
         spinning={isLoading || isScraping}
         tip={isScraping
           ? (scrapeProgress.state.progress?.message || t('ytScraper.scrapeMonthlyLoading'))
@@ -292,7 +292,7 @@ const MonthlyRevenueModal: React.FC<MonthlyRevenueModalProps> = ({
             ) : null
           }
         />
-      </Spin>
+      </AppSpin>
     </Modal>
   );
 };

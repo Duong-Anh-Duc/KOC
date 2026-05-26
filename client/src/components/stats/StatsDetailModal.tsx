@@ -1,4 +1,5 @@
-import { Grid, Modal, Spin, Table, Tabs, Typography } from 'antd';
+﻿import { Grid, Modal, Spin, Table, Tabs, Typography } from 'antd';
+import { AppSpin, AppTabs, AppTooltip } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTableLocale } from '../../utils';
@@ -262,8 +263,9 @@ const StatsDetailModal: React.FC<StatsDetailModalProps> = ({
       width={modalWidth}
       footer={null}
     >
-      <Spin spinning={loading}>
-        <Tabs
+      <AppSpin spinning={loading}>
+        {/* AntD-original: <Tabs items={...} /> */}
+        <AppTabs
           items={[
             {
               key: 'country',
@@ -309,7 +311,7 @@ const StatsDetailModal: React.FC<StatsDetailModalProps> = ({
             },
           ]}
         />
-      </Spin>
+      </AppSpin>
     </Modal>
   );
 };

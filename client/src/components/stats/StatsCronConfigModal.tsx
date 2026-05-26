@@ -1,6 +1,7 @@
-import { CalendarOutlined, ClockCircleOutlined } from '@ant-design/icons';
+﻿import { CalendarOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Col, Modal, Row, Select, Space, Spin, Switch, Typography } from 'antd';
+import { Alert, Col, Modal, Row, Space, Switch, Typography } from 'antd';
+import { AppSpin, NativeSelect } from '../common';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statsApi } from '../../api';
@@ -119,7 +120,7 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
       confirmLoading={updateMutation.isPending}
       width="min(520px, 100vw - 32px)"
     >
-      <Spin spinning={isLoading}>
+      <AppSpin spinning={isLoading}>
         <div style={{ marginBottom: 16 }}>
           <Space>
             <Text strong>{t('stats.cronEnable')}</Text>
@@ -140,9 +141,21 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
           <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
             {t('stats.cronFrequency')}
           </Text>
+          {/* AntD-original:
           <Select
             value={frequency}
             onChange={setFrequency}
+            style={{ width: '100%' }}
+            options={[
+              { value: 'daily', label: t('stats.cronDaily') },
+              { value: 'weekly', label: t('stats.cronWeekly') },
+              { value: 'monthly', label: t('stats.cronMonthly') },
+            ]}
+          />
+          */}
+          <NativeSelect
+            value={frequency}
+            onChange={(v) => setFrequency((v || 'weekly') as 'daily' | 'weekly' | 'monthly')}
             style={{ width: '100%' }}
             options={[
               { value: 'daily', label: t('stats.cronDaily') },
@@ -158,9 +171,17 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
               <CalendarOutlined style={{ marginRight: 4 }} />
               {t('stats.cronDayOfWeek')}
             </Text>
+            {/* AntD-original:
             <Select
               value={dayOfWeek}
               onChange={setDayOfWeek}
+              style={{ width: '100%' }}
+              options={weekDays}
+            />
+            */}
+            <NativeSelect
+              value={dayOfWeek}
+              onChange={(v) => setDayOfWeek(Number(v))}
               style={{ width: '100%' }}
               options={weekDays}
             />
@@ -173,9 +194,20 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
               <CalendarOutlined style={{ marginRight: 4 }} />
               {t('cron.dayOfMonth')}
             </Text>
+            {/* AntD-original:
             <Select
               value={dayOfMonth}
               onChange={setDayOfMonth}
+              style={{ width: '100%' }}
+              options={Array.from({ length: 31 }, (_, i) => ({
+                value: i + 1,
+                label: `${t('cron.day')} ${i + 1}`,
+              }))}
+            />
+            */}
+            <NativeSelect
+              value={dayOfMonth}
+              onChange={(v) => setDayOfMonth(Number(v))}
               style={{ width: '100%' }}
               options={Array.from({ length: 31 }, (_, i) => ({
                 value: i + 1,
@@ -191,9 +223,20 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
               <ClockCircleOutlined style={{ marginRight: 4 }} />
               {t('cron.hour')}
             </Text>
+            {/* AntD-original:
             <Select
               value={hour}
               onChange={setHour}
+              style={{ width: '100%' }}
+              options={Array.from({ length: 24 }, (_, i) => ({
+                value: i,
+                label: `${String(i).padStart(2, '0')}:00`,
+              }))}
+            />
+            */}
+            <NativeSelect
+              value={hour}
+              onChange={(v) => setHour(Number(v))}
               style={{ width: '100%' }}
               options={Array.from({ length: 24 }, (_, i) => ({
                 value: i,
@@ -206,9 +249,20 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
               <ClockCircleOutlined style={{ marginRight: 4 }} />
               {t('cron.minute')}
             </Text>
+            {/* AntD-original:
             <Select
               value={minute}
               onChange={setMinute}
+              style={{ width: '100%' }}
+              options={Array.from({ length: 60 }, (_, i) => ({
+                value: i,
+                label: String(i).padStart(2, '0'),
+              }))}
+            />
+            */}
+            <NativeSelect
+              value={minute}
+              onChange={(v) => setMinute(Number(v))}
               style={{ width: '100%' }}
               options={Array.from({ length: 60 }, (_, i) => ({
                 value: i,
@@ -231,7 +285,7 @@ const StatsCronConfigModal: React.FC<Props> = ({ open, onClose }) => {
             {configData.lastRunResult && ` — ${configData.lastRunResult}`}
           </Text>
         )}
-      </Spin>
+      </AppSpin>
     </Modal>
   );
 };

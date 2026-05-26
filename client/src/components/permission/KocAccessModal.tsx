@@ -1,5 +1,6 @@
-import { SettingOutlined } from '@ant-design/icons';
+﻿import { SettingOutlined } from '@ant-design/icons';
 import { Button, Input, Modal, Switch, Table, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -94,7 +95,7 @@ const KocAccessModal: React.FC<Props> = ({
         if (!manager) return null;
         const entry = getKocAccess(manager.id, record.id);
         if (!entry) return <AntText type="secondary">-</AntText>;
-        return <Tag color="blue">{entry.permissions.length} / {kocPermDefs.length}</Tag>;
+        return <AppTag color="blue">{entry.permissions.length} / {kocPermDefs.length}</AppTag>;
       },
     },
     {
@@ -106,14 +107,14 @@ const KocAccessModal: React.FC<Props> = ({
         if (!manager) return null;
         if (!isKocEnabled(manager.id, record.id)) return <AntText type="secondary">-</AntText>;
         return (
-          <Tooltip title={t('permissions.configureDetail')}>
+          <AppTooltip title={t('permissions.configureDetail')}>
             <Button
               type="default"
               shape="circle"
               icon={<SettingOutlined />}
               onClick={() => onOpenDetail(record)}
             />
-          </Tooltip>
+          </AppTooltip>
         );
       },
     },
@@ -125,9 +126,9 @@ const KocAccessModal: React.FC<Props> = ({
         manager ? (
           <span>
             {t('permissions.kocListFor')}{' '}
-            <Tag color="blue" style={{ fontSize: 14, padding: '2px 12px' }}>
+            <AppTag color="blue" style={{ fontSize: 14, padding: '2px 12px' }}>
               {manager.full_name}
-            </Tag>
+            </AppTag>
           </span>
         ) : null
       }

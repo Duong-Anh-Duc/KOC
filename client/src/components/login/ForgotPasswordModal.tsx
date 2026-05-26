@@ -1,5 +1,6 @@
-import { LockOutlined, MailOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Form, Input, message, Modal, Steps, theme as antTheme } from 'antd';
+﻿import { LockOutlined, MailOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, ConfigProvider, Form, Input, Modal, Steps, theme as antTheme } from 'antd';
+import { appMessage as message } from '../../utils';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authApi } from '../../api/auth.api';

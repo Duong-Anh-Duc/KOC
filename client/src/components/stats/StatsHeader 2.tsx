@@ -1,5 +1,6 @@
-import { CloudDownloadOutlined, QuestionCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+﻿import { CloudDownloadOutlined, QuestionCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Space, Tooltip, Typography } from 'antd';
+import { AppSpin, AppTooltip } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,7 +21,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ onRefresh, onFetchAll, fetchL
         <Title level={3} style={{ margin: 0 }}>
           {t('menu.stats')}
         </Title>
-        <Tooltip
+        <AppTooltip
           title={
             <div>
               <div style={{ marginBottom: 4 }}>
@@ -38,7 +39,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ onRefresh, onFetchAll, fetchL
           placement="bottomLeft"
         >
           <QuestionCircleOutlined style={{ fontSize: 16, color: '#1677ff', cursor: 'help' }} />
-        </Tooltip>
+        </AppTooltip>
       </Space>
       <Space>
         <Button icon={<ReloadOutlined />} onClick={onRefresh} />

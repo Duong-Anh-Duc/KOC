@@ -1,7 +1,8 @@
-import { Form, Input, InputNumber, Modal } from 'antd';
+import { Form, Input, Modal } from 'antd';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
+import { NativeNumberInput } from '../common';
 
 /**
  * Calculate the next month in MM/YYYY format from the latest cycle.
@@ -84,6 +85,7 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
           name="exchange_rate"
           rules={[{ required: true, message: t('validation.required') }]}
         >
+          {/* AntD-original:
           <InputNumber
             min={0}
             style={{ width: '100%' }}
@@ -91,6 +93,8 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
             parser={(value) => value?.replace(/,/g, '') as unknown as 0}
             placeholder="25400"
           />
+          */}
+          <NativeNumberInput min={0} style={{ width: '100%' }} placeholder="25400" />
         </Form.Item>
       </Form>
     </Modal>

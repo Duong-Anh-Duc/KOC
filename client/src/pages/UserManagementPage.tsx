@@ -1,23 +1,12 @@
-import {
+﻿import {
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import {
-  Avatar,
-  Button,
-  Form,
-  Grid,
-  Input,
-  message,
-  Popconfirm,
-  Space,
-  Switch,
-  Table,
-  Tooltip,
-  Typography,
-} from 'antd';
+import { Avatar, Button, Form, Grid, Input, Popconfirm, Space, Switch, Table, Tooltip, Typography } from 'antd';
+import { appMessage as message } from '../utils';
+import { AppAvatar, AppSpin, AppTooltip } from '../components/common';
 import type { ColumnsType } from 'antd/es/table';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -135,9 +124,10 @@ const UserManagementPage: React.FC = () => {
       key: 'full_name',
       render: (name: string, record: StaffUser) => (
         <Space size={12}>
-          <Avatar
+          {/* AntD-original: <Avatar icon={<UserOutlined />} size={38} style={{...}} /> */}
+          <AppAvatar
             icon={<UserOutlined />}
-            style={{ background: 'linear-gradient(135deg, #ED8F3A, #f5a962)', flexShrink: 0 }}
+            style={{ background: 'linear-gradient(135deg, #ED8F3A, #f5a962)' }}
             size={38}
           />
           <div>
@@ -172,7 +162,7 @@ const UserManagementPage: React.FC = () => {
       width: 130,
       responsive: ['md'] as any,
       render: (active: boolean, record: StaffUser) => (
-        <Tooltip title={record.role === 'ADMIN' ? 'Không thể thay đổi trạng thái Admin' : (active ? 'Nhấn để vô hiệu hóa' : 'Nhấn để kích hoạt')}>
+        <AppTooltip title={record.role === 'ADMIN' ? 'Không thể thay đổi trạng thái Admin' : (active ? 'Nhấn để vô hiệu hóa' : 'Nhấn để kích hoạt')}>
           <Switch
             checked={active}
             size="small"
@@ -183,7 +173,7 @@ const UserManagementPage: React.FC = () => {
           <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 500, color: active ? '#52c41a' : '#ff4d4f' }}>
             {active ? t('users.active') : t('users.inactive')}
           </span>
-        </Tooltip>
+        </AppTooltip>
       ),
     },
     {
@@ -211,10 +201,10 @@ const UserManagementPage: React.FC = () => {
         }
         return (
           <Space size={6}>
-            <Tooltip title="Chỉnh sửa" placement="top" color="#ED8F3A">
+            <AppTooltip title="Chỉnh sửa" placement="top" color="#ED8F3A">
               <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)} style={{ border: '1px solid #ED8F3A', color: '#ED8F3A', borderRadius: 6 }} />
-            </Tooltip>
-            <Tooltip title="Xóa tài khoản" placement="top" color="#ff4d4f">
+            </AppTooltip>
+            <AppTooltip title="Xóa tài khoản" placement="top" color="#ff4d4f">
               <Popconfirm
                 title="Xóa người dùng này?"
                 description="Hành động này không thể hoàn tác."
@@ -226,7 +216,7 @@ const UserManagementPage: React.FC = () => {
               >
                 <Button icon={<DeleteOutlined />} size="small" danger style={{ borderRadius: 6 }} />
               </Popconfirm>
-            </Tooltip>
+            </AppTooltip>
           </Space>
         );
       },

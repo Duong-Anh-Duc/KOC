@@ -1,5 +1,6 @@
-import { DashboardOutlined } from '@ant-design/icons';
+﻿import { DashboardOutlined } from '@ant-design/icons';
 import { Col, Row, Spin, Typography } from 'antd';
+import { AppSpin, AppTooltip } from '../components/common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,7 +25,7 @@ const DashboardPage: React.FC = () => {
   if (loadingOverview) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}>
-        <Spin size="large" />
+        <AppSpin size="large" />
       </div>
     );
   }

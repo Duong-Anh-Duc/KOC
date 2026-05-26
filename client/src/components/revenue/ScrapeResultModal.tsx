@@ -1,4 +1,5 @@
-import { Button, Card, Col, Modal, Row, Tag, Typography } from 'antd';
+﻿import { Button, Card, Col, Modal, Row, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatUSD } from '../../utils';
@@ -66,9 +67,9 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           {data.created?.length > 0 && (
             <Card size="small" title={`${t('cycle.recordsCreated')} (${data.created.length})`} style={{ marginBottom: 12 }}>
               {data.created.map((item: any, i: number) => (
-                <Tag key={i} color="green" style={{ marginBottom: 4 }}>
+                <AppTag key={i} color="green" style={{ marginBottom: 4 }}>
                   {item.koc}: {item.revenue != null ? formatUSD(item.revenue) : '-'}
-                </Tag>
+                </AppTag>
               ))}
             </Card>
           )}
@@ -76,9 +77,9 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           {data.updated?.length > 0 && (
             <Card size="small" title={`${t('cycle.recordsUpdated')} (${data.updated.length})`} style={{ marginBottom: 12 }}>
               {data.updated.map((item: any, i: number) => (
-                <Tag key={i} color="blue" style={{ marginBottom: 4 }}>
+                <AppTag key={i} color="blue" style={{ marginBottom: 4 }}>
                   {item.koc}: {item.revenue != null ? formatUSD(item.revenue) : '-'}
-                </Tag>
+                </AppTag>
               ))}
             </Card>
           )}
@@ -86,9 +87,9 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           {data.skipped?.length > 0 && (
             <Card size="small" title={`${t('cycle.recordsSkipped')} (${data.skipped.length})`} style={{ marginBottom: 12 }}>
               {data.skipped.map((item: any, i: number) => (
-                <Tag key={i} color="orange" style={{ marginBottom: 4 }}>
+                <AppTag key={i} color="orange" style={{ marginBottom: 4 }}>
                   {item.koc}: {item.reason}
-                </Tag>
+                </AppTag>
               ))}
             </Card>
           )}
@@ -96,9 +97,9 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           {data.autoApproved?.length > 0 && (
             <Card size="small" title={`${t('cycle.autoApproved')} (${data.autoApproved.length})`} style={{ marginBottom: 12 }}>
               {data.autoApproved.map((item: any, i: number) => (
-                <Tag key={i} color="purple" style={{ marginBottom: 4 }}>
+                <AppTag key={i} color="purple" style={{ marginBottom: 4 }}>
                   {item.koc}: {formatUSD(item.accumulated)}
-                </Tag>
+                </AppTag>
               ))}
             </Card>
           )}
@@ -106,9 +107,9 @@ const ScrapeResultModal: React.FC<ScrapeResultModalProps> = ({ open, data, onClo
           {data.scrapeErrors?.length > 0 && (
             <Card size="small" title={`${t('common.errors')} (${data.scrapeErrors.length})`}>
               {data.scrapeErrors.map((item: any, i: number) => (
-                <Tag key={i} color="red" style={{ marginBottom: 4 }}>
+                <AppTag key={i} color="red" style={{ marginBottom: 4 }}>
                   {item.channelId}: {item.error}
-                </Tag>
+                </AppTag>
               ))}
             </Card>
           )}

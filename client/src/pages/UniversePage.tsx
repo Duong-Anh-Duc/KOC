@@ -1,4 +1,4 @@
-import {
+﻿import {
   ArrowLeftOutlined,
   AuditOutlined,
   BarChartOutlined,
@@ -22,6 +22,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Drawer, Space, Spin, Switch, Tag } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../components/common';
 import React, { Suspense, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -772,7 +773,7 @@ const UniversePage: React.FC = () => {
 
       {isLoading ? (
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>
-          <Spin size="large" />
+          <AppSpin size="large" />
         </div>
       ) : (
         <Canvas
@@ -892,9 +893,9 @@ const UniversePage: React.FC = () => {
             </span>
             <span>{selectedModule.name}</span>
             {selectedModule.metric ? (
-              <Tag color={selectedModule.color} style={{ marginLeft: 4, borderColor: 'transparent' }}>
+              <AppTag color={selectedModule.color} style={{ marginLeft: 4, borderColor: 'transparent' }}>
                 {selectedModule.metricLabel ? `${selectedModule.metricLabel}: ` : ''}{selectedModule.metric}
-              </Tag>
+              </AppTag>
             ) : null}
           </Space>
         ) : null}

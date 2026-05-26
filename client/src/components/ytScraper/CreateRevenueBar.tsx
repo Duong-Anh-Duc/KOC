@@ -1,8 +1,9 @@
 import { DollarOutlined } from '@ant-design/icons';
-import { Button, Card, Col, Row, Select, Typography } from 'antd';
+import { Button, Card, Col, Row, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
+import { NativeSelect } from '../common';
 
 const { Text } = Typography;
 
@@ -33,11 +34,12 @@ const CreateRevenueBar: React.FC<CreateRevenueBarProps> = ({
           <Text strong>{t('ytScraper.createRevenueFromScrape')}</Text>
         </Col>
         <Col>
-          <Select
+          {/* AntD-original: <Select .../> */}
+          <NativeSelect
             style={{ width: 220 }}
             placeholder={t('revenue.selectCycle')}
             value={selectedCycleId}
-            onChange={onCycleChange}
+            onChange={(v) => onCycleChange(v ? Number(v) : null)}
             allowClear
             options={(cyclesData || [])
               .filter((c: RevenueCycle) => c.status === 'OPEN')

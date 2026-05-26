@@ -1,4 +1,4 @@
-import {
+﻿import {
   ChromeOutlined,
   LinkOutlined,
   LoadingOutlined,
@@ -8,6 +8,7 @@ import {
   YoutubeOutlined,
 } from '@ant-design/icons';
 import { Alert, Badge, Button, Card, Col, Popconfirm, Row, Space, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -59,14 +60,14 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
               }
             />
             {isLoggedIn && channelName && (
-              <Tag icon={<YoutubeOutlined />} color="red" style={{ fontSize: 13, padding: '2px 10px' }}>
+              <AppTag icon={<YoutubeOutlined />} color="red" style={{ fontSize: 13, padding: '2px 10px' }}>
                 {channelName}
-              </Tag>
+              </AppTag>
             )}
             {isLoggedIn && email && (
-              <Tag icon={<UserOutlined />} color="blue" style={{ fontSize: 12 }}>
+              <AppTag icon={<UserOutlined />} color="blue" style={{ fontSize: 12 }}>
                 {email}
-              </Tag>
+              </AppTag>
             )}
             {isLoggedIn && !channelName && !email && !statusLoading && (
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -79,14 +80,14 @@ const LoginStatusCard: React.FC<LoginStatusCardProps> = ({
         <Col>
           <Space>
             {isLoggedIn && onRefreshAccountInfo && (
-              <Tooltip title={t('ytScraper.refreshAccountInfo')}>
+              <AppTooltip title={t('ytScraper.refreshAccountInfo')}>
                 <Button
                   icon={<ReloadOutlined />}
                   onClick={onRefreshAccountInfo}
                   loading={refreshAccountInfoLoading}
                   size="small"
                 />
-              </Tooltip>
+              </AppTooltip>
             )}
             {!isLoggedIn ? (
               <Button

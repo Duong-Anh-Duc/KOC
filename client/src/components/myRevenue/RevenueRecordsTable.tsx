@@ -1,4 +1,5 @@
-import { Empty, Grid, Table, Tag, Typography } from 'antd';
+﻿import { Empty, Grid, Table, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,7 +34,7 @@ const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
       title: t('revenue.month'),
       key: 'month',
       width: 100,
-      render: (_: unknown, record: RecordWithCycle) => <Tag color="blue">{record.cycle.month}</Tag>,
+      render: (_: unknown, record: RecordWithCycle) => <AppTag color="blue">{record.cycle.month}</AppTag>,
     },
     {
       title: t('revenue.originalRevenue'),
@@ -101,9 +102,9 @@ const RevenueRecordsTable: React.FC<Props> = ({ records }) => {
       width: 100,
       align: 'center',
       render: (status: string) => (
-        <Tag color={status === 'APPROVED' ? 'green' : 'orange'}>
+        <AppTag color={status === 'APPROVED' ? 'green' : 'orange'}>
           {status === 'APPROVED' ? t('status.approved') : t('status.pending')}
-        </Tag>
+        </AppTag>
       ),
     },
   ];

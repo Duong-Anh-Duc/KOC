@@ -1,14 +1,14 @@
-import {
+﻿import {
     ClockCircleOutlined,
     PlayCircleOutlined,
     SettingOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Popconfirm, Row, Space, Spin, Typography } from 'antd';
+import { AppSpin, AppTooltip, SummaryBar } from '../components/common';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cronApi } from '../api';
-import { SummaryBar } from '../components/common';
 import { CronConfigCard, CronStatusCard, RunHistoryTable } from '../components/cron';
 import CookieImportModal from '../components/cron/CookieImportModal';
 import { useYtScraperStatus } from '../hooks/useYtScraperStatus';
@@ -128,7 +128,7 @@ const CronSettingsPage: React.FC = () => {
   const runHistory = config?.runHistory || [];
 
   return (
-    <Spin spinning={runNowMutation.isPending} tip={t('cron.runningNow')} size="large" className="stats-page-spin">
+    <AppSpin spinning={runNowMutation.isPending} tip={t('cron.runningNow')} size="large" className="stats-page-spin">
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <Title level={3} style={{ margin: 0 }}>
@@ -223,7 +223,7 @@ const CronSettingsPage: React.FC = () => {
           onImport={(cookies) => importCookiesMutation.mutate(cookies)}
         />
       </div>
-    </Spin>
+    </AppSpin>
   );
 };
 

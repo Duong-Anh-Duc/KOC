@@ -42,11 +42,12 @@ const Sidebar: React.FC = () => {
       icon: <DollarOutlined />,
       label: t('kocPortal.title'),
     },
-    {
-      key: '/universe',
-      icon: <GlobalOutlined />,
-      label: t('menu.universe'),
-    },
+    // Vũ trụ EBE — ẩn tạm
+    // {
+    //   key: '/universe',
+    //   icon: <GlobalOutlined />,
+    //   label: t('menu.universe'),
+    // },
   ];
 
   // Manager menu: flat list filtered by permissions (no groups to keep it simple)
@@ -76,11 +77,12 @@ const Sidebar: React.FC = () => {
       icon: <SendOutlined />,
       label: t('menu.sendRevenueEmail'),
     } : null,
-    {
-      key: '/universe',
-      icon: <GlobalOutlined />,
-      label: t('menu.universe'),
-    },
+    // Vũ trụ EBE — ẩn tạm
+    // {
+    //   key: '/universe',
+    //   icon: <GlobalOutlined />,
+    //   label: t('menu.universe'),
+    // },
     null,
   ].filter(Boolean) as NonNullable<MenuProps['items']>;
 
@@ -91,11 +93,12 @@ const Sidebar: React.FC = () => {
       icon: <DashboardOutlined />,
       label: t('menu.dashboard'),
     },
-    {
-      key: '/universe',
-      icon: <GlobalOutlined />,
-      label: t('menu.universe'),
-    },
+    // Vũ trụ EBE — ẩn tạm
+    // {
+    //   key: '/universe',
+    //   icon: <GlobalOutlined />,
+    //   label: t('menu.universe'),
+    // },
     {
       type: 'group',
       label: t('menu.groupManagement'),

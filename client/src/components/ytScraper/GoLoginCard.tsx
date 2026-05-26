@@ -1,4 +1,4 @@
-import {
+﻿import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   PlayCircleOutlined,
@@ -6,6 +6,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Col, Popconfirm, Row, Space, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React from 'react';
 import { gologinApi } from '../../api';
 
@@ -65,19 +66,19 @@ const GoLoginCard: React.FC = () => {
         <Col flex="auto">
           <Space wrap size="small">
             {isRunning && status?.profileId && (
-              <Tag icon={<CheckCircleOutlined />} color="success">
+              <AppTag icon={<CheckCircleOutlined />} color="success">
                 Profile: {status.profileId}
-              </Tag>
+              </AppTag>
             )}
             {isRunning && status?.cdpInjected && (
-              <Tag icon={<CheckCircleOutlined />} color="blue">
+              <AppTag icon={<CheckCircleOutlined />} color="blue">
                 CDP đã inject → Scraper dùng GoLogin
-              </Tag>
+              </AppTag>
             )}
             {isRunning && !status?.cdpInjected && (
-              <Tag icon={<CloseCircleOutlined />} color="warning">
+              <AppTag icon={<CloseCircleOutlined />} color="warning">
                 CDP chưa inject
-              </Tag>
+              </AppTag>
             )}
             {!isRunning && (
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -89,7 +90,7 @@ const GoLoginCard: React.FC = () => {
         <Col>
           <Space>
             {!isRunning ? (
-              <Tooltip title="Khởi động GoLogin profile. CDP URL sẽ tự inject vào scraper.">
+              <AppTooltip title="Khởi động GoLogin profile. CDP URL sẽ tự inject vào scraper.">
                 <Button
                   type="primary"
                   icon={<PlayCircleOutlined />}
@@ -98,7 +99,7 @@ const GoLoginCard: React.FC = () => {
                 >
                   Khởi động
                 </Button>
-              </Tooltip>
+              </AppTooltip>
             ) : (
               <Popconfirm
                 title="Dừng GoLogin profile?"

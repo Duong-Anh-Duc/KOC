@@ -1,4 +1,4 @@
-import {
+﻿import {
     CheckCircleOutlined,
     CloseCircleOutlined,
     DollarOutlined,
@@ -9,6 +9,7 @@ import {
     UnlockOutlined,
 } from '@ant-design/icons';
 import { Card, Col, Grid, Progress, Row, Tag, Tooltip, Typography } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatUSD, formatVND } from '../../utils';
@@ -183,21 +184,21 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
               {t('dashboard.cycleStatus')}
             </Text>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-              <Tooltip title={t('status.OPEN')}>
-                <Tag icon={<UnlockOutlined />} color="green" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
+              <AppTooltip title={t('status.OPEN')}>
+                <AppTag icon={<UnlockOutlined />} color="green" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {' '}{overview?.cyclesByStatus?.OPEN || 0}
-                </Tag>
-              </Tooltip>
-              <Tooltip title={t('status.LOCKED')}>
-                <Tag icon={<LockOutlined />} color="orange" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
+                </AppTag>
+              </AppTooltip>
+              <AppTooltip title={t('status.LOCKED')}>
+                <AppTag icon={<LockOutlined />} color="orange" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {' '}{overview?.cyclesByStatus?.LOCKED || 0}
-                </Tag>
-              </Tooltip>
-              <Tooltip title={t('status.PAYMENT_COMPLETED')}>
-                <Tag icon={<CheckCircleOutlined />} color="blue" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
+                </AppTag>
+              </AppTooltip>
+              <AppTooltip title={t('status.PAYMENT_COMPLETED')}>
+                <AppTag icon={<CheckCircleOutlined />} color="blue" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {' '}{overview?.cyclesByStatus?.PAYMENT_COMPLETED || 0}
-                </Tag>
-              </Tooltip>
+                </AppTag>
+              </AppTooltip>
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {t('dashboard.totalCycles')}: {overview?.totalCycles || 0}
@@ -217,21 +218,21 @@ const StatsCards: React.FC<StatsCardsProps> = ({ overview, cycleSummary }) => {
               style={{ marginBottom: 10 }}
             />
             <div style={{ display: 'flex', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
-              <Tooltip title={t('dashboard.pubCodeMatched')}>
-                <Tag icon={<CheckCircleOutlined />} color="success" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
+              <AppTooltip title={t('dashboard.pubCodeMatched')}>
+                <AppTag icon={<CheckCircleOutlined />} color="success" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {' '}{pubCodeStats?.matched || 0}
-                </Tag>
-              </Tooltip>
-              <Tooltip title={t('dashboard.pubCodeMismatched')}>
-                <Tag icon={<CloseCircleOutlined />} color="error" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
+                </AppTag>
+              </AppTooltip>
+              <AppTooltip title={t('dashboard.pubCodeMismatched')}>
+                <AppTag icon={<CloseCircleOutlined />} color="error" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {' '}{pubCodeStats?.mismatched || 0}
-                </Tag>
-              </Tooltip>
-              <Tooltip title={t('dashboard.pubCodeNotChecked')}>
-                <Tag icon={<FileTextOutlined />} color="default" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
+                </AppTag>
+              </AppTooltip>
+              <AppTooltip title={t('dashboard.pubCodeNotChecked')}>
+                <AppTag icon={<FileTextOutlined />} color="default" style={{ margin: 0, padding: '4px 12px', fontSize: 14 }}>
                   {' '}{pubCodeStats?.notChecked || 0}
-                </Tag>
-              </Tooltip>
+                </AppTag>
+              </AppTooltip>
             </div>
           </Card>
         </Col>

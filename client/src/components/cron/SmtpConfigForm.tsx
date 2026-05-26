@@ -8,14 +8,12 @@ import {
   Form,
   FormInstance,
   Input,
-  InputNumber,
   Row,
   Space,
-  Spin,
   Switch,
-  Tag,
   Typography
 } from 'antd';
+import { AppSpin, AppTag, NativeNumberInput } from '../common';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emailApi } from '../../api';
@@ -93,7 +91,7 @@ const SmtpConfigForm: React.FC<SmtpConfigFormProps> = ({ smtpForm, emailConfig, 
       }
       style={{ marginBottom: 16 }}
     >
-      <Spin spinning={configLoading}>
+      <AppSpin spinning={configLoading}>
         {/* Editable SMTP form */}
         <Form
           form={smtpForm}
@@ -108,7 +106,8 @@ const SmtpConfigForm: React.FC<SmtpConfigFormProps> = ({ smtpForm, emailConfig, 
           <Row gutter={12}>
             <Col xs={14} sm={14}>
               <Form.Item label={t('email.smtpPort')} name="smtpPort" rules={[{ required: true }]}>
-                <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+                {/* AntD-original: <InputNumber min={1} max={65535} style={{ width: '100%' }} /> */}
+                <NativeNumberInput min={1} max={65535} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col xs={10} sm={10}>
@@ -127,7 +126,7 @@ const SmtpConfigForm: React.FC<SmtpConfigFormProps> = ({ smtpForm, emailConfig, 
               <Space size={4}>
                 {t('email.smtpPass')}
                 {emailConfig?.smtpPass && (
-                  <Tag color="success" style={{ fontSize: 11, marginLeft: 4 }}>{t('email.passSaved')}</Tag>
+                  <AppTag color="success" style={{ fontSize: 11, marginLeft: 4 }}>{t('email.passSaved')}</AppTag>
                 )}
               </Space>
             }
@@ -158,9 +157,9 @@ const SmtpConfigForm: React.FC<SmtpConfigFormProps> = ({ smtpForm, emailConfig, 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <Space>
               {emailConfig?.smtpUser && emailConfig?.smtpPass ? (
-                <Tag icon={<CheckCircleOutlined />} color="success">{t('email.configured')}</Tag>
+                <AppTag icon={<CheckCircleOutlined />} color="success">{t('email.configured')}</AppTag>
               ) : (
-                <Tag color="warning">{t('email.notConfigured')}</Tag>
+                <AppTag color="warning">{t('email.notConfigured')}</AppTag>
               )}
             </Space>
             <Button
@@ -218,7 +217,7 @@ const SmtpConfigForm: React.FC<SmtpConfigFormProps> = ({ smtpForm, emailConfig, 
             {t('email.sendTest')}
           </Button>
         </Space.Compact>
-      </Spin>
+      </AppSpin>
     </Card>
   );
 };

@@ -1,4 +1,4 @@
-import {
+﻿import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   DollarOutlined,
@@ -7,23 +7,9 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Badge,
-  Button,
-  Card,
-  Col,
-  Divider,
-  Drawer,
-  Popconfirm,
-  Row,
-  Space,
-  Spin,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
+import { Badge, Button, Card, Col, Divider, Drawer, Popconfirm, Row, Space, Spin, Table, Tag, Tooltip, Typography } from 'antd';
+import { appMessage as message } from '../../utils';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React, { useState } from 'react';
 import { gemloginApi } from '../../api';
 
@@ -89,23 +75,23 @@ const GemLoginProfileTable: React.FC<GemLoginProfileTableProps> = ({
         <Col flex="auto">
           <Space wrap size="small">
             {isRunning && status?.activeProfileId && (
-              <Tag icon={<CheckCircleOutlined />} color="success">
+              <AppTag icon={<CheckCircleOutlined />} color="success">
                 Profile: {status.activeProfileId}
-              </Tag>
+              </AppTag>
             )}
             {isRunning && status?.cdpInjected && (
-              <Tag icon={<CheckCircleOutlined />} color="blue">
+              <AppTag icon={<CheckCircleOutlined />} color="blue">
                 CDP đã inject → Scraper dùng GemLogin
-              </Tag>
+              </AppTag>
             )}
             {isRunning && !status?.cdpInjected && (
-              <Tag icon={<CloseCircleOutlined />} color="warning">
+              <AppTag icon={<CloseCircleOutlined />} color="warning">
                 CDP chưa inject
-              </Tag>
+              </AppTag>
             )}
             {!isRunning && startMutation.isPending && (
               <Space size="small">
-                <Spin size="small" />
+                <AppSpin size="small" />
                 <Text type="warning" style={{ fontSize: 12 }}>
                   GemLogin đang khởi động browser... có thể mất <b>30–90 giây</b>, vui lòng chờ.
                 </Text>
@@ -122,7 +108,7 @@ const GemLoginProfileTable: React.FC<GemLoginProfileTableProps> = ({
         <Col>
           <Space>
             {!isRunning ? (
-              <Tooltip title="Mở profile GemLogin ID=1. CDP URL sẽ tự inject vào scraper.">
+              <AppTooltip title="Mở profile GemLogin ID=1. CDP URL sẽ tự inject vào scraper.">
                 <Button
                   type="primary"
                   icon={<PlayCircleOutlined />}
@@ -131,7 +117,7 @@ const GemLoginProfileTable: React.FC<GemLoginProfileTableProps> = ({
                 >
                   Khởi động
                 </Button>
-              </Tooltip>
+              </AppTooltip>
             ) : (
               <Popconfirm
                 title="Đóng GemLogin profile?"
@@ -156,7 +142,7 @@ const GemLoginProfileTable: React.FC<GemLoginProfileTableProps> = ({
           <Space>
             <DollarOutlined />
             <span>{detailItem?.fullName || detailItem?.channelName || detailItem?.channelId}</span>
-            {detailItem?.period && <Tag color="blue">{detailItem.period}</Tag>}
+            {detailItem?.period && <AppTag color="blue">{detailItem.period}</AppTag>}
           </Space>
         }
         open={!!detailItem}

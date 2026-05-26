@@ -100,6 +100,7 @@ export const getInitials = (name: string): string => {
 
 // Export toast utilities
 export { toastError, toastInfo, toastSuccess, toastWarning } from './toast';
+export { appMessage, appNotification } from './appMessage';
 
 // Export table utilities
 export { getTableLocale } from './tableLocale';

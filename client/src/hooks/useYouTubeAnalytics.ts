@@ -1,4 +1,4 @@
-import { message } from 'antd';
+﻿import { appMessage as message } from '../utils';
 import { useState } from 'react';
 import { youtubeAPI } from '../api/youtube';
 import type { YouTubeAnalyticsData } from '../types';

@@ -46,10 +46,11 @@
   to   { background-position: 52px 52px; }
 }
 
-/* ORBS */
+/* ORBS — removed filter:blur(80px), GPU-killer on Windows iGPU.
+   Gradient alpha + opacity still gives a soft glow look. */
 .lp-orb {
   position: absolute; border-radius: 50%;
-  pointer-events: none; filter: blur(80px);
+  pointer-events: none; opacity: 0.6;
 }
 .lp-orb-1 {
   width: 600px; height: 600px; top: -200px; right: -150px;
@@ -143,7 +144,7 @@
   background: rgba(255,255,255,0.07);
   color: #e2e8f0; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; backdrop-filter: blur(8px);
+  font-size: 16px;
   transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
 }
 .lp-icon-btn:hover {
@@ -179,8 +180,9 @@
 /* CARD */
 .lp-card {
   display: flex; border-radius: 24px; overflow: hidden;
-  background: rgba(8,13,24,0.9);
-  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  /* Solid bg replaces backdrop-filter:blur(28px) — large blurred area
+     was the second biggest GPU cost on Windows iGPU. */
+  background: rgb(10, 16, 28);
   border: 1px solid rgba(237,143,58,0.12);
   box-shadow: 0 40px 100px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
   animation: card-breathe 6s ease-in-out infinite;

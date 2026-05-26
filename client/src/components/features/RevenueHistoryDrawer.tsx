@@ -1,9 +1,10 @@
-import type { YouTubeScrapeResult } from '@/types';
+﻿import type { YouTubeScrapeResult } from '@/types';
 import { getTableLocale } from '@/utils';
 import {
     HistoryOutlined,
 } from '@ant-design/icons';
 import { Drawer, Space, Table, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -75,7 +76,7 @@ const RevenueHistoryDrawer: React.FC<RevenueHistoryDrawerProps> = ({
           <HistoryOutlined />
           {t('ytScraper.scrapeHistory')}
           {scrapeHistory && scrapeHistory.length > 0 && scrapeHistory[0].koc && (
-            <Tag color="blue">{scrapeHistory[0].koc.full_name} - {scrapeHistory[0].koc.channel_name}</Tag>
+            <AppTag color="blue">{scrapeHistory[0].koc.full_name} - {scrapeHistory[0].koc.channel_name}</AppTag>
           )}
         </Space>
       }

@@ -1,6 +1,6 @@
 import type { ProgressState } from '@/hooks/useProgress';
 import { CloseOutlined } from '@ant-design/icons';
-import { Button, Progress, Typography } from 'antd';
+import { Button, Typography } from 'antd';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -36,9 +36,7 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
           position: 'fixed',
           inset: 0,
           zIndex: 2000,
-          background: 'rgba(0, 0, 0, 0.45)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
+          background: 'rgba(0, 0, 0, 0.38)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -67,13 +65,9 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
 
         {/* Progress bar */}
         <div style={{ width: 320 }}>
-          <Progress
-            percent={Math.round(percent)}
-            status="active"
-            strokeColor={{ from: '#1677ff', to: '#52c41a' }}
-            trailColor="rgba(255,255,255,0.2)"
-            showInfo={false}
-          />
+          <div className="native-progress-track">
+            <div className="native-progress-fill" style={{ width: `${Math.max(0, Math.min(100, Math.round(percent)))}%` }} />
+          </div>
         </div>
 
         {/* Message + step */}
@@ -91,8 +85,6 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
   }
 
   // --- Completed or error: small dismissible bar ---
-  let status: 'success' | 'exception' = state.error ? 'exception' : 'success';
-
   return (
     <div
       style={{
@@ -114,12 +106,12 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
           <Button type="text" size="small" icon={<CloseOutlined />} onClick={onDismiss} />
         )}
       </div>
-      <Progress
-        percent={100}
-        status={status}
-        size="small"
-        strokeColor={state.error ? '#ff4d4f' : '#52c41a'}
-      />
+      <div className="native-progress-track native-progress-track-inline">
+        <div
+          className="native-progress-fill"
+          style={{ width: '100%', background: state.error ? '#ff4d4f' : '#52c41a' }}
+        />
+      </div>
     </div>
   );
 };

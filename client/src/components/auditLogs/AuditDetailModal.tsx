@@ -1,4 +1,5 @@
-import { Descriptions, Modal, Space, Tag, Typography } from 'antd';
+﻿import { Descriptions, Modal, Space, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -38,19 +39,19 @@ const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose }) => 
             <Text copyable>{log.id}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={t('audit.action')}>
-            <Tag color={
+            <AppTag color={
               log.action === 'CREATE' ? 'green' :
               log.action === 'UPDATE' ? 'blue' :
               log.action === 'DELETE' ? 'red' :
               log.action === 'APPROVE' ? 'orange' : 'default'
             }>
               {t(`audit.actions.${log.action}`, log.action)}
-            </Tag>
+            </AppTag>
           </Descriptions.Item>
           <Descriptions.Item label={t('audit.entity')}>
-            <Tag color={entityColorMap[log.entity] || 'default'}>
+            <AppTag color={entityColorMap[log.entity] || 'default'}>
               {t(`audit.entities.${log.entity}`, log.entity)}
-            </Tag>
+            </AppTag>
           </Descriptions.Item>
           <Descriptions.Item label={t('audit.entityId')}>
             <Text copyable code>{log.entity_id}</Text>

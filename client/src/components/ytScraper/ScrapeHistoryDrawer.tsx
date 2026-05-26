@@ -1,5 +1,6 @@
-import { HistoryOutlined } from '@ant-design/icons';
+﻿import { HistoryOutlined } from '@ant-design/icons';
 import { Drawer, Space, Table, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -85,9 +86,9 @@ const ScrapeHistoryDrawer: React.FC<ScrapeHistoryDrawerProps> = ({
           <HistoryOutlined />
           {t('ytScraper.scrapeHistory')}
           {kocHistory && kocHistory.length > 0 && kocHistory[0].koc && (
-            <Tag color="blue">
+            <AppTag color="blue">
               {kocHistory[0].koc.full_name} - {kocHistory[0].koc.channel_name}
-            </Tag>
+            </AppTag>
           )}
         </Space>
       }

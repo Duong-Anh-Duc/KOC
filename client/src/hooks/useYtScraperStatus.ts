@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, notification } from 'antd';
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from 'antd';
+import { appNotification as notification } from '../utils';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ytScraperApi } from '../api';

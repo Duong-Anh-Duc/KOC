@@ -1,11 +1,11 @@
 import { ReloadOutlined } from '@ant-design/icons';
-import { Button, DatePicker, Grid, Select, Space, Typography } from 'antd';
+import { Button, Grid, Space, Typography } from 'antd';
+import { NativeSelect } from '../common';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 const { Title } = Typography;
-const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
 interface AuditLogsHeaderProps {
@@ -35,6 +35,7 @@ const AuditLogsHeader: React.FC<AuditLogsHeaderProps> = ({
     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 0, marginBottom: 16 }}>
       <Title level={3} style={{ margin: 0 }}>{t('menu.audit')}</Title>
       <Space wrap size="small">
+        {/* AntD-original:
         <RangePicker
           format="DD/MM/YYYY"
           placeholder={[t('common.startDate'), t('common.endDate')]}
@@ -48,7 +49,31 @@ const AuditLogsHeader: React.FC<AuditLogsHeaderProps> = ({
           ]}
           allowClear
         />
-        <Select
+        */}
+        <input
+          type="date"
+          className="native-bank-select"
+          aria-label={t('common.startDate')}
+          value={dateRange?.[0]?.format('YYYY-MM-DD') || ''}
+          onChange={(e) => onDateRangeChange([
+            e.target.value ? dayjs(e.target.value) : null,
+            dateRange?.[1] || null,
+          ])}
+          style={{ width: isMobile ? 140 : 150 }}
+        />
+        <input
+          type="date"
+          className="native-bank-select"
+          aria-label={t('common.endDate')}
+          value={dateRange?.[1]?.format('YYYY-MM-DD') || ''}
+          onChange={(e) => onDateRangeChange([
+            dateRange?.[0] || null,
+            e.target.value ? dayjs(e.target.value) : null,
+          ])}
+          style={{ width: isMobile ? 140 : 150 }}
+        />
+        {/* AntD-original: <Select .../> with same options */}
+        <NativeSelect
           style={{ width: isMobile ? 140 : 180 }}
           placeholder={t('audit.filterEntity')}
           allowClear
@@ -63,7 +88,8 @@ const AuditLogsHeader: React.FC<AuditLogsHeaderProps> = ({
             { value: 'SYSTEM_CONFIG', label: t('audit.entities.SYSTEM_CONFIG') },
           ]}
         />
-        <Select
+        {/* AntD-original: <Select .../> with same options */}
+        <NativeSelect
           style={{ width: isMobile ? 160 : 220 }}
           placeholder={t('audit.filterAction')}
           allowClear

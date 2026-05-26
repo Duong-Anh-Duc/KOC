@@ -1,4 +1,4 @@
-import {
+﻿import {
   CalendarOutlined,
   ClearOutlined,
   MailOutlined,
@@ -9,7 +9,7 @@ import {
 import { Button, Card, Input, Table, Tag, Typography } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { TaskProgressBar } from '../common';
+import {  TaskProgressBar, AppTag } from '../common';
 import type { ProgressState } from '../../hooks/useProgress';
 const { Text } = Typography;
 
@@ -159,7 +159,7 @@ const KocSelectionPanel: React.FC<Props> = ({
               align: 'center' as const,
               render: (status: string) => {
                 const color = status === 'PAID' ? 'green' : status === 'APPROVED' ? 'blue' : 'orange';
-                return <Tag color={color} style={{ margin: 0 }}>{String(t(`status.${status}`, status))}</Tag>;
+                return <AppTag color={color} style={{ margin: 0 }}>{String(t(`status.${status}`, status))}</AppTag>;
               },
               filters: [
                 { text: String(t('status.PENDING', 'PENDING')), value: 'PENDING' },

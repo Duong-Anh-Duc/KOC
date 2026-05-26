@@ -1,5 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { Button, Col, Divider, Empty, List, Row, Space, Statistic, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import { useTranslation } from 'react-i18next';
 import type { AuditLog, DashboardOverview } from '../../types';
 import { formatNumber, formatUSD, formatVND } from '../../utils';
@@ -57,7 +58,7 @@ export const MyRevenuePanel: React.FC<PanelProps> = ({ overview, onOpen }) => {
         <div style={cardStyle}>
           <Space>
             <Text style={labelStyle}>{t('universe.drawer.latestCycle')}</Text>
-            <Tag color="orange">{summary.cycle?.month}</Tag>
+            <AppTag color="orange">{summary.cycle?.month}</AppTag>
           </Space>
           <Row gutter={12} style={{ marginTop: 12 }}>
             <Col span={12}>
@@ -170,7 +171,7 @@ export const GrowthPanel: React.FC<PanelProps> = ({ overview, onOpen }) => {
                   }}
                 >
                   <Text style={{ color: '#fff' }}>{item.full_name}</Text>
-                  <Tag color="green">{formatNumber(item.subs_growth, 2)}%</Tag>
+                  <AppTag color="green">{formatNumber(item.subs_growth, 2)}%</AppTag>
                 </div>
                 <Text style={{ color: '#888', fontSize: 12 }}>{item.channel_name}</Text>
               </div>

@@ -1,4 +1,4 @@
-import {
+﻿import {
   BarChartOutlined,
   CalendarOutlined,
   DollarOutlined,
@@ -15,6 +15,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../components/common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMyRevenue, useMyStats } from '../hooks';
@@ -43,7 +44,7 @@ const MyRevenuePage: React.FC = () => {
   if (isLoadingRevenue || isLoadingStats) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <Spin size="large" />
+        <AppSpin size="large" />
       </div>
     );
   }
@@ -67,12 +68,12 @@ const MyRevenuePage: React.FC = () => {
             <Descriptions.Item label={t('koc.email')}>{koc.email}</Descriptions.Item>
             <Descriptions.Item label={t('koc.baseRate')}>{(Number(koc.base_rate) * 100).toFixed(0)}%</Descriptions.Item>
             <Descriptions.Item label={t('koc.pubCode')}>
-              {koc.pub_code ? <Tag color="purple" style={{ fontFamily: 'monospace' }}>{koc.pub_code}</Tag> : '-'}
+              {koc.pub_code ? <AppTag color="purple" style={{ fontFamily: 'monospace' }}>{koc.pub_code}</AppTag> : '-'}
             </Descriptions.Item>
             <Descriptions.Item label={t('koc.status')}>
-              <Tag color={koc.status === 'ACTIVE' ? 'green' : 'default'}>
+              <AppTag color={koc.status === 'ACTIVE' ? 'green' : 'default'}>
                 {koc.status === 'ACTIVE' ? t('status.active') : t('status.inactive')}
-              </Tag>
+              </AppTag>
             </Descriptions.Item>
           </Descriptions>
         </Card>

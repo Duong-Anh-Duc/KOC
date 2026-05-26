@@ -1,13 +1,12 @@
-import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined, DollarCircleOutlined } from '@ant-design/icons';
+﻿import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { Button, Grid, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
+import { AppSpin, AppTag, AppTooltip, SummaryBar } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
 import { getTableLocale } from '../../utils';
-import { SummaryBar } from '../common';
-
 const { useBreakpoint } = Grid;
 
 interface CyclesTabProps {
@@ -79,9 +78,9 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
         <Space size={4}>
           <span>{Number(val).toLocaleString()} {t('common.vnd')}</span>
           {record.exchange_rate_locked && (
-            <Tooltip title={t('cycle.exchangeRateLocked')}>
+            <AppTooltip title={t('cycle.exchangeRateLocked')}>
               <LockOutlined style={{ color: '#faad14', fontSize: 12 }} />
-            </Tooltip>
+            </AppTooltip>
           )}
         </Space>
       ),
@@ -91,7 +90,7 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       dataIndex: 'status',
       width: 120,
       render: (status: string) => (
-        <Tag color={statusColorMap[status]}>{t(`status.${status}`, status)}</Tag>
+        <AppTag color={statusColorMap[status]}>{t(`status.${status}`, status)}</AppTag>
       ),
     },
     {
@@ -109,24 +108,24 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
       className: 'actions-col',
       render: (_: unknown, record: RevenueCycle) => (
         <Space size="small" onClick={(e) => e.stopPropagation()}>
-          <Tooltip title={t('revenue.viewRecords')}>
+          <AppTooltip title={t('revenue.viewRecords')}>
             <Button
               type="link"
               size="small"
               icon={<DollarOutlined />}
               onClick={() => onCycleClick(record)}
             />
-          </Tooltip>
+          </AppTooltip>
           {record.status === 'OPEN' && canManageCycle && (
             <>
-              <Tooltip title={t('common.edit')}>
+              <AppTooltip title={t('common.edit')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<EditOutlined style={{ color: '#1677ff' }} />}
                   onClick={() => onEditCycle(record)}
                 />
-              </Tooltip>
+              </AppTooltip>
               {record.exchange_rate_locked ? (
                 <Popconfirm
                   title={t('confirm.unlockExchangeRate')}
@@ -134,14 +133,14 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                   okText={t('common.yes')}
                   cancelText={t('common.no')}
                 >
-                  <Tooltip title={t('cycle.unlockExchangeRate')}>
+                  <AppTooltip title={t('cycle.unlockExchangeRate')}>
                     <Button
                       type="text"
                       size="small"
                       loading={lockExchangeRateLoading}
                       icon={<DollarCircleOutlined style={{ color: '#faad14' }} />}
                     />
-                  </Tooltip>
+                  </AppTooltip>
                 </Popconfirm>
               ) : (
                 <Popconfirm
@@ -150,14 +149,14 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                   okText={t('common.yes')}
                   cancelText={t('common.no')}
                 >
-                  <Tooltip title={t('cycle.lockExchangeRate')}>
+                  <AppTooltip title={t('cycle.lockExchangeRate')}>
                     <Button
                       type="text"
                       size="small"
                       loading={lockExchangeRateLoading}
                       icon={<DollarCircleOutlined style={{ color: '#52c41a' }} />}
                     />
-                  </Tooltip>
+                  </AppTooltip>
                 </Popconfirm>
               )}
               {canManageCycle && (
@@ -167,13 +166,13 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                   okText={t('common.yes')}
                   cancelText={t('common.no')}
                 >
-                  <Tooltip title={t('cycle.lock')}>
+                  <AppTooltip title={t('cycle.lock')}>
                     <Button
                       type="text"
                       size="small"
                       icon={<LockOutlined style={{ color: '#faad14' }} />}
                     />
-                  </Tooltip>
+                  </AppTooltip>
                 </Popconfirm>
               )}
             </>
@@ -186,13 +185,13 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                 okText={t('common.yes')}
                 cancelText={t('common.no')}
               >
-                <Tooltip title={t('cycle.reopen')}>
+                <AppTooltip title={t('cycle.reopen')}>
                   <Button
                     type="text"
                     size="small"
                     icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
                   />
-                </Tooltip>
+                </AppTooltip>
               </Popconfirm>
               <Popconfirm
                 title={t('confirm.completeCycle')}
@@ -200,13 +199,13 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                 okText={t('common.yes')}
                 cancelText={t('common.no')}
               >
-                <Tooltip title={t('cycle.complete')}>
+                <AppTooltip title={t('cycle.complete')}>
                   <Button
                     type="text"
                     size="small"
                     icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                   />
-                </Tooltip>
+                </AppTooltip>
               </Popconfirm>
             </>
           )}
@@ -217,13 +216,13 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
               okText={t('common.yes')}
               cancelText={t('common.no')}
             >
-              <Tooltip title={t('cycle.reopen')}>
+              <AppTooltip title={t('cycle.reopen')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
                 />
-              </Tooltip>
+              </AppTooltip>
             </Popconfirm>
           )}
         </Space>

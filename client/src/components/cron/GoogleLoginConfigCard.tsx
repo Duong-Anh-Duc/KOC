@@ -1,6 +1,8 @@
-import { CheckCircleTwoTone, CloseCircleTwoTone, GoogleOutlined, SyncOutlined } from '@ant-design/icons';
+﻿import { CheckCircleTwoTone, CloseCircleTwoTone, GoogleOutlined, SyncOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Form, Input, Space, Switch, Tag, Tooltip, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, Space, Switch, Tag, Tooltip, Typography } from 'antd';
+import { appMessage as message } from '../../utils';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { googleLoginApi } from '../../api';
@@ -67,15 +69,15 @@ const GoogleLoginConfigCard: React.FC = () => {
             <GoogleOutlined style={{ color: '#4285f4' }} />
             <span>{t('googleLogin.title')}</span>
             {config?.autoLoginEnabled
-              ? <Tag color="green">{t('googleLogin.configEnabled')}</Tag>
-              : <Tag>{t('googleLogin.configDisabled')}</Tag>}
+              ? <AppTag color="green">{t('googleLogin.configEnabled')}</AppTag>
+              : <AppTag>{t('googleLogin.configDisabled')}</AppTag>}
             {status.loggedIn
-              ? <Tag color="success">{t('googleLogin.sessionOK')}</Tag>
-              : <Tag color="warning">{t('googleLogin.sessionNeedLogin')}</Tag>}
+              ? <AppTag color="success">{t('googleLogin.sessionOK')}</AppTag>
+              : <AppTag color="warning">{t('googleLogin.sessionNeedLogin')}</AppTag>}
           </Space>
         }
         extra={
-          <Tooltip title={t('googleLogin.checkSessionTooltip')}>
+          <AppTooltip title={t('googleLogin.checkSessionTooltip')}>
             <Button
               icon={<SyncOutlined spin={status.isChecking} />}
               onClick={() => status.checkNow()}
@@ -84,7 +86,7 @@ const GoogleLoginConfigCard: React.FC = () => {
             >
               {t('googleLogin.checkSessionButton')}
             </Button>
-          </Tooltip>
+          </AppTooltip>
         }
         loading={isLoading}
       >
@@ -120,9 +122,9 @@ const GoogleLoginConfigCard: React.FC = () => {
               <Space>
                 <span>{t('googleLogin.passwordLabel')}</span>
                 {config?.hasPassword ? (
-                  <Tag icon={<CheckCircleTwoTone twoToneColor="#52c41a" />} color="success">{t('googleLogin.set')}</Tag>
+                  <AppTag icon={<CheckCircleTwoTone twoToneColor="#52c41a" />} color="success">{t('googleLogin.set')}</AppTag>
                 ) : (
-                  <Tag icon={<CloseCircleTwoTone twoToneColor="#ff4d4f" />} color="error">{t('googleLogin.notSet')}</Tag>
+                  <AppTag icon={<CloseCircleTwoTone twoToneColor="#ff4d4f" />} color="error">{t('googleLogin.notSet')}</AppTag>
                 )}
               </Space>
             }
@@ -137,9 +139,9 @@ const GoogleLoginConfigCard: React.FC = () => {
               <Space>
                 <span>{t('googleLogin.totpLabel')}</span>
                 {config?.hasTotpSecret ? (
-                  <Tag icon={<CheckCircleTwoTone twoToneColor="#52c41a" />} color="success">{t('googleLogin.set')}</Tag>
+                  <AppTag icon={<CheckCircleTwoTone twoToneColor="#52c41a" />} color="success">{t('googleLogin.set')}</AppTag>
                 ) : (
-                  <Tag icon={<CloseCircleTwoTone twoToneColor="#ff4d4f" />} color="error">{t('googleLogin.notSet')}</Tag>
+                  <AppTag icon={<CloseCircleTwoTone twoToneColor="#ff4d4f" />} color="error">{t('googleLogin.notSet')}</AppTag>
                 )}
               </Space>
             }

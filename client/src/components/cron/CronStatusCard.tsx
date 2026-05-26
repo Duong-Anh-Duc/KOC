@@ -1,5 +1,6 @@
-import { ClockCircleOutlined } from '@ant-design/icons';
+﻿import { ClockCircleOutlined } from '@ant-design/icons';
 import { Alert, Badge, Card, Descriptions, Divider, Space, Tag, Typography } from 'antd';
+import { AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,18 +49,18 @@ const CronStatusCard: React.FC<CronStatusCardProps> = ({ config, preview }) => {
           />
         </Descriptions.Item>
         <Descriptions.Item label={t('cron.currentSchedule')}>
-          <Tag color="blue" style={{ fontSize: 13 }}>
+          <AppTag color="blue" style={{ fontSize: 13 }}>
             {config?.schedule ? cronToHumanReadable(config.schedule, t) : '-'}
-          </Tag>
+          </AppTag>
         </Descriptions.Item>
         <Descriptions.Item label={t('cron.nextCycleMonth')}>
           <Space>
-            <Tag color="blue">{preview?.targetMonth || '-'}</Tag>
+            <AppTag color="blue">{preview?.targetMonth || '-'}</AppTag>
             {preview?.canRun === false && (
-              <Tag color="orange">{t('cron.monthNotCompleted')}</Tag>
+              <AppTag color="orange">{t('cron.monthNotCompleted')}</AppTag>
             )}
             {preview?.canRun === true && (
-              <Tag color="green">{t('cron.readyToRun')}</Tag>
+              <AppTag color="green">{t('cron.readyToRun')}</AppTag>
             )}
           </Space>
         </Descriptions.Item>

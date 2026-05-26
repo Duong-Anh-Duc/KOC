@@ -1,5 +1,7 @@
-import { SafetyOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, Empty, message, Spin, Table, Tag, Tooltip, Typography } from 'antd';
+﻿import { SafetyOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Button, Empty, Spin, Table, Tag, Tooltip, Typography } from 'antd';
+import { appMessage as message } from '../utils';
+import { AppAvatar, AppSpin, AppTag, AppTooltip } from '../components/common';
 import type { ColumnsType } from 'antd/es/table';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -118,7 +120,8 @@ const PermissionManagementPage: React.FC = () => {
       key: 'name',
       render: (_: unknown, record: ManagerUser) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }} />
+          {/* AntD-original: <Avatar icon={<UserOutlined />} /> */}
+          <AppAvatar icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }} />
           <div>
             <Text strong>{record.full_name}</Text>
             <br />
@@ -134,7 +137,7 @@ const PermissionManagementPage: React.FC = () => {
       align: 'center',
       render: (_: unknown, record: ManagerUser) => {
         const count = (accessMap[record.id] || []).length;
-        return <Tag color={count > 0 ? 'blue' : 'default'}>{count} / {kocs.length} KOC</Tag>;
+        return <AppTag color={count > 0 ? 'blue' : 'default'}>{count} / {kocs.length} KOC</AppTag>;
       },
     },
     {
@@ -143,15 +146,15 @@ const PermissionManagementPage: React.FC = () => {
       width: 80,
       align: 'center',
       render: (_: unknown, record: ManagerUser) => (
-        <Tooltip title={t('permissions.configure')}>
+        <AppTooltip title={t('permissions.configure')}>
           <Button type="primary" shape="circle" icon={<SettingOutlined />} onClick={() => setSelectedManager(record)} />
-        </Tooltip>
+        </AppTooltip>
       ),
     },
   ];
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}><Spin size="large" /></div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}><AppSpin size="large" /></div>;
   }
 
   const modalEntry = selectedManager && permModalKoc

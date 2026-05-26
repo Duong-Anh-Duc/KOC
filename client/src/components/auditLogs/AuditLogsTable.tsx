@@ -1,5 +1,6 @@
-import { EyeOutlined } from '@ant-design/icons';
+﻿import { EyeOutlined } from '@ant-design/icons';
 import { Button, Grid, Table, Tag, Tooltip } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -75,7 +76,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
           SCRAPE_REVENUE: 'lime',
           SEND_REVENUE_EMAILS: 'geekblue',
         };
-        return <Tag color={colorMap[action] || 'default'}>{t(`audit.actions.${action}`, action)}</Tag>;
+        return <AppTag color={colorMap[action] || 'default'}>{t(`audit.actions.${action}`, action)}</AppTag>;
       },
     },
     {
@@ -83,7 +84,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
       dataIndex: 'entity',
       width: 140,
       render: (val: string) => (
-        <Tag color={entityColorMap[val] || 'default'}>{t(`audit.entities.${val}`, val)}</Tag>
+        <AppTag color={entityColorMap[val] || 'default'}>{t(`audit.entities.${val}`, val)}</AppTag>
       ),
     },
     {
@@ -114,7 +115,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
       width: 100,
       align: 'center',
       render: (_: unknown, record: AuditLog) => (
-        <Tooltip title={t('common.viewDetails')}>
+        <AppTooltip title={t('common.viewDetails')}>
           <Button
             type="text"
             size="small"
@@ -122,7 +123,7 @@ const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
             icon={<EyeOutlined />}
             onClick={() => onViewDetails(record)}
           />
-        </Tooltip>
+        </AppTooltip>
       ),
     },
   ];

@@ -1,4 +1,5 @@
-import { Card, Spin, Typography } from 'antd';
+﻿import { Card, Spin, Typography } from 'antd';
+import { AppSpin, AppTooltip } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
@@ -24,7 +25,7 @@ const Top10Chart: React.FC<Top10ChartProps> = ({ topKOCs, loading }) => {
   return (
     <Card style={{ marginBottom: 16 }}>
       <Title level={4}>{t('stats.top10ChannelsByViews')}</Title>
-      <Spin spinning={loading}>
+      <AppSpin spinning={loading}>
         {topKOCs.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={topKOCs}>
@@ -39,7 +40,7 @@ const Top10Chart: React.FC<Top10ChartProps> = ({ topKOCs, loading }) => {
         ) : (
           <Text>{t('common.noData')}</Text>
         )}
-      </Spin>
+      </AppSpin>
     </Card>
   );
 };

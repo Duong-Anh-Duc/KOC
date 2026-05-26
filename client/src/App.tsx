@@ -1,25 +1,30 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AppLayout } from './components/layout';
-import {
-  AuditLogsPage,
-  CronSettingsPage,
-  DashboardPage,
-  EmailSettingsPage,
-  KOCManagementPage,
-  LoginPage,
-  MyRevenuePage,
-  PermissionManagementPage,
-  RevenueControlPage,
-  SendRevenueEmailPage,
-  StatsPage,
-  UniversePage,
-  UserManagementPage,
-  YouTubeScraperPage,
-} from './pages';
 import { useAppStore, useAuthStore } from './stores';
+
+// Route-level code splitting: each page ships its own chunk so the initial
+// bundle stays small and heavy deps (three.js, charts) load on demand.
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const KOCManagementPage = lazy(() => import('./pages/KOCManagementPage'));
+const RevenueControlPage = lazy(() => import('./pages/RevenueControlPage'));
+const StatsPage = lazy(() => import('./pages/StatsPage'));
+const SendRevenueEmailPage = lazy(() => import('./pages/SendRevenueEmailPage'));
+const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
+const YouTubeScraperPage = lazy(() => import('./pages/YouTubeScraperPage'));
+const CronSettingsPage = lazy(() => import('./pages/CronSettingsPage'));
+const EmailSettingsPage = lazy(() => import('./pages/EmailSettingsPage'));
+const PermissionManagementPage = lazy(() => import('./pages/PermissionManagementPage'));
+const MyRevenuePage = lazy(() => import('./pages/MyRevenuePage'));
+const UniversePage = lazy(() => import('./pages/UniversePage'));
+
+const RouteFallback: React.FC = () => (
+  <div style={{ padding: 24, color: '#888', fontSize: 13 }}>Đang tải…</div>
+);
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -60,6 +65,7 @@ const App: React.FC = () => {
   return (
     <>
       <BrowserRouter>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -96,6 +102,7 @@ const App: React.FC = () => {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
       <ToastContainer
         position="top-right"

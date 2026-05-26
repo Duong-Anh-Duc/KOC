@@ -1,5 +1,5 @@
-import { GlobalOutlined, LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Form, Input, Select, theme as antTheme } from 'antd';
+import { LockOutlined, MailOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { Button, ConfigProvider, Form, Input, theme as antTheme } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import type { LoginInput } from '../types';
 import ForgotPasswordModal from '../components/login/ForgotPasswordModal';
 import LoginBackground from '../components/login/LoginBackground';
 import LoginBrandPanel from '../components/login/LoginBrandPanel';
+import { NativeSelect } from '../components/common';
 import '../components/login/loginPage.css';
 
 const LoginPage: React.FC = () => {
@@ -57,6 +58,7 @@ const LoginPage: React.FC = () => {
       {/* Top controls */}
       <div className="lp-controls">
         <ConfigProvider theme={{ algorithm: antTheme.darkAlgorithm, token: { colorPrimary: '#ED8F3A', borderRadius: 8 } }}>
+          {/* AntD-original:
           <Select
             value={locale}
             onChange={handleLanguageChange}
@@ -65,6 +67,16 @@ const LoginPage: React.FC = () => {
             options={[
               { value: 'vi', label: '🇻🇳 Tiếng Việt' },
               { value: 'en', label: '🇺🇸 English' },
+            ]}
+          />
+          */}
+          <NativeSelect
+            value={locale}
+            onChange={(v) => handleLanguageChange((v ?? 'vi') as 'vi' | 'en')}
+            style={{ width: 130 }}
+            options={[
+              { value: 'vi', label: 'Tiếng Việt' },
+              { value: 'en', label: 'English' },
             ]}
           />
         </ConfigProvider>

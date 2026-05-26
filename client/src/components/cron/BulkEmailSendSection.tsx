@@ -8,16 +8,14 @@ import {
   Divider,
   Modal,
   Row,
-  Select,
   Table,
-  Tag,
   Typography
 } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emailApi, revenueApi } from '../../api';
 import { toastError, toastSuccess } from '../../utils';
-import { TaskProgressBar } from '../common';
+import { AppTag, NativeMultiSelect, NativeSelect, TaskProgressBar } from '../common';
 
 const { Text, Title } = Typography;
 
@@ -143,6 +141,7 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
               {t('email.selectCycle')}
             </Text>
+            {/* AntD-original:
             <Select
               placeholder={t('email.selectCyclePlaceholder')}
               value={selectedMonth || undefined}
@@ -156,6 +155,21 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
                 label: `${c.month} - ${c.status} (${c.recordCount} ${t('email.records')})`,
               }))}
             />
+            */}
+            <NativeSelect
+              placeholder={t('email.selectCyclePlaceholder')}
+              value={selectedMonth || undefined}
+              onChange={(val) => {
+                setSelectedMonth(val || '');
+                setSelectedKocIds([]);
+              }}
+              style={{ width: '100%' }}
+              options={cycles.map((c: any) => ({
+                value: c.month,
+                label: `${c.month} - ${c.status} (${c.recordCount} ${t('email.records')})`,
+              }))}
+              allowClear
+            />
           </Col>
 
           {/* KOC Selection */}
@@ -165,6 +179,7 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
                 <TeamOutlined style={{ marginRight: 4 }} />
                 {t('email.selectKoc')}
               </Text>
+              {/* AntD-original:
               <Select
                 mode="multiple"
                 allowClear
@@ -177,6 +192,14 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
                 filterOption={(input, option) =>
                   (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
                 }
+              />
+              */}
+              <NativeMultiSelect
+                placeholder={t('email.selectKocPlaceholder')}
+                value={selectedKocIds}
+                onChange={setSelectedKocIds}
+                style={{ width: '100%' }}
+                options={kocOptions}
               />
             </Col>
           )}
@@ -238,7 +261,7 @@ const BulkEmailSendSection: React.FC<BulkEmailSendSectionProps> = ({ onSendingCh
                 width: 110,
                 render: (status: string) => {
                   const color = status === 'PAYMENT_COMPLETED' ? 'green' : status === 'LOCKED' ? 'orange' : 'blue';
-                  return <Tag color={color}>{t(`status.${status}`, status)}</Tag>;
+                  return <AppTag color={color}>{t(`status.${status}`, status)}</AppTag>;
                 },
               },
               {

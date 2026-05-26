@@ -1,5 +1,6 @@
-import { CheckCircleOutlined, EditOutlined, LockOutlined } from '@ant-design/icons';
+﻿import { CheckCircleOutlined, EditOutlined, LockOutlined } from '@ant-design/icons';
 import { Button, Grid, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
@@ -72,7 +73,7 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
       dataIndex: 'status',
       width: 120,
       render: (status: string) => (
-        <Tag color={statusColorMap[status]}>{t(`status.${status}`, status)}</Tag>
+        <AppTag color={statusColorMap[status]}>{t(`status.${status}`, status)}</AppTag>
       ),
     },
     {
@@ -98,7 +99,7 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
         <Space size="small">
           {record.status === 'OPEN' && (
             <>
-              <Tooltip title={t('common.edit')}>
+              <AppTooltip title={t('common.edit')}>
                 <Button
                   type="text"
                   size="small"
@@ -106,7 +107,7 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
                   onClick={() => onEdit(record)}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
               {isAdmin && (
                 <Popconfirm
                   title={t('confirm.lockCycle')}
@@ -114,14 +115,14 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
                   okText={t('common.yes')}
                   cancelText={t('common.no')}
                 >
-                  <Tooltip title={t('cycle.lock')}>
+                  <AppTooltip title={t('cycle.lock')}>
                     <Button
                       type="text"
                       size="small"
                       icon={<LockOutlined style={{ color: '#faad14' }} />}
                       style={{ padding: '4px 8px' }}
                     />
-                  </Tooltip>
+                  </AppTooltip>
                 </Popconfirm>
               )}
             </>
@@ -133,18 +134,18 @@ const CyclesTable: React.FC<CyclesTableProps> = ({
               okText={t('common.yes')}
               cancelText={t('common.no')}
             >
-              <Tooltip title={t('cycle.complete')}>
+              <AppTooltip title={t('cycle.complete')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                   style={{ padding: '4px 8px' }}
                 />
-              </Tooltip>
+              </AppTooltip>
             </Popconfirm>
           )}
           {record.status === 'PAYMENT_COMPLETED' && (
-            <Tag color="green" style={{ marginRight: 0 }}>{t('status.completed')}</Tag>
+            <AppTag color="green" style={{ marginRight: 0 }}>{t('status.completed')}</AppTag>
           )}
         </Space>
       ),

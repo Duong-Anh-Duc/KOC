@@ -1,4 +1,4 @@
-import { Empty, Grid, Select, Space } from 'antd';
+import { Empty, Grid } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -126,7 +126,8 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
 
   return (
     <>
-      <Space style={{ marginBottom: 16 }} wrap>
+      <div className="revenue-cycle-strip">
+        {/* AntD-original:
         <Select
           style={{ width: isMobile ? '100%' : 220, minWidth: isMobile ? 0 : undefined }}
           placeholder={t('revenue.selectCycle')}
@@ -139,7 +140,25 @@ const RevenueTab: React.FC<RevenueTabProps> = ({
           }))}
           allowClear
         />
-      </Space>
+        */}
+        {loadingCycles && (
+          <span className="revenue-cycle-empty">{t('common.loading')}</span>
+        )}
+        {!loadingCycles && (!cycles || cycles.length === 0) && (
+          <span className="revenue-cycle-empty">{t('revenue.selectCycle')}</span>
+        )}
+        {!loadingCycles && (cycles || []).map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`revenue-cycle-chip ${selectedCycleId === c.id ? 'revenue-cycle-chip-active' : ''}`}
+            onClick={() => onCycleChange(c.id)}
+          >
+            <span>{c.month}</span>
+            <small>{t(`status.${c.status}`, c.status)}</small>
+          </button>
+        ))}
+      </div>
 
       {selectedCycleId && totals && (
         <RevenueSummary

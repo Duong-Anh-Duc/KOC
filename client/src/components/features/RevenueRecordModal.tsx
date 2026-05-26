@@ -1,7 +1,8 @@
-import { Col, Form, InputNumber, Modal, Row, Select } from 'antd';
+import { Col, Form, Modal, Row } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueRecord } from '../../types';
+import { NativeNumberInput, NativeSelect } from '../common';
 
 interface RevenueRecordModalProps {
   open: boolean;
@@ -57,11 +58,21 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
           label={t('revenue.selectKOC')}
           rules={[{ required: true, message: t('validation.required') }]}
         >
+          {/* AntD-original:
           <Select
             showSearch
             placeholder={t('revenue.selectKOCPlaceholder')}
             disabled={!!editingRecord}
             optionFilterProp="label"
+            options={activeKOCs.map((koc) => ({
+              value: koc.id,
+              label: `${koc.full_name} (${koc.channel_name})`,
+            }))}
+          />
+          */}
+          <NativeSelect
+            placeholder={t('revenue.selectKOCPlaceholder')}
+            disabled={!!editingRecord}
             options={activeKOCs.map((koc) => ({
               value: koc.id,
               label: `${koc.full_name} (${koc.channel_name})`,
@@ -76,6 +87,7 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
               label={t('revenue.originalRevenue') + ' ($)'}
               rules={[{ required: true, message: t('validation.required') }]}
             >
+              {/* AntD-original:
               <InputNumber
                 min={0}
                 step={0.01}
@@ -84,6 +96,8 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
                 formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 parser={(value) => value?.replace(/\$\s?|(,*)/g, '') as unknown as 0}
               />
+              */}
+              <NativeNumberInput min={0} step={0.01} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -92,6 +106,7 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
               label={t('revenue.usTax') + ' ($)'}
               rules={[{ required: true, message: t('validation.required') }]}
             >
+              {/* AntD-original:
               <InputNumber
                 min={0}
                 step={0.01}
@@ -100,6 +115,8 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
                 formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 parser={(value) => value?.replace(/\$\s?|(,*)/g, '') as unknown as 0}
               />
+              */}
+              <NativeNumberInput min={0} step={0.01} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>

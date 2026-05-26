@@ -1,10 +1,11 @@
-import { CameraOutlined, UserOutlined } from '@ant-design/icons';
+﻿import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
 import { Avatar, Form, Input, Modal, Tag, Upload } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authApi } from '../../api';
 import { uploadApi } from '../../api/upload.api';
+import {  AppAvatar, AppTag } from '../common';
 import { useAuthStore } from '../../stores';
 import { toastError, toastSuccess } from '../../utils';
 
@@ -83,7 +84,8 @@ const ProfileModal: React.FC<Props> = ({ open, onClose }) => {
           }}
         >
           <div style={{ cursor: 'pointer', position: 'relative', display: 'inline-block', marginBottom: 8 }}>
-            <Avatar
+            {/* AntD-original: <Avatar size={80} src={...} icon={...} /> */}
+            <AppAvatar
               size={80}
               src={user?.avatar_url}
               icon={!user?.avatar_url ? <UserOutlined /> : undefined}
@@ -110,9 +112,9 @@ const ProfileModal: React.FC<Props> = ({ open, onClose }) => {
         </Upload>
         {uploading && <div style={{ fontSize: 12, color: '#888' }}>{t('common.loading')}</div>}
         <div>
-          <Tag color={user?.role === 'ADMIN' ? 'red' : user?.role === 'KOC' ? 'green' : user?.role === 'VIEWER' ? 'orange' : 'blue'}>
+          <AppTag color={user?.role === 'ADMIN' ? 'red' : user?.role === 'KOC' ? 'green' : user?.role === 'VIEWER' ? 'orange' : 'blue'}>
             {user?.role}
-          </Tag>
+          </AppTag>
         </div>
       </div>
       <Form form={form} layout="vertical">

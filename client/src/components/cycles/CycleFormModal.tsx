@@ -1,7 +1,8 @@
 import type { FormInstance } from 'antd';
-import { Form, Input, InputNumber, Modal } from 'antd';
+import { Form, Input, Modal } from 'antd';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { NativeNumberInput } from '../common';
 
 interface CycleFormModalProps {
   open: boolean;
@@ -47,6 +48,7 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
           label={t('revenue.exchangeRate') + ' (VND/USD)'}
           rules={[{ required: true, message: t('validation.required') }]}
         >
+          {/* AntD-original:
           <InputNumber
             min={0}
             style={{ width: '100%' }}
@@ -54,6 +56,8 @@ const CycleFormModal: React.FC<CycleFormModalProps> = ({
             parser={(value) => value?.replace(/,/g, '') as unknown as 0}
             placeholder="25400"
           />
+          */}
+          <NativeNumberInput min={0} style={{ width: '100%' }} placeholder="25400" />
         </Form.Item>
       </Form>
     </Modal>

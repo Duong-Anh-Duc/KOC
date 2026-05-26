@@ -1,5 +1,6 @@
-import { CheckCircleOutlined, CloseCircleOutlined, HistoryOutlined } from '@ant-design/icons';
+﻿import { CheckCircleOutlined, CloseCircleOutlined, HistoryOutlined } from '@ant-design/icons';
 import { Card, Space, Table, Tag, Tooltip } from 'antd';
+import {  AppSpin, AppTooltip, AppTag } from '../common';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCronResult } from '../../utils/cronResultFormatter';
@@ -31,9 +32,9 @@ const RunHistoryTable: React.FC<RunHistoryTableProps> = ({ runHistory }) => {
       width: 100,
       align: 'center' as const,
       render: (val: boolean) => (
-        <Tag color={val ? 'success' : 'error'} icon={val ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
+        <AppTag color={val ? 'success' : 'error'} icon={val ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
           {val ? t('cron.success') : t('cron.failed')}
-        </Tag>
+        </AppTag>
       ),
     },
     {
@@ -51,7 +52,7 @@ const RunHistoryTable: React.FC<RunHistoryTableProps> = ({ runHistory }) => {
         // If message is too long, show it in a tooltip
         if (translatedMessage.length > 80) {
           return (
-            <Tooltip title={translatedMessage}>
+            <AppTooltip title={translatedMessage}>
               <div
                 style={{
                   overflow: 'hidden',
@@ -62,7 +63,7 @@ const RunHistoryTable: React.FC<RunHistoryTableProps> = ({ runHistory }) => {
               >
                 {translatedMessage}
               </div>
-            </Tooltip>
+            </AppTooltip>
           );
         }
         return translatedMessage;
