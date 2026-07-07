@@ -7,6 +7,7 @@
     "authRequired": "Authentication required",
     "loginSuccess": "Login successful",
     "loginFailed": "Invalid email or password",
+    "accountSuspended": "This email has been temporarily suspended",
     "registerSuccess": "User registered successfully",
     "emailExists": "Email already exists",
     "profileRetrieved": "Profile retrieved",
@@ -35,7 +36,8 @@
     "cannotEditSelf": "Cannot edit your own account",
     "cannotDeleteSelf": "Cannot delete your own account",
     "userUpdated": "User updated successfully",
-    "userDeleted": "User deleted successfully"
+    "userDeleted": "User deleted successfully",
+    "permissionRequired": "You do not have permission to perform this action"
   },
   "kocPortal": {
     "revenueRetrieved": "Revenue retrieved",
@@ -68,7 +70,8 @@
     "paymentStatusRetrieved": "Payment status retrieved",
     "cycleNotFound": "Revenue cycle not found",
     "recordsDeleted": "{{count}} records deleted",
-    "recordUnapproved": "Revenue record unapproved"
+    "recordUnapproved": "Revenue record unapproved",
+    "notYours": "This revenue record is outside your allowed scope"
   },
   "cycle": {
     "created": "Revenue cycle created",
@@ -174,6 +177,49 @@
     "accessRevoked": "Access revoked successfully"
   },
   "progress": {
-    "taskStarted": "Task started"
+    "taskStarted": "Task started",
+    "startingGemLogin": "Starting GemLogin...",
+    "startScrapingKocs": "Starting to scrape {{count}} KOCs...",
+    "startScrapingChannels": "Starting scrape for {{count}} channels...",
+    "scraping": "Scraping {{name}} ({{current}}/{{total}})",
+    "scrapingName": "Scraping: {{name}}...",
+    "scraped": "Scraped: {{name}}",
+    "savingData": "Saving data...",
+    "creatingRecord": "Creating record for {{name}} ({{current}}/{{total}})",
+    "openingPubTabs": "Opening {{count}} tabs to check Pub code...",
+    "checked": "Checked: {{name}} ({{current}}/{{total}})",
+    "sendingEmail": "Sending email to {{name}} ({{current}}/{{total}})",
+    "connectingBrowser": "Connecting to GemLogin browser...",
+    "openingStudio": "Opening studio.youtube.com to check session...",
+    "cdpNotReady": "CDP URL not ready",
+    "noBrowserContext": "No browser context",
+    "sessionOk": "Session still valid, no login needed",
+    "detectedLogout": "Logged out detected — starting auto-login...",
+    "autoLoginSuccess": "Auto-login successful",
+    "autoLoginFailed": "Auto-login failed — check logs",
+    "errorWithMessage": "Error: {{message}}",
+    "sbStart": "Starting to scrape {{count}} KOCs, {{batch}} tabs per batch...",
+    "sbCountryData": "Country data: {{name}}",
+    "sbError": "Error {{name}}: {{error}}",
+    "sbSaved": "Saved: {{name}} ({{current}}/{{total}})",
+    "sbSaveError": "Failed to save {{name}}",
+    "login": {
+      "notConfigured": "Email/password not configured — cannot log in",
+      "waitingOtherTab": "Waiting for another tab to finish logging in...",
+      "recentlyLoggedIn": "Recently logged in — just reloading",
+      "renavigating": "Re-navigating to the original page",
+      "openingChooser": "Opening Google account chooser...",
+      "selectingAccount": "Selecting account {{email}}",
+      "confirmingAccount": "Confirming selected account",
+      "enteringEmail": "Entering email {{email}}",
+      "waitingPassword": "Waiting for password page...",
+      "passwordPageMissing": "Password page did not appear — Google challenge",
+      "enteringPassword": "Entering password...",
+      "switchingAuthenticator": "Switching to the Authenticator page...",
+      "twoFANoSecret": "Google requires 2FA but no TOTP secret configured",
+      "fetchingTotp": "Fetching TOTP code from 2fa.live...",
+      "invalidTotp": "2fa.live returned an invalid code",
+      "enteringTotp": "Entering 6-digit code: {{code}}"
+    }
   }
 }

@@ -68,6 +68,7 @@ export class StatsController {
    */
   static async fetchAllStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const t = (_req as any).t;
       const authReq = _req as AuthenticatedRequest;
       const scope = await getAccessScope(authReq);
       const adminId = scope.adminId || authReq.user?.userId;
@@ -76,7 +77,7 @@ export class StatsController {
       // Respond immediately with taskId
       res.status(202).json({
         success: true,
-        message: 'Stats fetch started',
+        message: t ? t('progress.taskStarted') : 'Stats fetch started',
         data: { taskId },
       });
 
@@ -85,9 +86,9 @@ export class StatsController {
         try {
           const { GemLoginService } = await import('../gemlogin/gemlogin.service');
           await GemLoginService.ensureRunning(() =>
-            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' })
           );
-          await SocialBladeService.recordAllStatsWithProgress(taskId, adminId, scope.allowedKocIds);
+          await SocialBladeService.recordAllStatsWithProgress(taskId, adminId, scope.allowedKocIds, t);
         } catch {
           // Error handled inside service
         }

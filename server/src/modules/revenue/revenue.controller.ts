@@ -95,12 +95,13 @@ export class RevenueController {
    */
   static async updateRecord(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { original_revenue_usd, us_tax_deduction } = req.body;
+      const { original_revenue_usd, us_tax_deduction, accumulated_revenue_usd } = req.body;
 
       const { record, oldValue } = await RevenueService.updateRecord(
         req.params.id as string,
         original_revenue_usd,
         us_tax_deduction,
+        accumulated_revenue_usd,
         req.user?.userId
       );
 
@@ -249,7 +250,8 @@ export class RevenueController {
    */
   static async approveRecord(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const record = await RevenueService.approveRecord(req.params.id as string);
+      const scope = await getAccessScope(req);
+      const record = await RevenueService.approveRecord(req.params.id as string, scope.adminId, scope.allowedKocIds);
 
       if (req.user) {
         await AuditLogService.log(
@@ -278,7 +280,8 @@ export class RevenueController {
    */
   static async unapproveRecord(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const record = await RevenueService.unapproveRecord(req.params.id as string);
+      const scope = await getAccessScope(req);
+      const record = await RevenueService.unapproveRecord(req.params.id as string, scope.adminId, scope.allowedKocIds);
 
       if (req.user) {
         await AuditLogService.log(

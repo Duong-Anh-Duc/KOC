@@ -34,6 +34,7 @@ export const errorHandler = (
     res.status(err.statusCode).json({
       success: false,
       message,
+      ...(err.message === 'auth.accountSuspended' ? { code: 'ACCOUNT_SUSPENDED' } : {}),
     });
     return;
   }

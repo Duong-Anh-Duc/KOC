@@ -144,6 +144,7 @@ export class RevenueService {
     recordId: string,
     originalRevenueUsd?: number,
     usTaxDeduction?: number,
+    accumulatedRevenueUsd?: number,
     adminId?: string
   ) {
     const record = await prisma.revenueRecord.findUnique({
@@ -156,24 +157,50 @@ export class RevenueService {
 
     const newOriginal = originalRevenueUsd ?? Number(record.original_revenue_usd);
     const newTax = usTaxDeduction ?? Number(record.us_tax_deduction);
+    const newAccumulated = accumulatedRevenueUsd ?? Number(record.accumulated_revenue_usd || newOriginal);
 
-    const calculated = RevenueService.calculate({
+    const monthlyCalculated = RevenueService.calculate({
       originalRevenueUsd: newOriginal,
       usTaxDeduction: newTax,
       baseRate: Number(record.koc.base_rate),
       exchangeRate: Number(record.cycle.exchange_rate),
     });
 
+    // Accumulated KOC payout = sum of each month's own payout (per-month), not a
+    // single calculation on the accumulated total. So each month keeps its own
+    // $12 bank fee. Previous unpaid months + this (new) month.
+    const prevPending = await prisma.revenueRecord.findMany({
+      where: { koc_id: record.koc_id, status: 'PENDING', cycle_id: { lt: record.cycle_id } },
+      select: { koc_receive_usd: true },
+    });
+    const accumulatedKocUsd = RevenueService.round2(
+      prevPending.reduce((s, p) => s + Number(p.koc_receive_usd), 0) + monthlyCalculated.koc_receive_usd
+    );
+
     const oldValue = {
       original_revenue_usd: Number(record.original_revenue_usd),
       us_tax_deduction: Number(record.us_tax_deduction),
+      accumulated_revenue_usd: Number(record.accumulated_revenue_usd),
+      accumulated_koc_usd: Number(record.accumulated_koc_usd),
       koc_receive_usd: Number(record.koc_receive_usd),
       koc_receive_vnd: Number(record.koc_receive_vnd),
     };
 
     const updated = await prisma.revenueRecord.update({
       where: { id: recordId },
-      data: { ...calculated },
+      data: {
+        original_revenue_usd: newOriginal,
+        us_tax_deduction: newTax,
+        bank_fee: monthlyCalculated.bank_fee,
+        net_revenue: monthlyCalculated.net_revenue,
+        company_share: monthlyCalculated.company_share,
+        koc_share_gross: monthlyCalculated.koc_share_gross,
+        koc_tax_deduction: monthlyCalculated.koc_tax_deduction,
+        koc_receive_usd: monthlyCalculated.koc_receive_usd,
+        koc_receive_vnd: monthlyCalculated.koc_receive_vnd,
+        accumulated_revenue_usd: newAccumulated,
+        accumulated_koc_usd: accumulatedKocUsd,
+      },
       include: {
         koc: { select: { full_name: true, channel_name: true, pub_code: true } },
         cycle: { select: { month: true, exchange_rate: true } },
@@ -286,41 +313,93 @@ export class RevenueService {
         })
       : [];
 
-    // Sum previous PENDING revenue per KOC
-    const prevOriginalByKoc = new Map<string, number>();
-    const prevUsTaxByKoc = new Map<string, number>();
+    // Group previous PENDING months per KOC. Keep each month separate so every
+    // month can be calculated independently (see below).
+    const prevMonthsByKoc = new Map<string, Array<{ original: number; usTax: number }>>();
     for (const r of prevPendingRecords) {
-      prevOriginalByKoc.set(r.koc_id, (prevOriginalByKoc.get(r.koc_id) ?? 0) + Number(r.original_revenue_usd));
-      prevUsTaxByKoc.set(r.koc_id, (prevUsTaxByKoc.get(r.koc_id) ?? 0) + Number(r.us_tax_deduction));
+      const arr = prevMonthsByKoc.get(r.koc_id) ?? [];
+      arr.push({ original: Number(r.original_revenue_usd), usTax: Number(r.us_tax_deduction) });
+      prevMonthsByKoc.set(r.koc_id, arr);
     }
 
-    // Recalculate ALL derived fields from accumulated total.
-    // Bank fee ($12 fixed) is charged once on the total, not per month.
+    // Recalculate ALL accumulated fields by calculating EACH month independently
+    // (each with its own bank fee, KOC tax, etc.) and summing the results — NOT
+    // by running the formula once on the accumulated total. This means the fixed
+    // $12 bank fee is charged once PER MONTH. (min_payment threshold still uses
+    // the accumulated gross revenue — see getPaymentStatus.)
     const enrichedRecords = records.map(r => {
-      const prevOrig = prevOriginalByKoc.get(r.koc_id) ?? 0;
-      const prevTax = prevUsTaxByKoc.get(r.koc_id) ?? 0;
+      const baseRate = Number((r.koc as any).base_rate ?? 0.8);
+      const exchangeRate = Number(r.cycle.exchange_rate);
 
-      const accRevenue = RevenueService.round2(prevOrig + Number(r.original_revenue_usd));
-      const accUsTax = RevenueService.round2(prevTax + Number(r.us_tax_deduction));
+      // All months being settled together = previous pending months + this month.
+      const months = [
+        ...(prevMonthsByKoc.get(r.koc_id) ?? []),
+        { original: Number(r.original_revenue_usd), usTax: Number(r.us_tax_deduction) },
+      ];
 
-      const accCalc = RevenueService.calculate({
-        originalRevenueUsd: accRevenue,
-        usTaxDeduction: accUsTax,
-        baseRate: Number((r.koc as any).base_rate ?? 0.8),
-        exchangeRate: Number(r.cycle.exchange_rate),
-      });
+      const naturalGross = RevenueService.round2(months.reduce((s, m) => s + m.original, 0));
+      const totalUsTax = RevenueService.round2(months.reduce((s, m) => s + m.usTax, 0));
+
+      // Manual override: if an admin typed an accumulated revenue that differs from
+      // the natural per-month sum, honor that value and run the formula ONCE on it
+      // (we can't split a manual total back into months). Otherwise, calculate each
+      // month independently and sum (so each month keeps its own $12 bank fee).
+      const storedGross = RevenueService.round2(Number(r.accumulated_revenue_usd ?? 0));
+      const isOverride = storedGross > 0 && Math.abs(storedGross - naturalGross) > 0.01;
+
+      const acc = isOverride
+        ? (() => {
+            const c = RevenueService.calculate({
+              originalRevenueUsd: storedGross,
+              usTaxDeduction: totalUsTax,
+              baseRate,
+              exchangeRate,
+            });
+            return {
+              revenue: storedGross,
+              usTax: c.us_tax_deduction,
+              bankFee: c.bank_fee,
+              net: c.net_revenue,
+              company: c.company_share,
+              gross: c.koc_share_gross,
+              kocTax: c.koc_tax_deduction,
+              kocUsd: c.koc_receive_usd,
+            };
+          })()
+        : months.reduce(
+            (sum, m) => {
+              const c = RevenueService.calculate({
+                originalRevenueUsd: m.original,
+                usTaxDeduction: m.usTax,
+                baseRate,
+                exchangeRate,
+              });
+              sum.revenue += m.original;
+              sum.usTax += c.us_tax_deduction;
+              sum.bankFee += c.bank_fee;
+              sum.net += c.net_revenue;
+              sum.company += c.company_share;
+              sum.gross += c.koc_share_gross;
+              sum.kocTax += c.koc_tax_deduction;
+              sum.kocUsd += c.koc_receive_usd;
+              return sum;
+            },
+            { revenue: 0, usTax: 0, bankFee: 0, net: 0, company: 0, gross: 0, kocTax: 0, kocUsd: 0 }
+          );
+
+      const accKocUsd = RevenueService.round2(acc.kocUsd);
 
       return {
         ...r,
-        accumulated_revenue_usd: accRevenue,
-        accumulated_us_tax: accCalc.us_tax_deduction,
-        accumulated_bank_fee: accCalc.bank_fee,
-        accumulated_net_revenue: accCalc.net_revenue,
-        accumulated_company_share: accCalc.company_share,
-        accumulated_koc_gross: accCalc.koc_share_gross,
-        accumulated_koc_tax: accCalc.koc_tax_deduction,
-        accumulated_koc_usd: accCalc.koc_receive_usd,
-        accumulated_koc_vnd: accCalc.koc_receive_vnd,
+        accumulated_revenue_usd: RevenueService.round2(acc.revenue),
+        accumulated_us_tax: RevenueService.round2(acc.usTax),
+        accumulated_bank_fee: RevenueService.round2(acc.bankFee),
+        accumulated_net_revenue: RevenueService.round2(acc.net),
+        accumulated_company_share: RevenueService.round2(acc.company),
+        accumulated_koc_gross: RevenueService.round2(acc.gross),
+        accumulated_koc_tax: RevenueService.round2(acc.kocTax),
+        accumulated_koc_usd: accKocUsd,
+        accumulated_koc_vnd: RevenueService.round2(accKocUsd * exchangeRate),
       };
     });
 
@@ -423,15 +502,17 @@ export class RevenueService {
    * (since threshold was accumulated across months). paid_in_cycle_id is set
    * to the current record's cycle_id to mark where payment was finalized.
    */
-  static async approveRecord(recordId: string) {
+  static async approveRecord(recordId: string, adminId?: string, allowedKocIds?: string[]) {
     const record = await prisma.revenueRecord.findUnique({
       where: { id: recordId },
       include: { cycle: true },
     });
     if (!record) throw new ApiError(404, 'revenue.recordNotFound');
+    if (adminId && record.cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
+    if (allowedKocIds && !allowedKocIds.includes(record.koc_id)) throw new ApiError(403, 'revenue.notYours');
 
     // Check threshold
-    const paymentStatus = await RevenueService.getPaymentStatus(record.cycle_id);
+    const paymentStatus = await RevenueService.getPaymentStatus(record.cycle_id, adminId, allowedKocIds);
     const kocStatus = paymentStatus[record.koc_id];
     if (kocStatus?.belowThreshold) {
       throw new ApiError(400, 'revenue.belowThreshold');
@@ -455,12 +536,14 @@ export class RevenueService {
    * Unapprove an APPROVED record back to PENDING.
    * Clears paid_in_cycle_id so accumulation logic picks it up again.
    */
-  static async unapproveRecord(recordId: string) {
+  static async unapproveRecord(recordId: string, adminId?: string, allowedKocIds?: string[]) {
     const record = await prisma.revenueRecord.findUnique({
       where: { id: recordId },
       include: { cycle: true },
     });
     if (!record) throw new ApiError(404, 'revenue.recordNotFound');
+    if (adminId && record.cycle.admin_id !== adminId) throw new ApiError(403, 'cycle.notYours');
+    if (allowedKocIds && !allowedKocIds.includes(record.koc_id)) throw new ApiError(403, 'revenue.notYours');
     if (record.status !== 'APPROVED') throw new ApiError(400, 'revenue.notApproved');
 
     const updated = await prisma.revenueRecord.update({

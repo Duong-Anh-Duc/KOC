@@ -178,9 +178,22 @@ export class CronService {
     logger.info(`[CronJob] Starting auto-cycle job for month: ${previousMonth}`);
 
     try {
-      // Step 1: Check if cycle already exists
+      // Resolve the admin that should own any auto-created cycle. When runJob is
+      // invoked without an adminId (the default scheduler), fall back to the
+      // oldest active admin so we never create orphan cycles (admin_id = NULL).
+      let cycleAdminId = adminId;
+      if (!cycleAdminId) {
+        const fallbackAdmin = await prisma.user.findFirst({
+          where: { role: 'ADMIN', is_active: true },
+          orderBy: { created_at: 'asc' },
+          select: { id: true },
+        });
+        cycleAdminId = fallbackAdmin?.id;
+      }
+
+      // Step 1: Check if a cycle already exists for THIS admin
       const existingCycles = await prisma.revenueCycle.findMany({
-        where: { month: previousMonth },
+        where: { month: previousMonth, admin_id: cycleAdminId ?? null },
       });
 
       let cycleId: number;
@@ -190,6 +203,13 @@ export class CronService {
         cycleId = existingCycles[0].id;
         logger.info(`[CronJob] Cycle for ${previousMonth} already exists (ID: ${cycleId})`);
       } else if (config.autoCreateCycle) {
+        // Never create an orphan cycle: require a real admin owner.
+        if (!cycleAdminId) {
+          const msg = `No active admin found to own the cycle for ${previousMonth}; skipping creation to avoid an orphan cycle.`;
+          logger.warn(`[CronJob] ${msg}`);
+          await this.addRunHistory(false, msg, previousMonth, adminId);
+          return { success: false, message: msg, cycleMonth: previousMonth };
+        }
         // Fetch exchange rate
         let exchangeRate = 25000; // fallback
         try {
@@ -200,11 +220,11 @@ export class CronService {
           logger.warn(`[CronJob] Failed to fetch exchange rate, using default: ${exchangeRate}`);
         }
 
-        // Create cycle
-        const cycle = await CycleService.create(previousMonth, exchangeRate);
+        // Create cycle owned by the resolved admin
+        const cycle = await CycleService.create(previousMonth, exchangeRate, cycleAdminId);
         cycleId = cycle.id;
         cycleCreated = true;
-        logger.info(`[CronJob] Created cycle for ${previousMonth} (ID: ${cycleId})`);
+        logger.info(`[CronJob] Created cycle for ${previousMonth} (ID: ${cycleId}, admin: ${cycleAdminId})`);
       } else {
         const msg = `Cycle for ${previousMonth} does not exist and autoCreateCycle is disabled`;
         logger.warn(`[CronJob] ${msg}`);
@@ -318,7 +338,7 @@ export class CronService {
                 const oldRevenue = Number(existing.original_revenue_usd);
                 const oldTax = Number(existing.us_tax_deduction);
                 if (Math.abs(oldRevenue - revenue) > 0.001 || Math.abs(oldTax - usTax) > 0.001) {
-                  await RevenueService.updateRecord(existing.id, revenue, usTax, effectiveAdminId);
+                  await RevenueService.updateRecord(existing.id, revenue, usTax, undefined, effectiveAdminId);
                   recordsCreated++;
                 } else {
                   recordsSkipped++;

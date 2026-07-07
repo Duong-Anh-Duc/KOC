@@ -133,6 +133,7 @@ export class GemLoginController {
    * Body (optional): { profileId?, month?, closeAfter?, batchSize?, waitSeconds? }
    */
   static async scrapeRevenue(req: Request, res: Response): Promise<void> {
+    const t = (req as any).t;
     const authReq = req as AuthenticatedRequest;
     const scope = await getAccessScope(authReq);
     const adminId = authReq.user?.userId;
@@ -152,7 +153,7 @@ export class GemLoginController {
       let startedHere = false;
       try {
         if (!GemLoginService.getStatus().isRunning) {
-          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' });
+          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' });
           await GemLoginService.startProfile(profileId);
           startedHere = true;
         }
@@ -181,7 +182,7 @@ export class GemLoginController {
           return;
         }
 
-        ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: `Bắt đầu cào ${kocs.length} KOC...` });
+        ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: t ? t('progress.startScrapingKocs', { count: kocs.length }) : `Bắt đầu cào ${kocs.length} KOC...` });
 
         const { YouTubeScraperService } = await import('../shared/youtube-scraper.service');
         const { YouTubeScrapeResultService } = await import('../shared/youtube-scrape-result.service');
@@ -202,7 +203,7 @@ export class GemLoginController {
               step: doneCount,
               total,
               percent: Math.round((doneCount / total) * 100),
-              message: `Đã cào: ${name}`,
+              message: t ? t('progress.scraped', { name }) : `Đã cào: ${name}`,
             });
           },
           adminId,
@@ -218,7 +219,7 @@ export class GemLoginController {
           .filter((x): x is NonNullable<typeof x> => x !== null);
 
         if (saveToDb && batchItems.length > 0) {
-          ProgressService.emit(taskId, { step: kocs.length, total: kocs.length, percent: 99, message: 'Đang lưu dữ liệu...' });
+          ProgressService.emit(taskId, { step: kocs.length, total: kocs.length, percent: 99, message: t ? t('progress.savingData') : 'Đang lưu dữ liệu...' });
           await YouTubeScrapeResultService.saveBatchResults(batchItems);
         }
 

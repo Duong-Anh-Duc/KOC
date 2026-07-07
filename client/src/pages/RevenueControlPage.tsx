@@ -17,6 +17,7 @@ import { cycleApi, ytScraperApi } from '../api';
 import { AppTabs, TaskProgressBar } from '../components/common';
 import { RevenueRecordModal } from '../components/features';
 import { CycleFormModal, CyclesTab, RevenueTab, ScrapeResultModal } from '../components/revenue';
+import { getProgressErrorMessage } from '../utils/progressError';
 import {
     useActiveKOCs,
     useAddKocsToCycle,
@@ -245,7 +246,23 @@ const RevenueControlPage: React.FC = () => {
           try { const d = JSON.parse(event.data); resolve(d?.result ?? d); }
           catch { resolve(null); }
         });
-        es.addEventListener('error', () => { clearTimeout(timer); es.close(); reject(new Error('SSE error')); });
+        es.addEventListener('error', (event: Event) => {
+          clearTimeout(timer);
+          es.close();
+
+          const msgEvent = event as MessageEvent;
+          if (msgEvent.data) {
+            try {
+              const data = JSON.parse(msgEvent.data);
+              reject(new Error(getProgressErrorMessage(data.message, taskId)));
+              return;
+            } catch {
+              // Fall through to the readable connection error below.
+            }
+          }
+
+          reject(new Error(getProgressErrorMessage('SSE error', taskId)));
+        });
       });
 
       setBatchProgress({ taskId: null, active: false, progress: { step: ids.length, total: ids.length, percent: 100, message: 'Hoàn thành!' }, completed: true, result, error: null });
@@ -254,9 +271,9 @@ const RevenueControlPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['cycles'] });
       queryClient.invalidateQueries({ queryKey: ['revenue-records'] });
     } catch (err: any) {
-      const msg = String(err?.message ?? err);
+      const msg = getProgressErrorMessage(err, 'scrape-revenue');
       setBatchProgress((prev) => ({ ...prev, active: false, completed: true, error: msg }));
-      message.error(`Lỗi cào doanh thu: ${msg}`);
+      message.error(msg);
     }
   }, [activeKOCs, queryClient]);
 
@@ -270,7 +287,12 @@ const RevenueControlPage: React.FC = () => {
     }
   }, [resetPubCodeProgress, startPubCodeTask]);
 
-  const handleCreateRecord = (values: { koc_id: string; original_revenue_usd: number; us_tax_deduction: number }) => {
+  const handleCreateRecord = (values: {
+    koc_id: string;
+    original_revenue_usd: number;
+    us_tax_deduction: number;
+    accumulated_revenue_usd?: number;
+  }) => {
     if (editingRecord) {
       updateRecordMutation.mutate(
         {
@@ -278,6 +300,7 @@ const RevenueControlPage: React.FC = () => {
           data: {
             original_revenue_usd: values.original_revenue_usd,
             us_tax_deduction: values.us_tax_deduction,
+            accumulated_revenue_usd: values.accumulated_revenue_usd,
           },
         },
         { onSuccess: () => { setRecordModalOpen(false); setEditingRecord(null); } }

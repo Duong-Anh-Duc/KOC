@@ -19,9 +19,9 @@ export const toastSuccess = (messageKey: string, defaultMessage?: string) => {
 
 // Error notifications
 export const toastError = (messageKey: string, defaultMessage?: string) => {
-  const message = i18n.exists(`toast.${messageKey}`) 
+  const message = defaultMessage || (i18n.exists(`toast.${messageKey}`) 
     ? i18n.t(`toast.${messageKey}`) 
-    : defaultMessage || messageKey;
+    : messageKey);
   showToast(message, 'error');
 };
 

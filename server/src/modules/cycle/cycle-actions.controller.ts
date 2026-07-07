@@ -196,7 +196,7 @@ export class CycleActionsController {
 
       // Run scrape in background with progress reporting
       logger.info(`Starting scrape-revenue task ${taskId} for cycle ${cycleId} (month: ${month}, admin: ${req.user?.userId}, kocIds: ${kocIds ? kocIds.length : 'all'})`);
-      CycleActionsController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null, scope, kocIds).catch(err => {
+      CycleActionsController.runScrapeRevenue(cycleId, month, taskId, req.user?.userId || null, scope, kocIds, t).catch(err => {
         logger.error(`scrape-revenue task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
@@ -229,7 +229,7 @@ export class CycleActionsController {
         data: { taskId },
       });
 
-      CycleActionsController.runCheckPubCodes(cycleId, taskId, req.user?.userId || null, scope.allowedKocIds).catch(err => {
+      CycleActionsController.runCheckPubCodes(cycleId, taskId, req.user?.userId || null, scope.allowedKocIds, t).catch(err => {
         logger.error(`check-pub-codes task ${taskId} failed:`, err.message);
         ProgressService.error(taskId, err.message);
       });
@@ -238,11 +238,11 @@ export class CycleActionsController {
     }
   }
 
-  private static async runCheckPubCodes(cycleId: number, taskId: string, userId: string | null, allowedKocIds?: string[]): Promise<void> {
+  private static async runCheckPubCodes(cycleId: number, taskId: string, userId: string | null, allowedKocIds?: string[], t?: (key: string, opts?: Record<string, unknown>) => string): Promise<void> {
     try {
       const { GemLoginService } = await import('../gemlogin/gemlogin.service');
       await GemLoginService.ensureRunning(() =>
-        ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+        ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' })
       );
 
       // Get unique KOCs that have records in this cycle
@@ -266,7 +266,7 @@ export class CycleActionsController {
       }
       const kocs = Array.from(kocMap.values());
 
-      ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: `Mở ${kocs.length} tab kiểm tra mã Pub...` });
+      ProgressService.emit(taskId, { step: 0, total: kocs.length, percent: 0, message: t ? t('progress.openingPubTabs', { count: kocs.length }) : `Mở ${kocs.length} tab kiểm tra mã Pub...` });
 
       const { results: pubResults, summary } = await PubCodeService.checkPubCodesParallel(
         kocs,
@@ -274,7 +274,7 @@ export class CycleActionsController {
         (current, total, name) => {
           ProgressService.emit(taskId, {
             step: current, total, percent: Math.round((current / total) * 100),
-            message: `Đã kiểm tra: ${name} (${current}/${total})`,
+            message: t ? t('progress.checked', { name, current, total }) : `Đã kiểm tra: ${name} (${current}/${total})`,
           });
         },
       );
@@ -304,11 +304,11 @@ export class CycleActionsController {
   /**
    * Background method to run scrape revenue with progress
    */
-  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, scope: { adminId?: string; allowedKocIds?: string[] }, kocIds?: string[]): Promise<void> {
+  private static async runScrapeRevenue(cycleId: number, month: string, taskId: string, userId: string | null, scope: { adminId?: string; allowedKocIds?: string[] }, kocIds?: string[], t?: (key: string, opts?: Record<string, unknown>) => string): Promise<void> {
     try {
       const { GemLoginService } = await import('../gemlogin/gemlogin.service');
       await GemLoginService.ensureRunning(() =>
-        ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+        ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' })
       );
 
       const kocs = await prisma.kOC.findMany({
@@ -335,7 +335,7 @@ export class CycleActionsController {
 
       ProgressService.emit(taskId, {
         step: 0, total: totalSteps, percent: 0,
-        message: `Starting scrape for ${channelIds.length} channels...`,
+        message: t ? t('progress.startScrapingChannels', { count: channelIds.length }) : `Starting scrape for ${channelIds.length} channels...`,
       });
 
       const channelToKocMap = new Map<string, typeof kocs[0]>();
@@ -357,9 +357,10 @@ export class CycleActionsController {
           currentStep = idx + 1;
           const koc = channelToKocMap.get(channelId);
           const percent = Math.round((currentStep / totalSteps) * 100);
+          const name = koc?.channel_name || channelId;
           ProgressService.emit(taskId, {
             step: currentStep, total: totalSteps, percent,
-            message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
+            message: t ? t('progress.scraping', { name, current: idx + 1, total }) : `Scraping ${name} (${idx + 1}/${total})`,
           });
         }, userId || undefined);
 
@@ -387,7 +388,7 @@ export class CycleActionsController {
         const percent = Math.round((currentStep / totalSteps) * 100);
         ProgressService.emit(taskId, {
           step: currentStep, total: totalSteps, percent,
-          message: `Creating record for ${koc.channel_name} (${i + 1}/${scrapeResults.length})`,
+          message: t ? t('progress.creatingRecord', { name: koc.channel_name, current: i + 1, total: scrapeResults.length }) : `Creating record for ${koc.channel_name} (${i + 1}/${scrapeResults.length})`,
         });
 
         const revenue = result.totals.estimatedRevenue;
@@ -408,7 +409,7 @@ export class CycleActionsController {
           });
 
           if (existing) {
-            await RevenueService.updateRecord(existing.id, revenue, usTax, userId || undefined);
+            await RevenueService.updateRecord(existing.id, revenue, usTax, undefined, userId || undefined);
             updated.push({ koc: koc.channel_name, revenue });
           } else {
             await RevenueService.createRecord(koc.id, cycleId, revenue, usTax, userId || undefined);

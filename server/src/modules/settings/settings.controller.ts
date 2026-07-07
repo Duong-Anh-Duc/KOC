@@ -234,6 +234,7 @@ export class SettingsController {
    *   4. Update DB, complete với result
    */
   static async checkGoogleStatus(_req: Request, res: Response): Promise<void> {
+    const t = (_req as any).t as ((key: string, opts?: Record<string, unknown>) => string) | undefined;
     // Dedupe: nếu đang có check chạy → trả luôn taskId đó để FE subscribe cùng stream.
     // Tránh race: 2 call song song → call sau đè status của call trước = false.
     if (activeCheckTaskId) {
@@ -249,21 +250,21 @@ export class SettingsController {
     void (async () => {
       try {
         if (!GemLoginService.getStatus().isRunning) {
-          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' });
+          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' });
           await GemLoginService.startProfile(process.env.GEMLOGIN_PROFILE_ID || '1').catch(() => {});
         }
 
         const cdpUrl = process.env.CHROME_CDP_URL;
         if (!cdpUrl) {
-          ProgressService.error(taskId, 'CDP URL chưa sẵn sàng');
+          ProgressService.error(taskId, t ? t('progress.cdpNotReady') : 'CDP URL chưa sẵn sàng');
           return;
         }
 
-        ProgressService.emit(taskId, { step: 0, total: 1, percent: 5, message: 'Kết nối GemLogin browser...' });
+        ProgressService.emit(taskId, { step: 0, total: 1, percent: 5, message: t ? t('progress.connectingBrowser') : 'Kết nối GemLogin browser...' });
         const browser = await chromium.connectOverCDP(cdpUrl);
         const context = browser.contexts()[0];
         if (!context) {
-          ProgressService.error(taskId, 'Không có context');
+          ProgressService.error(taskId, t ? t('progress.noBrowserContext') : 'Không có context');
           return;
         }
 
@@ -275,7 +276,7 @@ export class SettingsController {
             return route.continue();
           });
 
-          ProgressService.emit(taskId, { step: 0, total: 1, percent: 10, message: 'Mở studio.youtube.com để check session...' });
+          ProgressService.emit(taskId, { step: 0, total: 1, percent: 10, message: t ? t('progress.openingStudio') : 'Mở studio.youtube.com để check session...' });
           await page.goto('https://studio.youtube.com/', { waitUntil: 'domcontentloaded', timeout: 15_000 }).catch(() => {});
           await page.waitForTimeout(1_500);
 
@@ -285,18 +286,20 @@ export class SettingsController {
           if (stillLoggedIn) {
             await SettingsService.markSessionStatus(true);
             googleStatusCache = null;
-            ProgressService.complete(taskId, { loggedIn: true, message: 'Session vẫn OK, không cần login' });
+            ProgressService.complete(taskId, { loggedIn: true, message: t ? t('progress.sessionOk') : 'Session vẫn OK, không cần login' });
             return;
           }
 
           // Bị logout → trigger auto-login với progress
-          ProgressService.emit(taskId, { step: 1, total: 8, percent: 12, message: 'Phát hiện bị logout — bắt đầu auto-login...' });
-          const ok = await GoogleAutoLoginService.ensureLoggedIn(page, 'https://studio.youtube.com/', taskId);
+          ProgressService.emit(taskId, { step: 1, total: 8, percent: 12, message: t ? t('progress.detectedLogout') : 'Phát hiện bị logout — bắt đầu auto-login...' });
+          const ok = await GoogleAutoLoginService.ensureLoggedIn(page, 'https://studio.youtube.com/', taskId, t);
           await SettingsService.markSessionStatus(ok, ok ? undefined : 'auto_login_failed');
           googleStatusCache = null;
           ProgressService.complete(taskId, {
             loggedIn: ok,
-            message: ok ? 'Auto-login thành công' : 'Auto-login fail — xem log',
+            message: ok
+              ? (t ? t('progress.autoLoginSuccess') : 'Auto-login thành công')
+              : (t ? t('progress.autoLoginFailed') : 'Auto-login fail — xem log'),
             finalUrl: page.url(),
           });
         } finally {
@@ -304,7 +307,7 @@ export class SettingsController {
         }
       } catch (err: any) {
         logger.error(`[Settings] checkGoogleStatus background error: ${err.message}`);
-        ProgressService.error(taskId, `Lỗi: ${err.message}`);
+        ProgressService.error(taskId, t ? t('progress.errorWithMessage', { message: err.message }) : `Lỗi: ${err.message}`);
       } finally {
         if (activeCheckTaskId === taskId) activeCheckTaskId = null;
       }

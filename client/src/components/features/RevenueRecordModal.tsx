@@ -10,7 +10,12 @@ interface RevenueRecordModalProps {
   activeKOCs: Array<{ id: string; full_name: string; channel_name: string }>;
   cycleId: number;
   onCancel: () => void;
-  onSubmit: (values: { koc_id: string; original_revenue_usd: number; us_tax_deduction: number }) => void;
+  onSubmit: (values: {
+    koc_id: string;
+    original_revenue_usd: number;
+    us_tax_deduction: number;
+    accumulated_revenue_usd?: number;
+  }) => void;
   loading?: boolean;
 }
 
@@ -32,6 +37,7 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
         koc_id: editingRecord.koc_id,
         original_revenue_usd: Number(editingRecord.original_revenue_usd),
         us_tax_deduction: Number(editingRecord.us_tax_deduction),
+        accumulated_revenue_usd: Number(editingRecord.accumulated_revenue_usd ?? editingRecord.original_revenue_usd),
       });
     } else if (open) {
       form.resetFields();
@@ -79,6 +85,21 @@ const RevenueRecordModal: React.FC<RevenueRecordModalProps> = ({
             }))}
           />
         </Form.Item>
+
+        {editingRecord && (
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item
+                name="accumulated_revenue_usd"
+                label={t('revenue.accumulated') + ' ($)'}
+                extra={t('revenue.accumulatedEditHint')}
+                rules={[{ required: true, message: t('validation.required') }]}
+              >
+                <NativeNumberInput min={0} step={0.01} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
 
         <Row gutter={16}>
           <Col span={12}>

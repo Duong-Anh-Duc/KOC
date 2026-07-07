@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { message } from 'antd';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -35,6 +36,7 @@ apiClient.interceptors.request.use(
 // ============================================================
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+let hasShownSuspendedMessage = false;
 
 const processQueue = (error: unknown, token: string | null) => {
   failedQueue.forEach(({ resolve, reject }) => {
@@ -48,10 +50,24 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const data = error.response?.data as any;
+
+    if (error.response?.status === 403 && data?.code === 'ACCOUNT_SUSPENDED') {
+      if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/forgot-password')) {
+        return Promise.reject(error);
+      }
+      if (!hasShownSuspendedMessage) {
+        hasShownSuspendedMessage = true;
+        message.error(data?.message || 'Email này tạm thời bị dừng hoạt động');
+      }
+      useAuthStore.getState().logout();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401) {
-      const data = error.response.data as any;
-
       // YouTube session expired — don't logout user
       if (data?.code === 'NOT_LOGGED_IN') {
         window.dispatchEvent(new CustomEvent('yt-session-expired'));

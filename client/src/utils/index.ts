@@ -98,9 +98,17 @@ export const getInitials = (name: string): string => {
     .substring(0, 2);
 };
 
+export const getApiErrorMessage = (error: unknown): string | undefined => {
+  const err = error as { response?: { data?: { message?: string } }; message?: string };
+  return err.response?.data?.message || err.message;
+};
+
+export { confirmAction } from './confirmAction';
+
 // Export toast utilities
 export { toastError, toastInfo, toastSuccess, toastWarning } from './toast';
 export { appMessage, appNotification } from './appMessage';
+export { getProgressErrorMessage } from './progressError';
 
 // Export table utilities
 export { getTableLocale } from './tableLocale';

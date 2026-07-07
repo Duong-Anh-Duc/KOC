@@ -183,6 +183,8 @@
     "kocReceiveUsd": "KOC Receive (USD/month)",
     "accumulatedKocUsd": "Total Payout (USD)",
     "accumulated": "Accumulated (USD)",
+    "accumulatedFrom": "Accumulated from months",
+    "accumulatedEditHint": "This value will be used to recalculate the accumulated columns for the current month.",
     "kocReceiveVnd": "KOC Receive (VND)",
     "total": "Total",
     "approve": "Approve",
@@ -925,6 +927,7 @@
     "sendingEmails": "Sending revenue emails to all KOCs..."
   },
   "progress": {
+    "processing": "Processing...",
     "completed": "Completed!",
     "error": "Error",
     "connectionLost": "Connection lost",

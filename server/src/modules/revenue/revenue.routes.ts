@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { RevenueController } from './revenue.controller';
-import { adminOnly, authMiddleware, canModify, validate } from '../../middlewares';
+import { adminOnly, authMiddleware, canModify, requireAnyPermission, validate } from '../../middlewares';
 import {
     bulkCreateRevenueRecordSchema,
     createRevenueRecordSchema,
@@ -23,9 +23,9 @@ router.get('/records/:id', RevenueController.getRecordById);
 router.post('/records', canModify, validate(createRevenueRecordSchema), RevenueController.createRecord);
 router.post('/records/bulk', canModify, validate(bulkCreateRevenueRecordSchema), RevenueController.bulkCreateRecords);
 router.put('/records/:id', canModify, validate(updateRevenueRecordSchema), RevenueController.updateRecord);
-router.delete('/records/bulk', adminOnly, RevenueController.bulkDeleteRecords);
-router.delete('/records/:id', adminOnly, RevenueController.deleteRecord);
-router.patch('/records/:id/approve', adminOnly, RevenueController.approveRecord);
-router.patch('/records/:id/unapprove', adminOnly, RevenueController.unapproveRecord);
+router.delete('/records/bulk', requireAnyPermission('delete_revenue'), RevenueController.bulkDeleteRecords);
+router.delete('/records/:id', requireAnyPermission('delete_revenue'), RevenueController.deleteRecord);
+router.patch('/records/:id/approve', requireAnyPermission('approve_revenue'), RevenueController.approveRecord);
+router.patch('/records/:id/unapprove', requireAnyPermission('approve_revenue'), RevenueController.unapproveRecord);
 
 export default router;

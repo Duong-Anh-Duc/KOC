@@ -155,6 +155,7 @@ export interface CreateRevenueRecordInput {
 export interface UpdateRevenueRecordInput {
   original_revenue_usd?: number;
   us_tax_deduction?: number;
+  accumulated_revenue_usd?: number;
 }
 
 export interface BulkCreateRevenueRecordInput {

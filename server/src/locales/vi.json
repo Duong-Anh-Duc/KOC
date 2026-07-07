@@ -7,6 +7,7 @@
     "authRequired": "Yêu cầu xác thực",
     "loginSuccess": "Đăng nhập thành công",
     "loginFailed": "Email hoặc mật khẩu không đúng",
+    "accountSuspended": "Email này tạm thời bị dừng hoạt động",
     "registerSuccess": "Đăng ký người dùng thành công",
     "emailExists": "Email đã tồn tại",
     "profileRetrieved": "Lấy thông tin hồ sơ thành công",
@@ -35,7 +36,8 @@
     "cannotEditSelf": "Không thể chỉnh sửa tài khoản của chính mình",
     "cannotDeleteSelf": "Không thể xóa tài khoản của chính mình",
     "userUpdated": "Cập nhật người dùng thành công",
-    "userDeleted": "Xóa người dùng thành công"
+    "userDeleted": "Xóa người dùng thành công",
+    "permissionRequired": "Bạn chưa được cấp quyền thực hiện thao tác này"
   },
   "kocPortal": {
     "revenueRetrieved": "Đã lấy doanh thu",
@@ -68,7 +70,8 @@
     "paymentStatusRetrieved": "Đã lấy trạng thái thanh toán",
     "cycleNotFound": "Không tìm thấy kỳ đối soát",
     "recordsDeleted": "Đã xóa {{count}} bản ghi",
-    "recordUnapproved": "Đã hủy phê duyệt bản ghi doanh thu"
+    "recordUnapproved": "Đã hủy phê duyệt bản ghi doanh thu",
+    "notYours": "Bản ghi doanh thu này không thuộc quyền thao tác của bạn"
   },
   "cycle": {
     "created": "Tạo kỳ đối soát thành công",
@@ -174,6 +177,49 @@
     "verifyAllResult": "Đã xác minh {{total}} KOC: {{matched}} khớp, {{mismatched}} không khớp, {{noData}} không có dữ liệu, {{errors}} lỗi"
   },
   "progress": {
-    "taskStarted": "Tác vụ đã bắt đầu"
+    "taskStarted": "Tác vụ đã bắt đầu",
+    "startingGemLogin": "Đang khởi động GemLogin...",
+    "startScrapingKocs": "Bắt đầu cào {{count}} KOC...",
+    "startScrapingChannels": "Bắt đầu cào {{count}} kênh...",
+    "scraping": "Đang cào {{name}} ({{current}}/{{total}})",
+    "scrapingName": "Đang cào: {{name}}...",
+    "scraped": "Đã cào: {{name}}",
+    "savingData": "Đang lưu dữ liệu...",
+    "creatingRecord": "Đang tạo bản ghi cho {{name}} ({{current}}/{{total}})",
+    "openingPubTabs": "Mở {{count}} tab kiểm tra mã Pub...",
+    "checked": "Đã kiểm tra: {{name}} ({{current}}/{{total}})",
+    "sendingEmail": "Đang gửi email tới {{name}} ({{current}}/{{total}})",
+    "connectingBrowser": "Kết nối GemLogin browser...",
+    "openingStudio": "Mở studio.youtube.com để kiểm tra phiên...",
+    "cdpNotReady": "CDP URL chưa sẵn sàng",
+    "noBrowserContext": "Không có context trình duyệt",
+    "sessionOk": "Phiên vẫn hoạt động, không cần đăng nhập lại",
+    "detectedLogout": "Phát hiện bị đăng xuất — bắt đầu tự động đăng nhập...",
+    "autoLoginSuccess": "Tự động đăng nhập thành công",
+    "autoLoginFailed": "Tự động đăng nhập thất bại — xem log",
+    "errorWithMessage": "Lỗi: {{message}}",
+    "sbStart": "Bắt đầu cào {{count}} KOC, mỗi batch {{batch}} tab...",
+    "sbCountryData": "Dữ liệu quốc gia: {{name}}",
+    "sbError": "Lỗi {{name}}: {{error}}",
+    "sbSaved": "Đã lưu: {{name}} ({{current}}/{{total}})",
+    "sbSaveError": "Lỗi lưu {{name}}",
+    "login": {
+      "notConfigured": "Chưa cấu hình email/mật khẩu — không thể đăng nhập",
+      "waitingOtherTab": "Đang đợi tab khác đăng nhập xong...",
+      "recentlyLoggedIn": "Vừa đăng nhập gần đây — chỉ tải lại trang",
+      "renavigating": "Đang quay lại trang gốc",
+      "openingChooser": "Mở trình chọn tài khoản Google...",
+      "selectingAccount": "Chọn tài khoản {{email}}",
+      "confirmingAccount": "Xác nhận tài khoản đã chọn",
+      "enteringEmail": "Nhập email {{email}}",
+      "waitingPassword": "Đợi trang mật khẩu...",
+      "passwordPageMissing": "Trang mật khẩu không xuất hiện — Google yêu cầu xác minh",
+      "enteringPassword": "Đang nhập mật khẩu...",
+      "switchingAuthenticator": "Đang chuyển sang trang Authenticator...",
+      "twoFANoSecret": "Google yêu cầu 2FA nhưng chưa cấu hình mã TOTP",
+      "fetchingTotp": "Đang lấy mã TOTP từ 2fa.live...",
+      "invalidTotp": "2fa.live trả về mã không hợp lệ",
+      "enteringTotp": "Đang nhập mã 6 số: {{code}}"
+    }
   }
 }

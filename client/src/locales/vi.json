@@ -183,6 +183,8 @@
     "kocReceiveUsd": "KOC nhận (USD/tháng)",
     "accumulatedKocUsd": "Tổng nhận (USD)",
     "accumulated": "Cộng dồn (USD)",
+    "accumulatedFrom": "Cộng dồn từ các tháng",
+    "accumulatedEditHint": "Giá trị này sẽ được dùng để tính lại các cột cộng dồn của tháng hiện tại.",
     "kocReceiveVnd": "KOC nhận (VND)",
     "total": "Tổng cộng",
     "approve": "Duyệt",
@@ -925,6 +927,7 @@
     "sendingEmails": "Đang gửi email doanh thu cho tất cả KOC..."
   },
   "progress": {
+    "processing": "Đang xử lý...",
     "completed": "Hoàn thành!",
     "error": "Lỗi",
     "connectionLost": "Mất kết nối",

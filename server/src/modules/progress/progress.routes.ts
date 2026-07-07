@@ -17,8 +17,10 @@ router.get('/:taskId', (req: Request, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
   res.flushHeaders();
 
-  // Send initial progress event to confirm connection
-  res.write(`event: progress\ndata: ${JSON.stringify({ step: 0, total: 0, percent: 0, message: 'Connected', done: false })}\n\n`);
+  // Send initial progress event to confirm connection. Message intentionally
+  // empty — the client shows a localized "processing" label until the first
+  // real (localized) progress event arrives.
+  res.write(`event: progress\ndata: ${JSON.stringify({ step: 0, total: 0, percent: 0, message: '', done: false })}\n\n`);
 
   // Register client
   ProgressService.addClient(taskId, res);

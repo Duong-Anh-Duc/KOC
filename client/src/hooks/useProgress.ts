@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ProgressEvent } from '../types';
+import { getProgressErrorMessage } from '../utils/progressError';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -119,10 +120,10 @@ export function useProgress(onComplete?: (result: unknown) => void) {
           setState(prev => ({
             ...prev,
             active: false,
-            error: data.message || 'progress.unknownError',
+            error: getProgressErrorMessage(data.message, taskId),
           }));
         } catch {
-          setState(prev => ({ ...prev, active: false, error: 'progress.unknownError' }));
+          setState(prev => ({ ...prev, active: false, error: getProgressErrorMessage(null, taskId) }));
         }
         es.close();
         return;

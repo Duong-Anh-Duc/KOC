@@ -1,7 +1,7 @@
 import type { PaymentStatusMap, RevenueRecord, YouTubeScrapeResult } from '@/types';
 import { formatUSD, formatVND, getTableLocale } from '@/utils';
 import { DeleteOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Table, Typography } from 'antd';
+import { Button, Modal, Popconfirm, Table, Typography } from 'antd';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores';
@@ -64,7 +64,31 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
   const darkMode = useAppStore((s) => s.darkMode);
   const [detailKocId, setDetailKocId] = useState<string | null>(null);
   const [monthlyKoc, setMonthlyKoc] = useState<{ id: string; name: string; channel: string } | null>(null);
+  const [accumulatedRecord, setAccumulatedRecord] = useState<RevenueRecord | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
+  // Accumulated breakdown modal data. Prefer the per-month breakdown from
+  // paymentStatus; if it's empty, fall back to this record's own month so the
+  // modal always shows something meaningful.
+  const accStatus = accumulatedRecord ? paymentStatus?.[accumulatedRecord.koc_id] : undefined;
+  const accMonthsRaw = accStatus?.accumulatedMonths?.length
+    ? accStatus.accumulatedMonths
+    : accumulatedRecord
+      ? [{
+          month: accumulatedRecord.cycle?.month ?? '-',
+          revenue: Number(accumulatedRecord.accumulated_revenue_usd || accumulatedRecord.original_revenue_usd || 0),
+        }]
+      : [];
+  // Multiple cycles can share the same month label (e.g. a duplicate/empty
+  // cycle for the same month). Merge them into one row per month so the breakdown
+  // doesn't show the same month twice.
+  const accMonths = Object.values(
+    accMonthsRaw.reduce((map, m) => {
+      if (!map[m.month]) map[m.month] = { month: m.month, revenue: 0 };
+      map[m.month].revenue += m.revenue;
+      return map;
+    }, {} as Record<string, { month: string; revenue: number }>)
+  );
 
   // Find scrape result for a KOC
   const getScrapeResult = (kocId: string): YouTubeScrapeResult | undefined => {
@@ -96,6 +120,7 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       name: record.koc?.full_name || '',
       channel: record.koc?.channel_name || '',
     }),
+    onViewAccumulated: (record) => setAccumulatedRecord(record),
   });
 
   return (
@@ -253,6 +278,55 @@ const RevenueTable: React.FC<RevenueTableProps> = ({
       kocName={monthlyKoc?.name}
       channelName={monthlyKoc?.channel}
     />
+
+    {/* ===== Accumulated Breakdown Modal ===== */}
+    <Modal
+      open={!!accumulatedRecord}
+      onCancel={() => setAccumulatedRecord(null)}
+      title={t('revenue.accumulatedFrom')}
+      footer={[
+        <Button key="close" onClick={() => setAccumulatedRecord(null)}>
+          {t('common.close', 'Đóng')}
+        </Button>,
+      ]}
+      width={420}
+    >
+      {accumulatedRecord && (
+        <>
+          <Text type="secondary">{accumulatedRecord.koc?.full_name}</Text>
+          <Table<{ month: string; revenue: number }>
+            style={{ marginTop: 12 }}
+            size="small"
+            bordered
+            pagination={false}
+            rowKey="month"
+            dataSource={accMonths}
+            columns={[
+              { title: t('revenue.month', 'Tháng'), dataIndex: 'month', key: 'month' },
+              {
+                title: t('revenue.originalRevenue'),
+                dataIndex: 'revenue',
+                key: 'revenue',
+                align: 'right',
+                render: (v: number) => formatUSD(v),
+              },
+            ]}
+            summary={() => (
+              <Table.Summary.Row style={{ fontWeight: 700 }}>
+                <Table.Summary.Cell index={0}>
+                  <Text strong style={{ color: '#1677ff' }}>{t('revenue.accumulatedTotal')}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <Text strong style={{ color: '#722ed1' }}>
+                    {formatUSD(accMonths.reduce((s, m) => s + m.revenue, 0))}
+                  </Text>
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            )}
+          />
+        </>
+      )}
+    </Modal>
   </>
   );
 };

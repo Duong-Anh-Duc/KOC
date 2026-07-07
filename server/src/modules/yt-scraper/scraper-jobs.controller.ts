@@ -42,7 +42,7 @@ export class ScraperJobsController {
 
       // Run in background
       logger.info(`Starting scrape-all task ${taskId} for ${channelIds.length} channels (admin: ${scope.adminId})`);
-      ScraperJobsController.runScrapeAll(kocs, channelIds, taskId, scope.adminId).catch(err => {
+      ScraperJobsController.runScrapeAll(kocs, channelIds, taskId, scope.adminId, t).catch(err => {
         logger.error(`scrape-all task ${taskId} failed:`, err.message, err.stack);
         ProgressService.error(taskId, err.message);
       });
@@ -67,14 +67,16 @@ export class ScraperJobsController {
     channelIds: string[],
     taskId: string,
     adminId?: string,
+    t?: (key: string, opts?: Record<string, unknown>) => string,
   ): Promise<void> {
     try {
       const { results, errors } = await YouTubeScraperService.scrapeMultipleChannelsParallel(channelIds, undefined, (channelId, idx, total) => {
         const koc = kocs.find(k => YouTubeScraperService.cleanChannelId(k.youtube_channel_id) === channelId);
         const percent = Math.round(((idx + 1) / total) * 100);
+        const name = koc?.channel_name || channelId;
         ProgressService.emit(taskId, {
           step: idx + 1, total, percent,
-          message: `Scraping ${koc?.channel_name || channelId} (${idx + 1}/${total})`,
+          message: t ? t('progress.scraping', { name, current: idx + 1, total }) : `Scraping ${name} (${idx + 1}/${total})`,
         });
       }, adminId);
 
@@ -390,15 +392,15 @@ export class ScraperJobsController {
       }
 
       const taskId = ProgressService.generateTaskId('monthly-scrape');
-      res.status(202).json({ success: true, message: 'Task started', data: { taskId } });
+      res.status(202).json({ success: true, message: t ? t('progress.taskStarted') : 'Task started', data: { taskId } });
 
       (async () => {
         try {
           const { GemLoginService } = await import('../gemlogin/gemlogin.service');
           await GemLoginService.ensureRunning(() =>
-            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' })
           );
-          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: `Đang cào: ${koc.channel_name}...` });
+          ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.scrapingName', { name: koc.channel_name }) : `Đang cào: ${koc.channel_name}...` });
           const data = await MonthlyRevenueService.scrapeAndSave(koc.id, koc.youtube_channel_id, adminId, koc.channel_name);
           ProgressService.complete(taskId, {
             koc: { id: koc.id, name: koc.full_name, channel: koc.channel_name },
@@ -447,7 +449,7 @@ export class ScraperJobsController {
         try {
           const { GemLoginService } = await import('../gemlogin/gemlogin.service');
           await GemLoginService.ensureRunning(() =>
-            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: 'Đang khởi động GemLogin...' })
+            ProgressService.emit(taskId, { step: 0, total: 1, percent: 0, message: t ? t('progress.startingGemLogin') : 'Đang khởi động GemLogin...' })
           );
           const { results, errors } = await MonthlyRevenueService.scrapeAllKOCs(
             adminId,
@@ -456,7 +458,7 @@ export class ScraperJobsController {
                 step: current,
                 total,
                 percent: Math.round((current / total) * 100),
-                message: `[${current}/${total}] Đang cào: ${channelName}`,
+                message: t ? t('progress.scraping', { name: channelName, current, total }) : `[${current}/${total}] Đang cào: ${channelName}`,
               });
             },
             effectiveKocIds

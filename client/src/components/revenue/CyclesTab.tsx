@@ -1,12 +1,12 @@
 ﻿import { CalendarOutlined, CheckCircleOutlined, DollarOutlined, EditOutlined, LockOutlined, UnlockOutlined, DollarCircleOutlined } from '@ant-design/icons';
-import { Button, Grid, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
+import { Button, Grid, Space, Table, Tag, Tooltip } from 'antd';
 import { AppSpin, AppTag, AppTooltip, SummaryBar } from '../common';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RevenueCycle } from '../../types';
-import { getTableLocale } from '../../utils';
+import { confirmAction, getTableLocale } from '../../utils';
 const { useBreakpoint } = Grid;
 
 interface CyclesTabProps {
@@ -127,103 +127,97 @@ const CyclesTab: React.FC<CyclesTabProps> = ({
                 />
               </AppTooltip>
               {record.exchange_rate_locked ? (
-                <Popconfirm
-                  title={t('confirm.unlockExchangeRate')}
-                  onConfirm={() => onUnlockExchangeRate(record.id)}
-                  okText={t('common.yes')}
-                  cancelText={t('common.no')}
-                >
-                  <AppTooltip title={t('cycle.unlockExchangeRate')}>
-                    <Button
-                      type="text"
-                      size="small"
-                      loading={lockExchangeRateLoading}
-                      icon={<DollarCircleOutlined style={{ color: '#faad14' }} />}
-                    />
-                  </AppTooltip>
-                </Popconfirm>
+                <AppTooltip title={t('cycle.unlockExchangeRate')}>
+                  <Button
+                    type="text"
+                    size="small"
+                    loading={lockExchangeRateLoading}
+                    icon={<DollarCircleOutlined style={{ color: '#faad14' }} />}
+                    onClick={() => confirmAction({
+                      title: t('confirm.unlockExchangeRate'),
+                      okText: t('common.yes'),
+                      cancelText: t('common.no'),
+                      onConfirm: () => onUnlockExchangeRate(record.id),
+                    })}
+                  />
+                </AppTooltip>
               ) : (
-                <Popconfirm
-                  title={t('confirm.lockExchangeRate')}
-                  onConfirm={() => onLockExchangeRate(record.id)}
-                  okText={t('common.yes')}
-                  cancelText={t('common.no')}
-                >
-                  <AppTooltip title={t('cycle.lockExchangeRate')}>
-                    <Button
-                      type="text"
-                      size="small"
-                      loading={lockExchangeRateLoading}
-                      icon={<DollarCircleOutlined style={{ color: '#52c41a' }} />}
-                    />
-                  </AppTooltip>
-                </Popconfirm>
+                <AppTooltip title={t('cycle.lockExchangeRate')}>
+                  <Button
+                    type="text"
+                    size="small"
+                    loading={lockExchangeRateLoading}
+                    icon={<DollarCircleOutlined style={{ color: '#52c41a' }} />}
+                    onClick={() => confirmAction({
+                      title: t('confirm.lockExchangeRate'),
+                      okText: t('common.yes'),
+                      cancelText: t('common.no'),
+                      onConfirm: () => onLockExchangeRate(record.id),
+                    })}
+                  />
+                </AppTooltip>
               )}
               {canManageCycle && (
-                <Popconfirm
-                  title={t('confirm.lockCycle')}
-                  onConfirm={() => onLockCycle(record.id)}
-                  okText={t('common.yes')}
-                  cancelText={t('common.no')}
-                >
-                  <AppTooltip title={t('cycle.lock')}>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<LockOutlined style={{ color: '#faad14' }} />}
-                    />
-                  </AppTooltip>
-                </Popconfirm>
+                <AppTooltip title={t('cycle.lock')}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<LockOutlined style={{ color: '#faad14' }} />}
+                    onClick={() => confirmAction({
+                      title: t('confirm.lockCycle'),
+                      okText: t('common.yes'),
+                      cancelText: t('common.no'),
+                      onConfirm: () => onLockCycle(record.id),
+                    })}
+                  />
+                </AppTooltip>
               )}
             </>
           )}
           {record.status === 'LOCKED' && canManageCycle && (
             <>
-              <Popconfirm
-                title={t('confirm.reopenCycle')}
-                onConfirm={() => onReopenCycle(record.id)}
-                okText={t('common.yes')}
-                cancelText={t('common.no')}
-              >
-                <AppTooltip title={t('cycle.reopen')}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
-                  />
-                </AppTooltip>
-              </Popconfirm>
-              <Popconfirm
-                title={t('confirm.completeCycle')}
-                onConfirm={() => onCompleteCycle(record.id)}
-                okText={t('common.yes')}
-                cancelText={t('common.no')}
-              >
-                <AppTooltip title={t('cycle.complete')}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                  />
-                </AppTooltip>
-              </Popconfirm>
-            </>
-          )}
-          {record.status === 'PAYMENT_COMPLETED' && canManageCycle && (
-            <Popconfirm
-              title={t('confirm.reopenCycle')}
-              onConfirm={() => onReopenCycle(record.id)}
-              okText={t('common.yes')}
-              cancelText={t('common.no')}
-            >
               <AppTooltip title={t('cycle.reopen')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
+                  onClick={() => confirmAction({
+                    title: t('confirm.reopenCycle'),
+                    okText: t('common.yes'),
+                    cancelText: t('common.no'),
+                    onConfirm: () => onReopenCycle(record.id),
+                  })}
                 />
               </AppTooltip>
-            </Popconfirm>
+              <AppTooltip title={t('cycle.complete')}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                  onClick={() => confirmAction({
+                    title: t('confirm.completeCycle'),
+                    okText: t('common.yes'),
+                    cancelText: t('common.no'),
+                    onConfirm: () => onCompleteCycle(record.id),
+                  })}
+                />
+              </AppTooltip>
+            </>
+          )}
+          {record.status === 'PAYMENT_COMPLETED' && canManageCycle && (
+            <AppTooltip title={t('cycle.reopen')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<UnlockOutlined style={{ color: '#1677ff' }} />}
+                onClick={() => confirmAction({
+                  title: t('confirm.reopenCycle'),
+                  okText: t('common.yes'),
+                  cancelText: t('common.no'),
+                  onConfirm: () => onReopenCycle(record.id),
+                })}
+              />
+            </AppTooltip>
           )}
         </Space>
       ),

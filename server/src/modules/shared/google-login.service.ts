@@ -5,6 +5,8 @@ import { ProgressService } from './progress.service';
 
 /** Total số step trong login flow — cho FE tính progress percent */
 const LOGIN_STEPS = 8;
+/** i18n translate function (req.t), optional — fallback tiếng Việt nếu không có */
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
 /** Helper emit step event nếu có taskId. Step 0-based, message tiếng Việt. */
 function emitStep(taskId: string | undefined, step: number, message: string): void {
   if (!taskId) return;
@@ -45,19 +47,19 @@ export class GoogleAutoLoginService {
    * Nếu page đang ở accounts.google.com → auto-login + re-navigate originalUrl.
    * Trả về true nếu page đã thoát khỏi accounts.google.com (login OK hoặc không cần login).
    */
-  static async ensureLoggedIn(page: Page, originalUrl?: string, taskId?: string): Promise<boolean> {
+  static async ensureLoggedIn(page: Page, originalUrl?: string, taskId?: string, t?: TFn): Promise<boolean> {
     if (!page.url().includes('accounts.google.com')) return true;
 
     const creds = await SettingsService.getGoogleLoginCredentials();
     if (!creds.email || !creds.password) {
-      emitStep(taskId, LOGIN_STEPS, 'Chưa cấu hình email/password — không thể login');
+      emitStep(taskId, LOGIN_STEPS, t ? t('progress.login.notConfigured') : 'Chưa cấu hình email/password — không thể login');
       logger.error('[GoogleAutoLogin] Chưa cấu hình email/password (cả DB và env đều trống) — không thể auto-login');
       return false;
     }
 
     // Tab khác đang login → đợi xong rồi navigate lại
     if (this.loginInProgress) {
-      emitStep(taskId, 1, 'Đang đợi tab khác login xong...');
+      emitStep(taskId, 1, t ? t('progress.login.waitingOtherTab') : 'Đang đợi tab khác login xong...');
       logger.info('[GoogleAutoLogin] Tab khác đang login — đợi tối đa 90s...');
       const deadline = Date.now() + 90_000;
       while (Date.now() < deadline && this.loginInProgress) {
@@ -67,18 +69,18 @@ export class GoogleAutoLoginService {
     }
 
     if (Date.now() - this.lastLoginAt < this.LOGIN_COOLDOWN_MS) {
-      emitStep(taskId, LOGIN_STEPS - 1, 'Vừa login gần đây — chỉ navigate lại');
+      emitStep(taskId, LOGIN_STEPS - 1, t ? t('progress.login.recentlyLoggedIn') : 'Vừa login gần đây — chỉ navigate lại');
       logger.info('[GoogleAutoLogin] Vừa login gần đây — thử navigate lại');
       return await this.renavigate(page, originalUrl);
     }
 
     this.loginInProgress = true;
     try {
-      const ok = await this.performLogin(page, creds, taskId);
+      const ok = await this.performLogin(page, creds, taskId, t);
       await SettingsService.recordLoginAttempt(ok, ok ? 'Login OK' : 'Login fail').catch(() => {});
       if (!ok) return false;
       this.lastLoginAt = Date.now();
-      emitStep(taskId, LOGIN_STEPS - 1, 'Đang navigate lại trang gốc');
+      emitStep(taskId, LOGIN_STEPS - 1, t ? t('progress.login.renavigating') : 'Đang navigate lại trang gốc');
       return await this.renavigate(page, originalUrl);
     } finally {
       this.loginInProgress = false;
@@ -110,7 +112,7 @@ export class GoogleAutoLoginService {
     return !stillLoggedOut;
   }
 
-  private static async performLogin(page: Page, creds: { email: string | null; password: string | null; totpSecret: string | null }, taskId?: string): Promise<boolean> {
+  private static async performLogin(page: Page, creds: { email: string | null; password: string | null; totpSecret: string | null }, taskId?: string, t?: TFn): Promise<boolean> {
     const email = creds.email!;
     const password = creds.password!;
     const totpSecret = (creds.totpSecret || '').replace(/\s+/g, '');
@@ -118,7 +120,7 @@ export class GoogleAutoLoginService {
     logger.info(`[GoogleAutoLogin] Bắt đầu auto-login cho ${email}...`);
 
     try {
-      emitStep(taskId, 1, 'Mở AccountChooser của Google...');
+      emitStep(taskId, 1, t ? t('progress.login.openingChooser') : 'Mở AccountChooser của Google...');
       const chooserUrl = 'https://accounts.google.com/AccountChooser?continue=' +
         encodeURIComponent('https://studio.youtube.com/') +
         '&Email=' + encodeURIComponent(email);
@@ -131,7 +133,7 @@ export class GoogleAutoLoginService {
       );
       const inChooser = await accountRow.count() > 0;
       if (inChooser) {
-        emitStep(taskId, 2, `Click chọn account ${email}`);
+        emitStep(taskId, 2, t ? t('progress.login.selectingAccount', { email }) : `Click chọn account ${email}`);
         await accountRow.first().click().catch(() => {});
         await page.waitForTimeout(3_000);
       }
@@ -142,47 +144,47 @@ export class GoogleAutoLoginService {
       const hasEmailInput = await emailInput.count() > 0;
 
       if (onConfirmIdentifier) {
-        emitStep(taskId, 2, 'Xác nhận account đã chọn');
+        emitStep(taskId, 2, t ? t('progress.login.confirmingAccount') : 'Xác nhận account đã chọn');
         await this.clickNext(page, '#identifierNext');
         await page.waitForTimeout(2_500);
       } else if (hasEmailInput) {
-        emitStep(taskId, 2, `Nhập email ${email}`);
+        emitStep(taskId, 2, t ? t('progress.login.enteringEmail', { email }) : `Nhập email ${email}`);
         await emailInput.first().fill(email);
         await this.clickNext(page, '#identifierNext');
         await page.waitForTimeout(2_500);
       }
 
       // Password
-      emitStep(taskId, 3, 'Đợi page password...');
+      emitStep(taskId, 3, t ? t('progress.login.waitingPassword') : 'Đợi page password...');
       const passwordInput = page.locator('input[type="password"]');
       try {
         await passwordInput.first().waitFor({ state: 'visible', timeout: 15_000 });
       } catch {
-        emitStep(taskId, LOGIN_STEPS, 'Page password không xuất hiện — Google challenge');
+        emitStep(taskId, LOGIN_STEPS, t ? t('progress.login.passwordPageMissing') : 'Page password không xuất hiện — Google challenge');
         await this.dumpChallenge(page, 'password input không xuất hiện');
         return false;
       }
-      emitStep(taskId, 4, 'Đang nhập mật khẩu...');
+      emitStep(taskId, 4, t ? t('progress.login.enteringPassword') : 'Đang nhập mật khẩu...');
       await passwordInput.first().fill(password);
       await this.clickNext(page, '#passwordNext');
       await page.waitForTimeout(3_000);
 
       // 2FA
-      emitStep(taskId, 5, 'Đang chuyển sang trang Authenticator...');
+      emitStep(taskId, 5, t ? t('progress.login.switchingAuthenticator') : 'Đang chuyển sang trang Authenticator...');
       const onTotpPage = await this.gotoTotpStep(page);
       if (onTotpPage) {
         if (!totpSecret) {
-          emitStep(taskId, LOGIN_STEPS, 'Google bắt 2FA nhưng chưa có TOTP secret');
+          emitStep(taskId, LOGIN_STEPS, t ? t('progress.login.twoFANoSecret') : 'Google bắt 2FA nhưng chưa có TOTP secret');
           await this.dumpChallenge(page, 'Google bắt 2FA nhưng GOOGLE_TOTP_SECRET chưa cấu hình');
           return false;
         }
-        emitStep(taskId, 6, 'Đang lấy mã TOTP từ 2fa.live...');
+        emitStep(taskId, 6, t ? t('progress.login.fetchingTotp') : 'Đang lấy mã TOTP từ 2fa.live...');
         const code = await this.getTotpCode(totpSecret);
         if (!code) {
-          emitStep(taskId, LOGIN_STEPS, '2fa.live trả mã không hợp lệ');
+          emitStep(taskId, LOGIN_STEPS, t ? t('progress.login.invalidTotp') : '2fa.live trả mã không hợp lệ');
           return false;
         }
-        emitStep(taskId, 7, `Đang nhập mã 6 số: ${code}`);
+        emitStep(taskId, 7, t ? t('progress.login.enteringTotp', { code }) : `Đang nhập mã 6 số: ${code}`);
         const totpInput = page.locator('input#totpPin, input[name="totpPin"], input[type="tel"]').first();
         await totpInput.fill(code);
         await this.clickNext(page, '#totpNext');

@@ -132,7 +132,7 @@ export class EmailController {
       }
 
       // Run in background
-      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, scope.adminId, selectedKocIds).catch(err => {
+      EmailController.runSendRevenueEmails(month, taskId, req.user?.userId || null, scope.adminId, selectedKocIds, t).catch(err => {
         ProgressService.error(taskId, err.message);
       });
     } catch (error) {
@@ -143,13 +143,13 @@ export class EmailController {
   /**
    * Background method to send revenue emails with progress
    */
-  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null, adminId?: string, kocIds?: string[]): Promise<void> {
+  private static async runSendRevenueEmails(month: string, taskId: string, userId: string | null, adminId?: string, kocIds?: string[], t?: (key: string, opts?: Record<string, unknown>) => string): Promise<void> {
     try {
       const results = await EmailService.sendAllRevenueEmails(month, adminId, (step, total, kocName) => {
         const percent = Math.round((step / total) * 100);
         ProgressService.emit(taskId, {
           step, total, percent,
-          message: `Sending email to ${kocName} (${step}/${total})`,
+          message: t ? t('progress.sendingEmail', { name: kocName, current: step, total }) : `Sending email to ${kocName} (${step}/${total})`,
         });
       }, kocIds);
 

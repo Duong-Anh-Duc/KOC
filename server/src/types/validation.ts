@@ -93,6 +93,7 @@ export const createRevenueRecordSchema = z.object({
 export const updateRevenueRecordSchema = z.object({
   original_revenue_usd: z.number().min(0).optional(),
   us_tax_deduction: z.number().min(0).optional(),
+  accumulated_revenue_usd: z.number().min(0).optional(),
 });
 
 export const bulkCreateRevenueRecordSchema = z.object({

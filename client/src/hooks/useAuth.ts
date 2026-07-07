@@ -14,8 +14,9 @@ export const useLogin = () => {
       setAuth(user, token);
       toastSuccess('loginSuccess');
     },
-    onError: () => {
-      toastError('loginError');
+    onError: (error: any) => {
+      const message = error?.response?.data?.message;
+      toastError('loginError', message);
     },
   });
 };

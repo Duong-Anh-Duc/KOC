@@ -7,7 +7,7 @@ import type {
     UpdateCycleInput,
     UpdateRevenueRecordInput,
 } from '../types';
-import { toastError, toastSuccess } from '../utils';
+import { getApiErrorMessage, toastError, toastSuccess } from '../utils';
 
 // ============================================================
 // REVENUE CYCLES
@@ -85,8 +85,8 @@ export const useLockCycle = () => {
       queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
       toastSuccess('cycleLockSuccess');
     },
-    onError: () => {
-      toastError('cycleLockError');
+    onError: (error) => {
+      toastError('cycleLockError', getApiErrorMessage(error));
     },
   });
 };
@@ -100,8 +100,8 @@ export const useReopenCycle = () => {
       queryClient.invalidateQueries({ queryKey: [CYCLES_KEY] });
       toastSuccess('cycleReopenSuccess');
     },
-    onError: () => {
-      toastError('cycleReopenError');
+    onError: (error) => {
+      toastError('cycleReopenError', getApiErrorMessage(error));
     },
   });
 };
@@ -304,8 +304,8 @@ export const useUnapproveRecord = () => {
       queryClient.invalidateQueries({ queryKey: ['payment-status'] });
       toastSuccess('revenueUnapproveSuccess');
     },
-    onError: () => {
-      toastError('revenueUnapproveError');
+    onError: (error) => {
+      toastError('revenueUnapproveError', getApiErrorMessage(error));
     },
   });
 };

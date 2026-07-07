@@ -590,7 +590,7 @@ export class SocialBladeService {
    * Same as recordAllStats but emits SSE progress events via ProgressService.
    * Batch 3 tabs at a time.
    */
-  static async recordAllStatsWithProgress(taskId: string, adminId?: string, allowedKocIds?: string[]) {
+  static async recordAllStatsWithProgress(taskId: string, adminId?: string, allowedKocIds?: string[], t?: (key: string, opts?: Record<string, unknown>) => string) {
     const kocs = await prisma.kOC.findMany({
       where: {
         status: 'ACTIVE',
@@ -621,7 +621,7 @@ export class SocialBladeService {
       step: 0,
       total: total * 2,
       percent: 0,
-      message: `Bắt đầu cào ${total} KOC, mỗi batch ${BATCH_SIZE} tab...`,
+      message: t ? t('progress.sbStart', { count: total, batch: BATCH_SIZE }) : `Bắt đầu cào ${total} KOC, mỗi batch ${BATCH_SIZE} tab...`,
     });
 
     const context = await YouTubeScraperService.getContext(false, adminId);
@@ -707,7 +707,7 @@ export class SocialBladeService {
           const text = await entry.page.evaluate('document.body.innerText').catch(() => '') as string;
           entry.countryData = this.parseCountryExploreText(text);
           progressUnits += 1;
-          emitProgress(`Country data: ${entry.koc.channel_name}`);
+          emitProgress(t ? t('progress.sbCountryData', { name: entry.koc.channel_name }) : `Country data: ${entry.koc.channel_name}`);
           logger.info(`Country data extracted for ${entry.koc.channel_name}`);
         } catch (err: any) {
           entry.error = `Country extract failed: ${err.message}`;
@@ -734,7 +734,7 @@ export class SocialBladeService {
           errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: entry.error });
           logScrapeError('28d-stats', entry.koc.channel_name, entry.error);
           progressUnits += entry.countryData ? 1 : 2;
-          emitProgress(`Lỗi ${entry.koc.channel_name}: ${entry.error}`);
+          emitProgress(t ? t('progress.sbError', { name: entry.koc.channel_name, error: entry.error }) : `Lỗi ${entry.koc.channel_name}: ${entry.error}`);
           try { await entry.page.close(); } catch { /* ignore */ }
           continue;
         }
@@ -762,12 +762,12 @@ export class SocialBladeService {
 
           results.push(entry.koc.id);
           progressUnits += 1;
-          emitProgress(`Đã lưu: ${entry.koc.channel_name} (${results.length}/${total})`);
+          emitProgress(t ? t('progress.sbSaved', { name: entry.koc.channel_name, current: results.length, total }) : `Đã lưu: ${entry.koc.channel_name} (${results.length}/${total})`);
           logger.info(`28d stats saved for ${entry.koc.channel_name} (${results.length}/${total})`);
         } catch (err: any) {
           errors.push({ kocId: entry.koc.id, channelName: entry.koc.channel_name, error: String(err) });
           progressUnits += 1; // Phase day fail — vẫn count progress
-          emitProgress(`Lỗi save ${entry.koc.channel_name}`);
+          emitProgress(t ? t('progress.sbSaveError', { name: entry.koc.channel_name }) : `Lỗi save ${entry.koc.channel_name}`);
           logger.error(`Failed to save stats for ${entry.koc.channel_name}: ${err}`);
           logScrapeError('28d-stats', entry.koc.channel_name, err);
           this.write28DayLog(entry.koc.youtube_channel_id, entry.koc.channel_name, null, String(err));

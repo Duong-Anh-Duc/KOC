@@ -1,9 +1,10 @@
 import type { ProgressState } from '@/hooks/useProgress';
-import { CloseOutlined } from '@ant-design/icons';
+import { CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import { Button, Typography } from 'antd';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../stores';
 
 const { Text } = Typography;
 
@@ -15,6 +16,7 @@ interface TaskProgressBarProps {
 
 const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, style }) => {
   const { t } = useTranslation();
+  const darkMode = useAppStore((s) => s.darkMode);
 
   if (!state.active && !state.completed && !state.error) {
     return null;
@@ -22,63 +24,72 @@ const TaskProgressBar: React.FC<TaskProgressBarProps> = ({ state, onDismiss, sty
 
   const percent = state.progress?.percent ?? 0;
   const message = state.progress?.message || '';
-  const stepInfo = state.progress ? `${state.progress.step}/${state.progress.total}` : '';
+  // Only show step info when there is a meaningful total (avoids "(0/0)").
+  const stepInfo = state.progress && (state.progress.total ?? 0) > 0
+    ? `${state.progress.step}/${state.progress.total}`
+    : '';
 
   const errorText = state.error
     ? (state.error.startsWith('progress.') ? t(state.error) : state.error)
     : '';
 
-  // --- Active: full-page loading overlay (portal to body to escape transform containers) ---
+  // --- Active: floating widget at bottom-right (does NOT block the screen) ---
+  // Portal to body so it escapes any transform/overflow containers.
   if (state.active) {
+    const pct = Math.max(0, Math.min(100, Math.round(percent)));
     return createPortal(
       <div
         style={{
           position: 'fixed',
-          inset: 0,
+          right: 24,
+          bottom: 24,
           zIndex: 2000,
-          background: 'rgba(0, 0, 0, 0.38)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 24,
+          width: 300,
+          maxWidth: 'calc(100vw - 32px)',
+          background: darkMode ? '#1f1f1f' : '#ffffff',
+          border: `1px solid ${darkMode ? '#303030' : '#e8e8e8'}`,
+          borderRadius: 12,
+          boxShadow: '0 6px 24px rgba(0,0,0,0.25)',
+          padding: 16,
         }}
       >
-        {/* Percentage circle */}
-        <div
-          style={{
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)',
-            border: '3px solid rgba(255,255,255,0.3)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span style={{ fontSize: 32, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-            {Math.round(percent)}%
-          </span>
+        {/* Header: spinner + title + percent */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <LoadingOutlined style={{ color: '#1677ff', fontSize: 16 }} spin />
+          <Text strong style={{ fontSize: 13, flex: 1, color: darkMode ? '#fff' : undefined }}>
+            {t('progress.processing', 'Đang xử lý...')}
+          </Text>
+          <Text strong style={{ fontSize: 15, color: '#1677ff' }}>{pct}%</Text>
         </div>
 
         {/* Progress bar */}
-        <div style={{ width: 320 }}>
-          <div className="native-progress-track">
-            <div className="native-progress-fill" style={{ width: `${Math.max(0, Math.min(100, Math.round(percent)))}%` }} />
-          </div>
+        <div className="native-progress-track">
+          <div className="native-progress-fill" style={{ width: `${pct}%` }} />
         </div>
 
         {/* Message + step */}
-        <div style={{ textAlign: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 15, display: 'block' }}>{message}</Text>
-          {stepInfo && (
-            <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
-              ({stepInfo})
+        {(message || stepInfo) && (
+          <div style={{ marginTop: 8 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                color: darkMode ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.65)',
+                display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={message}
+            >
+              {message}
             </Text>
-          )}
-        </div>
+            {stepInfo && (
+              <Text style={{ fontSize: 11, color: darkMode ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}>
+                ({stepInfo})
+              </Text>
+            )}
+          </div>
+        )}
       </div>,
       document.body
     );

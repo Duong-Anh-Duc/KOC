@@ -25,6 +25,10 @@ export class AuthService {
       throw new ApiError(401, 'auth.loginFailed');
     }
 
+    if (user.is_ban) {
+      throw new ApiError(403, 'auth.accountSuspended');
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       throw new ApiError(401, 'auth.loginFailed');
@@ -71,6 +75,7 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.is_active) throw new ApiError(401, 'auth.unauthorized');
+    if (user.is_ban) throw new ApiError(403, 'auth.accountSuspended');
 
     // Rotate: delete old, issue new
     await RefreshTokenStore.del(refreshToken);
@@ -208,7 +213,7 @@ export class AuthService {
         ...(data.full_name !== undefined ? { full_name: data.full_name } : {}),
         ...(data.email !== undefined ? { email: data.email } : {}),
       },
-      select: { id: true, email: true, full_name: true, role: true, is_active: true, koc_id: true, avatar_url: true, created_at: true },
+      select: { id: true, email: true, full_name: true, role: true, is_active: true, is_ban: true, koc_id: true, avatar_url: true, created_at: true },
     });
 
     return updated;
@@ -243,6 +248,7 @@ export class AuthService {
         full_name: true,
         role: true,
         is_active: true,
+        is_ban: true,
         koc_id: true,
         avatar_url: true,
         created_at: true,
@@ -262,6 +268,7 @@ export class AuthService {
   static async requestPasswordReset(email: string): Promise<void> {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new ApiError(404, 'auth.emailNotFound');
+    if (user.is_ban) throw new ApiError(403, 'auth.accountSuspended');
 
     // Generate 6-digit OTP and store in Redis (overwrites any existing)
     const otp = crypto.randomInt(100000, 999999).toString();
@@ -318,7 +325,7 @@ export class AuthService {
     const [data, total, activeCount, accountantCount, viewerCount] = await Promise.all([
       prisma.user.findMany({
         where,
-        select: { id: true, email: true, full_name: true, role: true, is_active: true, created_at: true },
+        select: { id: true, email: true, full_name: true, role: true, is_active: true, is_ban: true, created_at: true },
         orderBy: { created_at: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -342,7 +349,7 @@ export class AuthService {
     return prisma.user.update({
       where: { id: userId },
       data: { is_active },
-      select: { id: true, email: true, full_name: true, role: true, is_active: true },
+      select: { id: true, email: true, full_name: true, role: true, is_active: true, is_ban: true },
     });
   }
 
@@ -363,7 +370,7 @@ export class AuthService {
     return prisma.user.update({
       where: { id: userId },
       data: { ...data },
-      select: { id: true, email: true, full_name: true, role: true, is_active: true },
+      select: { id: true, email: true, full_name: true, role: true, is_active: true, is_ban: true },
     });
   }
 
@@ -397,6 +404,7 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new ApiError(404, 'auth.userNotFound');
+    if (user.is_ban) throw new ApiError(403, 'auth.accountSuspended');
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await prisma.user.update({

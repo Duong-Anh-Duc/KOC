@@ -1,5 +1,5 @@
 ﻿import type { PaymentStatusMap, RevenueRecord } from '@/types';
-import { formatUSD, formatVND } from '@/utils';
+import { confirmAction, formatUSD, formatVND } from '@/utils';
 import {
     BarChartOutlined,
     CheckCircleOutlined,
@@ -31,6 +31,7 @@ export interface RevenueColumnsParams {
   paymentStatus?: PaymentStatusMap;
   onViewDetail: (kocId: string) => void;
   onViewMonthly: (record: RevenueRecord) => void;
+  onViewAccumulated?: (record: RevenueRecord) => void;
 }
 
 export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<RevenueRecord> {
@@ -48,6 +49,7 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
     paymentStatus,
     onViewDetail,
     onViewMonthly,
+    onViewAccumulated,
   } = params;
 
   return [
@@ -133,10 +135,19 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
           return <Text type="secondary">-</Text>;
         }
         const acc = Number(val || 0);
+        const clickable = !!onViewAccumulated && acc !== 0;
         return (
-          <AppTooltip title={paymentStatus?.[record.koc_id]?.accumulatedMonths?.map(m => `${m.month}: $${m.revenue.toFixed(2)}`).join(' + ') || ''}>
-            <Text strong style={{ color: acc > 0 ? '#722ed1' : undefined }}>{formatUSD(acc)}</Text>
-          </AppTooltip>
+          <Text
+            strong
+            onClick={clickable ? () => onViewAccumulated!(record) : undefined}
+            style={{
+              color: acc > 0 ? '#722ed1' : undefined,
+              cursor: clickable ? 'pointer' : undefined,
+              textDecoration: clickable ? 'underline dotted' : undefined,
+            }}
+          >
+            {formatUSD(acc)}
+          </Text>
         );
       },
     },
@@ -346,21 +357,20 @@ export function getRevenueColumns(params: RevenueColumnsParams): ColumnsType<Rev
             );
           })()}
           {canApprove && record.status === 'APPROVED' && onUnapprove && (
-            <Popconfirm
-              title={t('confirm.unapprove')}
-              onConfirm={() => onUnapprove(record.id)}
-              okText={t('common.yes')}
-              cancelText={t('common.no')}
-            >
-              <AppTooltip title={t('revenue.unapprove')}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
-                  style={{ padding: '4px 8px' }}
-                />
-              </AppTooltip>
-            </Popconfirm>
+            <AppTooltip title={t('revenue.unapprove')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+                onClick={() => confirmAction({
+                  title: t('confirm.unapprove'),
+                  okText: t('common.yes'),
+                  cancelText: t('common.no'),
+                  onConfirm: () => onUnapprove(record.id),
+                })}
+                style={{ padding: '4px 8px' }}
+              />
+            </AppTooltip>
           )}
           {canDelete && !cycleLocked && onDelete && (
             <Popconfirm
